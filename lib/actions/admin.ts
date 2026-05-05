@@ -86,9 +86,9 @@ export async function createTenantAction(
       status: "active",
       workflow_template: parsed.data.workflow_template,
       gateway: parsed.data.gateway,
-      gateway_config: gatewayConfig,
+      gateway_config: gatewayConfig as never,
       prompt_template: template.promptTemplate,
-      prompt_variables: seededVariables,
+      prompt_variables: seededVariables as never,
     })
     .select("id, slug")
     .single();
