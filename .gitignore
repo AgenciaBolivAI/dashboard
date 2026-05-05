@@ -6,4 +6,3 @@ node_modules
 *.log
 .vercel
 next-env.d.ts
-types/database.ts
