@@ -47,7 +47,7 @@ export async function updateBrandingAction(
       primary_color: parsed.data.primary_color,
       accent_color: parsed.data.accent_color,
       custom_domain: parsed.data.custom_domain,
-    })
+    } as never)
     .eq("id", parsed.data.tenant_id);
 
   if (error) {
