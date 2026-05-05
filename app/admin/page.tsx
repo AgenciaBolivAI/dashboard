@@ -28,7 +28,7 @@ export default async function AdminIndex() {
     .select("id, slug, name, industry, plan, status, workflow_template, gateway, gateway_config, language, created_at")
     .order("created_at", { ascending: false });
 
-  const rows = (tenants ?? []) as AdminTenantRow[];
+  const rows = (tenants ?? []) as unknown as AdminTenantRow[];
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
