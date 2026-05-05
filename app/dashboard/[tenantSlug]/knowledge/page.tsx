@@ -1,0 +1,118 @@
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { getTenantBySlug } from "@/lib/tenant";
+import {
+  listKnowledge,
+  listSources,
+  getKnowledgeStats,
+  type KnowledgeType,
+} from "@/lib/queries/knowledge";
+import { KnowledgeManager } from "@/components/knowledge/knowledge-manager";
+import { cn } from "@/lib/utils";
+
+const TABS: { id: KnowledgeType; label: string; sub: string }[] = [
+  { id: "documents", label: "FAQ", sub: "Precios, horarios, políticas" },
+  { id: "pain", label: "Clínico", sub: "Síntomas, diagnósticos" },
+];
+
+export default async function KnowledgePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tenantSlug: string }>;
+  searchParams: Promise<{ type?: string }>;
+}) {
+  const { tenantSlug } = await params;
+  const { type: typeParam } = await searchParams;
+  const type: KnowledgeType = typeParam === "pain" ? "pain" : "documents";
+
+  const tenant = await getTenantBySlug(tenantSlug);
+  const [chunks, sources, stats] = await Promise.all([
+    listKnowledge(tenant.id, type),
+    listSources(tenant.id, type),
+    getKnowledgeStats(tenant.id),
+  ]);
+
+  return (
+    <div className="p-6 md:p-8 max-w-6xl">
+      <div className="mb-6">
+        <h1 className="text-3xl font-display font-extrabold tracking-tight">
+          Conocimiento
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Sube documentos o agrega chunks manualmente. El agente recupera
+          estos resultados por similitud para responder y diagnosticar.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <StatCard label="FAQ chunks" value={stats.documentsCount} />
+        <StatCard label="Clínicos chunks" value={stats.painCount} />
+        <StatCard
+          label="Fuentes únicas"
+          value={stats.sourcesCount}
+          href="#sources"
+        />
+      </div>
+
+      <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto">
+        {TABS.map((t) => {
+          const active = t.id === type;
+          return (
+            <Link
+              key={t.id}
+              href={`/dashboard/${tenantSlug}/knowledge?type=${t.id}`}
+              className={cn(
+                "px-4 py-2 text-sm font-medium whitespace-nowrap transition border-b-2 -mb-px",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+              <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {t.sub}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      <KnowledgeManager
+        tenantId={tenant.id}
+        type={type}
+        chunks={chunks}
+        sources={sources}
+      />
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: number;
+  href?: string;
+}) {
+  const inner = (
+    <Card
+      className={cn(
+        "transition",
+        href && "hover:border-border-bright hover:bg-secondary/30 cursor-pointer",
+      )}
+    >
+      <CardContent className="pt-5">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <p className="mt-1 font-display text-2xl font-extrabold">
+          {value.toLocaleString("es")}
+        </p>
+      </CardContent>
+    </Card>
+  );
+  return href ? <a href={href}>{inner}</a> : inner;
+}
