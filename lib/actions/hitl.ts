@@ -15,20 +15,38 @@ async function loadConversationContext(conversationId: string) {
     .from("conversations")
     .select(
       `id, tenant_id, user_id, hitl_taken_over,
-       tenants:tenant_id ( id, slug, evolution_instance ),
+       tenants:tenant_id ( id, slug, gateway, gateway_config ),
        users:user_id ( id, whatsapp_number )`,
     )
     .eq("id", conversationId)
     .maybeSingle();
 
-  if (error || !data) throw new Error("Conversación no encontrada");
-  return data as unknown as {
+  if (error) throw new Error(`Error cargando conversación: ${error.message}`);
+  if (!data) throw new Error("Conversación no encontrada");
+
+  const row = data as unknown as {
     id: string;
     tenant_id: string;
     user_id: string;
     hitl_taken_over: boolean;
-    tenants: { id: string; slug: string; evolution_instance: string | null };
+    tenants: {
+      id: string;
+      slug: string;
+      gateway: string | null;
+      gateway_config: Record<string, unknown> | null;
+    };
     users: { id: string; whatsapp_number: string };
+  };
+
+  // Pull the Evolution instance out of gateway_config (the new home for it).
+  const evolutionInstance =
+    row.tenants?.gateway === "evolution"
+      ? (row.tenants?.gateway_config?.instance as string | undefined) ?? null
+      : null;
+
+  return {
+    ...row,
+    tenants: { ...row.tenants, evolution_instance: evolutionInstance },
   };
 }
 
@@ -39,24 +57,29 @@ export async function takeoverAction(conversationId: string): Promise<HitlState>
     const ctx = await loadConversationContext(conversationId);
     await requireTenantAccess(ctx.tenant_id, { minRole: "operator" });
 
-    // Use service-role client: auth has already been verified above, and
-    // RLS on conversations does not grant UPDATE to operators by default.
-    // With the anon client the update silently affected 0 rows and the
-    // n8n workflow kept seeing hitl_taken_over = false.
+    // Service-role client bypasses RLS — auth was already verified above.
+    // Operators don't have an UPDATE policy on conversations, which is why
+    // the previous anon-client write silently affected 0 rows.
     const svc = createServiceClient();
-    const { data, error } = await svc
+    const { error } = await svc
       .from("conversations")
       .update({
         hitl_taken_over: true,
         hitl_operator_id: user.id,
         hitl_taken_over_at: new Date().toISOString(),
       })
-      .eq("id", conversationId)
-      .select("id");
+      .eq("id", conversationId);
 
     if (error) return { error: error.message };
-    if (!data || data.length === 0) {
-      return { error: "No se pudo tomar el control (conversación no encontrada)" };
+
+    // Verify the column actually changed (defensive: surfaces silent failures).
+    const { data: check } = await svc
+      .from("conversations")
+      .select("hitl_taken_over")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (!check?.hitl_taken_over) {
+      return { error: "El control no quedó registrado. Intenta de nuevo." };
     }
 
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations/${conversationId}`);
@@ -75,20 +98,16 @@ export async function releaseAction(conversationId: string): Promise<HitlState> 
     await requireTenantAccess(ctx.tenant_id, { minRole: "operator" });
 
     const svc = createServiceClient();
-    const { data, error } = await svc
+    const { error } = await svc
       .from("conversations")
       .update({
         hitl_taken_over: false,
         hitl_operator_id: null,
         hitl_taken_over_at: null,
       })
-      .eq("id", conversationId)
-      .select("id");
+      .eq("id", conversationId);
 
     if (error) return { error: error.message };
-    if (!data || data.length === 0) {
-      return { error: "No se pudo liberar (conversación no encontrada)" };
-    }
 
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations/${conversationId}`);
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations`);
