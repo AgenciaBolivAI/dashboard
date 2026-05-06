@@ -3,9 +3,10 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BolivAI",
+  title: "BolivAI Cloud",
   description: "Panel de gestión de tus agentes de IA — BolivAI",
-  icons: { icon: "/logo.png" },
+  // Next.js auto-detects app/icon.svg and serves it as the favicon.
+  // The explicit `icons` field is no longer needed.
 };
 
 export default function RootLayout({
