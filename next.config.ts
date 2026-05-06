@@ -9,6 +9,7 @@ const config: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co" },
+      { protocol: "https", hostname: "bolivai.cloud" },
       { protocol: "https", hostname: "bolivai.com" },
     ],
   },

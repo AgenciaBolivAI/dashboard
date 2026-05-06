@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { sendText } from "@/lib/evolution";
@@ -40,17 +39,25 @@ export async function takeoverAction(conversationId: string): Promise<HitlState>
     const ctx = await loadConversationContext(conversationId);
     await requireTenantAccess(ctx.tenant_id, { minRole: "operator" });
 
-    const supabase = await createClient();
-    const { error } = await supabase
+    // Use service-role client: auth has already been verified above, and
+    // RLS on conversations does not grant UPDATE to operators by default.
+    // With the anon client the update silently affected 0 rows and the
+    // n8n workflow kept seeing hitl_taken_over = false.
+    const svc = createServiceClient();
+    const { data, error } = await svc
       .from("conversations")
       .update({
         hitl_taken_over: true,
         hitl_operator_id: user.id,
         hitl_taken_over_at: new Date().toISOString(),
       })
-      .eq("id", conversationId);
+      .eq("id", conversationId)
+      .select("id");
 
     if (error) return { error: error.message };
+    if (!data || data.length === 0) {
+      return { error: "No se pudo tomar el control (conversación no encontrada)" };
+    }
 
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations/${conversationId}`);
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations`);
@@ -67,17 +74,21 @@ export async function releaseAction(conversationId: string): Promise<HitlState> 
     const ctx = await loadConversationContext(conversationId);
     await requireTenantAccess(ctx.tenant_id, { minRole: "operator" });
 
-    const supabase = await createClient();
-    const { error } = await supabase
+    const svc = createServiceClient();
+    const { data, error } = await svc
       .from("conversations")
       .update({
         hitl_taken_over: false,
         hitl_operator_id: null,
         hitl_taken_over_at: null,
       })
-      .eq("id", conversationId);
+      .eq("id", conversationId)
+      .select("id");
 
     if (error) return { error: error.message };
+    if (!data || data.length === 0) {
+      return { error: "No se pudo liberar (conversación no encontrada)" };
+    }
 
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations/${conversationId}`);
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations`);
@@ -123,9 +134,9 @@ export async function sendOperatorMessageAction(
     // Send via Evolution
     await sendText(instance, ctx.users.whatsapp_number, parsed.data.text);
 
-    // Persist to chat_history
-    const supabase = await createClient();
-    const { error: insertErr } = await supabase.from("chat_history").insert({
+    // Persist to chat_history (service role — auth already verified above)
+    const svc = createServiceClient();
+    const { error: insertErr } = await svc.from("chat_history").insert({
       tenant_id: ctx.tenant_id,
       conversation_id: ctx.id,
       user_id: ctx.user_id,
@@ -137,7 +148,7 @@ export async function sendOperatorMessageAction(
     if (insertErr) return { error: insertErr.message };
 
     // Bump conversation timestamp
-    await supabase
+    await svc
       .from("conversations")
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", ctx.id);
