@@ -68,7 +68,8 @@ export function AdminsManager({ staff }: { staff: StaffRow[] }) {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            La persona debe haberse registrado primero con su email en /signup.
+            La cuenta del email debe existir. Créala en Supabase → Auth → Users,
+            o invita a la persona a cualquier tenant primero.
           </p>
         </form>
       </section>

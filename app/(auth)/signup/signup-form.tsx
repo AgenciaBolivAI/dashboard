@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,12 +20,14 @@ export function SignUpForm({
 
   if (state.success) {
     return (
-      <div className="space-y-3 text-sm">
-        <p className="font-medium text-foreground">Revisa tu email.</p>
+      <div className="space-y-4 text-sm">
+        <p className="font-medium text-foreground">¡Cuenta creada!</p>
         <p className="text-muted-foreground">
-          Te enviamos un enlace de confirmación. Una vez confirmes,
-          podrás iniciar sesión.
+          Ya puedes iniciar sesión con tu email y contraseña.
         </p>
+        <Button asChild className="w-full">
+          <Link href="/login">Ir a iniciar sesión</Link>
+        </Button>
       </div>
     );
   }

@@ -36,6 +36,10 @@ export async function signInAction(_prev: AuthState, formData: FormData): Promis
 }
 
 // ─── Sign up ─────────────────────────────────────────────────────────
+// Invitation-only: signup is rejected unless an invitation_token is present.
+// The token authenticates that the email was authorized by a tenant admin.
+// Account creation goes through the admin API so it works even when public
+// signups are disabled at the Supabase project level.
 const signUpSchema = z
   .object({
     email: z.string().email("Email inválido"),
@@ -54,22 +58,61 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email: parsed.data.email,
+  if (!parsed.data.invitation_token) {
+    return {
+      error:
+        "BolivAI es por invitación. Pide a tu equipo que te envíe un enlace de invitación, o contáctanos.",
+    };
+  }
+
+  const svc = createServiceClient();
+  const email = parsed.data.email.toLowerCase();
+
+  // Validate the invitation BEFORE creating any account
+  const { data: invitation } = await svc
+    .from("invitations")
+    .select("id, tenant_id, role, email, expires_at, accepted_at")
+    .eq("token", parsed.data.invitation_token)
+    .maybeSingle();
+
+  if (!invitation) return { error: "Invitación inválida" };
+  if (invitation.accepted_at) return { error: "Esta invitación ya fue usada" };
+  if (new Date(invitation.expires_at as string) < new Date()) {
+    return { error: "Esta invitación expiró" };
+  }
+  if ((invitation.email as string).toLowerCase() !== email) {
+    return { error: "El email no coincide con el de la invitación" };
+  }
+
+  // Create the auth user via admin API. Pre-confirm email — the invite itself
+  // is the proof of email ownership, so they skip the confirmation step.
+  let userId: string | null = null;
+  const { data: created, error: createErr } = await svc.auth.admin.createUser({
+    email,
     password: parsed.data.password,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-    },
+    email_confirm: true,
   });
 
-  if (error) return { error: error.message };
-  if (!data.user) return { error: "No se pudo crear la cuenta" };
-
-  // If invitation token, accept it now (idempotent — the token row gets marked accepted)
-  if (parsed.data.invitation_token) {
-    await acceptInvitationFor(data.user.id, parsed.data.invitation_token);
+  if (created?.user?.id) {
+    userId = created.user.id;
+  } else if (createErr) {
+    // Email may already exist (e.g., user previously signed up before lockdown,
+    // or already a member of another tenant). Look them up and proceed.
+    const msg = createErr.message?.toLowerCase() ?? "";
+    if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
+      const { data: list } = await svc.auth.admin.listUsers({ page: 1, perPage: 200 });
+      const match = list?.users?.find((u) => u.email?.toLowerCase() === email);
+      if (!match) return { error: "Esta cuenta ya existe. Inicia sesión normalmente." };
+      userId = match.id;
+    } else {
+      return { error: createErr.message };
+    }
   }
+
+  if (!userId) return { error: "No se pudo crear la cuenta" };
+
+  // Attach to tenant + mark invitation accepted
+  await acceptInvitationFor(userId, parsed.data.invitation_token);
 
   return { error: null, success: true };
 }

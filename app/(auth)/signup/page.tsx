@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { createServiceClient } from "@/lib/supabase/service";
 import { SignUpForm } from "./signup-form";
 
@@ -12,7 +13,7 @@ export default async function SignUpPage({
 }) {
   const { token } = await searchParams;
 
-  // If a token is provided, look up the invitation to pre-fill email + tenant context
+  // Invitation-only: without a valid token, show a dead-end "request invite" page.
   let invitation: { email: string; tenant_name: string } | null = null;
   if (token) {
     const svc = createServiceClient();
@@ -30,18 +31,44 @@ export default async function SignUpPage({
     }
   }
 
+  if (!invitation) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Solo por invitación</CardTitle>
+          <CardDescription>
+            BolivAI Cloud es por invitación. Pide a tu equipo que te envíe un
+            enlace de invitación, o contáctanos para empezar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button asChild className="w-full">
+            <a
+              href="https://wa.me/19703910466?text=Hola%20BolivAI%2C%20quiero%20una%20cuenta%20para%20mi%20negocio"
+              target="_blank"
+              rel="noopener"
+            >
+              Contactar por WhatsApp
+            </a>
+          </Button>
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/login">Ya tengo cuenta</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Crear cuenta</CardTitle>
         <CardDescription>
-          {invitation
-            ? `Te invitaron a unirte a ${invitation.tenant_name}.`
-            : "Crea tu cuenta para empezar a gestionar tu agente."}
+          Te invitaron a unirte a {invitation.tenant_name}.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <SignUpForm invitationToken={token} prefilledEmail={invitation?.email} />
+        <SignUpForm invitationToken={token} prefilledEmail={invitation.email} />
         <div className="mt-6 text-xs text-muted-foreground">
           ¿Ya tienes cuenta?{" "}
           <Link href="/login" className="text-foreground hover:underline">

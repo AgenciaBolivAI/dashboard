@@ -12,7 +12,8 @@ export default async function AdminUsersPage() {
           <CardTitle>Equipo BolivAI</CardTitle>
           <CardDescription>
             Personas con acceso transversal a todos los tenants. Promueve a alguien
-            por email — primero deben tener cuenta creada en /signup.
+            por email — la cuenta debe existir antes (créala en Supabase → Auth → Users,
+            o invita a la persona a un tenant primero).
           </CardDescription>
         </CardHeader>
         <CardContent>
