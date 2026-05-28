@@ -3,6 +3,7 @@ import { requireUser, requireTenantAccess, isBolivAIAdmin } from "@/lib/auth";
 import { getTenantBySlug, getMyTenants } from "@/lib/tenant";
 import { Sidebar } from "@/components/shell/sidebar";
 import { TenantSwitcher, type TenantOption } from "@/components/shell/tenant-switcher";
+import { MobileNav } from "@/components/shell/mobile-nav";
 import { UserMenu } from "@/components/shell/user-menu";
 import { Separator } from "@/components/ui/separator";
 import { hslVar, readableForeground } from "@/lib/color";
@@ -130,9 +131,20 @@ export default async function TenantLayout({
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-card">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">{tenant.name}</span>
+        <header className="h-16 border-b border-border flex items-center justify-between px-4 md:px-6 bg-card">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            <MobileNav
+              current={{
+                id: tenant.id,
+                slug: tenant.slug,
+                name: tenant.name,
+                logo_url: tenant.logo_url,
+                primary_color: tenant.primary_color,
+              }}
+              options={tenantOptions}
+              isAdmin={isAdmin}
+            />
+            <span className="text-sm text-muted-foreground truncate">{tenant.name}</span>
           </div>
           <UserMenu email={user.email ?? "—"} />
         </header>

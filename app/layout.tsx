@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Instrument_Sans, Syne } from "next/font/google";
 import { Toaster } from "sonner";
@@ -29,6 +29,12 @@ export const metadata: Metadata = {
   description: "Panel de gestión de tus agentes de IA — BolivAI",
   // Next.js auto-detects app/icon.svg and serves it as the favicon.
   // The explicit `icons` field is no longer needed.
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
