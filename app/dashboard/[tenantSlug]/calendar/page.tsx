@@ -4,9 +4,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
-import { getWeekCalendar, type Reservation, type Slot, type Staffer } from "@/lib/queries/calendar";
+import {
+  getWeekCalendar,
+  getAvailableFutureSlots,
+  type Reservation,
+  type Slot,
+} from "@/lib/queries/calendar";
 import { SlotGenerator } from "@/components/calendar/slot-generator";
 import { SlotChip } from "@/components/calendar/slot-editor";
+import { ReservationCard } from "@/components/calendar/reservation-editor";
 import { cn } from "@/lib/utils";
 
 const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -22,15 +28,6 @@ function startOfWeek(d: Date): Date {
   const diff = (day === 0 ? -6 : 1) - day; // Monday as start of week
   date.setUTCDate(date.getUTCDate() + diff);
   return date;
-}
-
-function fmtTime(iso: string, tz: string) {
-  return new Intl.DateTimeFormat("es-ES", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: tz,
-  }).format(new Date(iso));
 }
 
 function dayKey(iso: string, tz: string) {
@@ -62,10 +59,10 @@ export default async function CalendarPage({
     return d;
   });
 
-  const { slots, reservations, staff } = await getWeekCalendar(
-    tenant.id,
-    weekStart,
-  );
+  const [{ slots, reservations, staff }, availableFutureSlots] = await Promise.all([
+    getWeekCalendar(tenant.id, weekStart),
+    getAvailableFutureSlots(tenant.id),
+  ]);
 
   const tz = tenant.timezone;
   const slotsByDay = new Map<string, Slot[]>();
@@ -82,7 +79,6 @@ export default async function CalendarPage({
     reservationsByDay.get(k)!.push(r);
   }
 
-  const staffById = new Map<string, Staffer>(staff.map((s) => [s.id, s]));
   const staffOptions = staff.map((s) => ({ id: s.id, name: s.name }));
 
   const prevWeek = new Date(weekStart);
@@ -180,30 +176,14 @@ export default async function CalendarPage({
 
                 <div className="p-2 flex-1 space-y-1.5 min-h-[160px]">
                   {dayReservations.map((r) => (
-                    <div
+                    <ReservationCard
                       key={r.id}
-                      className="rounded-md bg-primary/10 border border-primary/30 px-2 py-1.5 text-xs"
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-medium truncate">
-                          {r.customer_name ?? "Reserva"}
-                        </span>
-                        <Badge variant="success" className="shrink-0 text-[9px] px-1 py-0">
-                          {r.duration_minutes}m
-                        </Badge>
-                      </div>
-                      {r.service_name ? (
-                        <div className="text-foreground/80 mt-0.5 truncate">
-                          {r.service_name}
-                        </div>
-                      ) : null}
-                      <div className="text-muted-foreground mt-0.5">
-                        {fmtTime(r.start_at, tz)}
-                        {r.staff_id && staffById.get(r.staff_id) ? (
-                          <span> · {staffById.get(r.staff_id)!.name.split(" ")[0]}</span>
-                        ) : null}
-                      </div>
-                    </div>
+                      reservation={r}
+                      tenantId={tenant.id}
+                      tenantTimezone={tz}
+                      staff={staff}
+                      availableSlots={availableFutureSlots}
+                    />
                   ))}
 
                   {daySlots.slice(0, 8).map((s) => (

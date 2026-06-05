@@ -20,6 +20,7 @@ export type Reservation = {
   customer_phone: string | null;
   service_id: string | null;
   service_name: string | null;
+  notes: string | null;
 };
 
 export type Staffer = {
@@ -39,6 +40,7 @@ type RawReservationJoin = {
   customer_email: string | null;
   customer_phone: string | null;
   service_id: string | null;
+  notes: string | null;
   services: { name: string } | null;
 };
 
@@ -66,7 +68,7 @@ export async function getWeekCalendar(
     supabase
       .from("reservations")
       .select(
-        "id, staff_id, start_at, end_at, status, duration_minutes, customer_name, customer_email, customer_phone, service_id, services ( name )",
+        "id, staff_id, start_at, end_at, status, duration_minutes, customer_name, customer_email, customer_phone, service_id, notes, services ( name )",
       )
       .eq("tenant_id", tenantId)
       .neq("status", "cancelled")
@@ -95,6 +97,7 @@ export async function getWeekCalendar(
     customer_phone: r.customer_phone,
     service_id: r.service_id,
     service_name: r.services?.name ?? null,
+    notes: r.notes,
   }));
 
   return {
@@ -102,4 +105,31 @@ export async function getWeekCalendar(
     reservations,
     staff: (staffRes.data ?? []) as Staffer[],
   };
+}
+
+/**
+ * Available future slots for the reschedule picker. Pulls the next 30 days
+ * of slots that are still available, regardless of week being viewed.
+ */
+export async function getAvailableFutureSlots(
+  tenantId: string,
+  fromDate: Date = new Date(),
+  daysAhead = 30,
+): Promise<Slot[]> {
+  const supabase = await createClient();
+  const start = new Date(fromDate);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + daysAhead);
+
+  const { data } = await supabase
+    .from("calendar_slots")
+    .select("id, staff_id, start_at, end_at, is_available")
+    .eq("tenant_id", tenantId)
+    .eq("is_available", true)
+    .gte("start_at", start.toISOString())
+    .lt("start_at", end.toISOString())
+    .order("start_at");
+
+  return (data ?? []) as Slot[];
 }

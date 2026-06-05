@@ -264,3 +264,104 @@ export async function updateSlotAction(
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }
+
+// ─── Reservation actions ────────────────────────────────────────────
+
+const updateNotesSchema = z.object({
+  tenant_id: z.string().uuid(),
+  reservation_id: z.string().uuid(),
+  notes: z.string().max(2000),
+});
+
+export async function updateReservationNotesAction(
+  _prev: CalendarState,
+  formData: FormData,
+): Promise<CalendarState> {
+  const parsed = updateNotesSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const { tenant_id, reservation_id, notes } = parsed.data;
+
+  await requireUser();
+  await requireTenantAccess(tenant_id, { minRole: "operator" });
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("reservations")
+    .update({ notes: notes || null })
+    .eq("id", reservation_id)
+    .eq("tenant_id", tenant_id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+export async function cancelReservationAction(
+  tenantId: string,
+  reservationId: string,
+  reason: string | null,
+): Promise<CalendarState> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "operator" });
+
+  const supabase = await createClient();
+  // Defense in depth: scope by tenant before invoking the RPC.
+  const { data: own } = await supabase
+    .from("reservations")
+    .select("id")
+    .eq("id", reservationId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!own) return { error: "Reserva no encontrada" };
+
+  const { error } = await supabase.rpc("cancel_reservation", {
+    p_reservation_id: reservationId,
+    p_reason: reason ?? null,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+const rescheduleSchema = z.object({
+  tenant_id: z.string().uuid(),
+  reservation_id: z.string().uuid(),
+  new_slot_id: z.string().uuid(),
+  duration_min: z.coerce.number().int().min(5).max(480).optional(),
+});
+
+export async function rescheduleReservationAction(
+  _prev: CalendarState,
+  formData: FormData,
+): Promise<CalendarState> {
+  const parsed = rescheduleSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const { tenant_id, reservation_id, new_slot_id, duration_min } = parsed.data;
+
+  await requireUser();
+  await requireTenantAccess(tenant_id, { minRole: "operator" });
+
+  const supabase = await createClient();
+  const { data: own } = await supabase
+    .from("reservations")
+    .select("id")
+    .eq("id", reservation_id)
+    .eq("tenant_id", tenant_id)
+    .maybeSingle();
+  if (!own) return { error: "Reserva no encontrada" };
+
+  const { error } = await supabase.rpc("reschedule_reservation", {
+    p_reservation_id: reservation_id,
+    p_new_slot_id: new_slot_id,
+    p_duration_min: duration_min ?? null,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
