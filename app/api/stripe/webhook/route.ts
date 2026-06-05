@@ -1,7 +1,88 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { getStripe } from "@/lib/stripe";
+import {
+  getStripe,
+  getAppUrl,
+  INVOICE_NOTIFY_WEBHOOK_URL,
+  INVOICE_NOTIFY_SECRET,
+} from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
+
+/**
+ * Fire-and-forget POST to the n8n Invoice Notify webhook. We don't await
+ * any response — the webhook is fast and we'd rather return 200 to Stripe
+ * quickly even if the notification path is briefly down.
+ */
+async function notifyTenantOfInvoiceEvent(
+  event: "invoice.paid" | "invoice.payment_failed",
+  stripeInvoice: Stripe.Invoice,
+): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const { data: invRow } = await supabase
+      .from("invoices")
+      .select("id, tenant_id, number, customer_name, customer_email, currency, total_cents, amount_paid_cents, application_fee_cents")
+      .eq("stripe_invoice_id", stripeInvoice.id)
+      .maybeSingle();
+    if (!invRow) return;
+    const inv = invRow as {
+      id: string;
+      tenant_id: string;
+      number: string | null;
+      customer_name: string | null;
+      customer_email: string | null;
+      currency: string;
+      total_cents: number;
+      amount_paid_cents: number;
+      application_fee_cents: number;
+    };
+
+    const { data: tenantRow } = await supabase
+      .from("tenants")
+      .select("name, language, notification_email, notify_on_new_reservation, slug")
+      .eq("id", inv.tenant_id)
+      .maybeSingle();
+    if (!tenantRow) return;
+    const t = tenantRow as {
+      name: string;
+      language: string;
+      notification_email: string | null;
+      slug: string;
+    };
+    if (!t.notification_email) return;
+
+    const payload = {
+      event,
+      tenant_id: inv.tenant_id,
+      tenant_name: t.name,
+      tenant_language: t.language,
+      notification_email: t.notification_email,
+      invoice: {
+        id: inv.id,
+        number: inv.number,
+        customer_name: inv.customer_name,
+        customer_email: inv.customer_email,
+        currency: inv.currency,
+        total_cents: inv.total_cents,
+        amount_paid_cents: inv.amount_paid_cents,
+        application_fee_cents: inv.application_fee_cents,
+        hosted_invoice_url: stripeInvoice.hosted_invoice_url ?? null,
+        dashboard_url: `${getAppUrl()}/dashboard/${t.slug}/invoices/${inv.id}`,
+      },
+    };
+
+    await fetch(INVOICE_NOTIFY_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-bolivai-secret": INVOICE_NOTIFY_SECRET,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.warn("[stripe webhook] notifyTenantOfInvoiceEvent failed", e);
+  }
+}
 
 /**
  * Stripe Connect webhook receiver.
@@ -54,12 +135,14 @@ export async function POST(req: NextRequest) {
               : Date.now()).toISOString(),
             amount_paid_cents: inv.amount_paid ?? 0,
             stripe_payment_link: inv.hosted_invoice_url ?? null,
+            stripe_invoice_pdf: inv.invoice_pdf ?? null,
           })
           .or(
             bolivaiId
               ? `id.eq.${bolivaiId},stripe_invoice_id.eq.${inv.id}`
               : `stripe_invoice_id.eq.${inv.id}`,
           );
+        await notifyTenantOfInvoiceEvent("invoice.paid", inv);
         break;
       }
       case "invoice.created": {
@@ -126,6 +209,7 @@ export async function POST(req: NextRequest) {
                 ? inv.customer
                 : (inv.customer as { id?: string } | null)?.id ?? null,
             stripe_payment_link: inv.hosted_invoice_url ?? null,
+            stripe_invoice_pdf: inv.invoice_pdf ?? null,
             notes: parent.notes,
             is_recurring: true,
             recurrence_interval: parent.recurrence_interval,
@@ -172,6 +256,7 @@ export async function POST(req: NextRequest) {
           .from("invoices")
           .update({ status: "past_due" })
           .eq("stripe_invoice_id", inv.id);
+        await notifyTenantOfInvoiceEvent("invoice.payment_failed", inv);
         break;
       }
       case "invoice.marked_uncollectible": {
@@ -194,7 +279,10 @@ export async function POST(req: NextRequest) {
         const inv = event.data.object as Stripe.Invoice;
         await supabase
           .from("invoices")
-          .update({ stripe_payment_link: inv.hosted_invoice_url ?? null })
+          .update({
+            stripe_payment_link: inv.hosted_invoice_url ?? null,
+            stripe_invoice_pdf: inv.invoice_pdf ?? null,
+          })
           .eq("stripe_invoice_id", inv.id);
         break;
       }

@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { getPlan, isOverConversationsCap } from "@/lib/plans";
 import { getTenantOverviewMetrics } from "@/lib/queries/metrics";
+import { getRevenueSummary } from "@/lib/queries/invoices";
+import { formatMoney } from "@/lib/format";
 
 export default async function OverviewPage({
   params,
@@ -12,7 +15,10 @@ export default async function OverviewPage({
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
   const plan = getPlan(tenant.plan);
-  const m = await getTenantOverviewMetrics(tenant.id);
+  const [m, revenue] = await Promise.all([
+    getTenantOverviewMetrics(tenant.id),
+    getRevenueSummary(tenant.id, tenant.invoice_default_currency),
+  ]);
 
   const overCap = isOverConversationsCap(plan, m.conversations);
   const capDisplay =
@@ -61,6 +67,51 @@ export default async function OverviewPage({
         />
       </div>
 
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Cobrado este mes"
+          value={formatMoney(revenue.paid_this_month_cents, revenue.currency)}
+          hint={`${revenue.count_paid_this_month} facturas`}
+        />
+        <KpiCard
+          label="Cobrado YTD"
+          value={formatMoney(revenue.paid_ytd_cents, revenue.currency)}
+          hint={`Año ${new Date().getUTCFullYear()}`}
+        />
+        <KpiCard
+          label="Pendiente de cobro"
+          value={formatMoney(revenue.outstanding_cents, revenue.currency)}
+          hint={
+            revenue.outstanding_cents > 0 ? (
+              <Link
+                href={`/dashboard/${tenantSlug}/invoices?status=open`}
+                className="underline hover:text-foreground"
+              >
+                ver facturas pendientes
+              </Link>
+            ) : (
+              "todo al día"
+            )
+          }
+        />
+        <KpiCard
+          label="Suscripciones activas"
+          value={revenue.active_subscriptions.toLocaleString("es")}
+          hint={
+            revenue.active_subscriptions > 0 ? (
+              <Link
+                href={`/dashboard/${tenantSlug}/invoices?status=recurring`}
+                className="underline hover:text-foreground"
+              >
+                ver suscripciones
+              </Link>
+            ) : (
+              "ninguna activa"
+            )
+          }
+        />
+      </div>
+
       <Card className="mt-8">
         <CardHeader>
           <CardTitle>Próximos pasos</CardTitle>
@@ -88,7 +139,7 @@ function KpiCard({
 }: {
   label: string;
   value: string;
-  hint?: string;
+  hint?: React.ReactNode;
 }) {
   return (
     <Card>

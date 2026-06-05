@@ -8,8 +8,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, ShieldCheck, AlertTriangle, Zap } from "lucide-react";
+import { ExternalLink, ShieldCheck, AlertTriangle, Zap, Globe } from "lucide-react";
 import { getTenantBySlug } from "@/lib/tenant";
+import { isConnectExpressSupported } from "@/lib/stripe";
 import { BusinessProfileForm } from "./business-profile-form";
 import { DisconnectStripeButton } from "./disconnect-stripe-button";
 
@@ -23,6 +24,7 @@ export default async function BillingSettingsPage({
   const { tenantSlug } = await params;
   const { connected } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  const countrySupported = isConnectExpressSupported(tenant.address_country);
 
   return (
     <div className="space-y-6">
@@ -60,13 +62,39 @@ export default async function BillingSettingsPage({
         <CardContent className="space-y-4">
           {!tenant.stripe_account_id ? (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Te llevamos a Stripe para un onboarding de ~5 minutos (datos del
-                negocio, cuenta bancaria, verificación de identidad). Después
-                volverás aquí automáticamente.
-              </p>
-              <Button asChild>
-                <a href={`/api/stripe/connect/init?tenant_id=${tenant.id}`}>
+              {!countrySupported ? (
+                <div className="flex items-start gap-2 text-xs bg-secondary/40 border border-border rounded-md p-3">
+                  <Globe className="size-4 shrink-0 mt-0.5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">
+                      Stripe Connect aún no opera en{" "}
+                      {tenant.address_country ?? "tu país"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Puedes seguir emitiendo facturas desde BolivAI y
+                      marcarlas como pagadas manualmente cuando recibas
+                      transferencias o efectivo. Cuando Stripe llegue a tu
+                      país, podrás conectarte y cobrar con tarjeta.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Te llevamos a Stripe para un onboarding de ~5 minutos (datos del
+                  negocio, cuenta bancaria, verificación de identidad). Después
+                  volverás aquí automáticamente.
+                </p>
+              )}
+              <Button asChild disabled={!countrySupported}>
+                <a
+                  href={
+                    countrySupported
+                      ? `/api/stripe/connect/init?tenant_id=${tenant.id}`
+                      : "#"
+                  }
+                  aria-disabled={!countrySupported}
+                  className={!countrySupported ? "pointer-events-none opacity-50" : ""}
+                >
                   <Zap className="size-4" />
                   Conectar Stripe
                 </a>

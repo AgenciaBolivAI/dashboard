@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ExternalLink, CheckCircle2 } from "lucide-react";
+import { ExternalLink, CheckCircle2, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -164,6 +164,14 @@ export default async function InvoiceDetailPage({
             <a href={invoice.stripe_payment_link} target="_blank" rel="noreferrer">
               <ExternalLink className="size-4" />
               Ver página de pago
+            </a>
+          </Button>
+        ) : null}
+        {invoice.stripe_invoice_pdf ? (
+          <Button asChild variant="outline">
+            <a href={invoice.stripe_invoice_pdf} target="_blank" rel="noreferrer">
+              <Download className="size-4" />
+              Descargar PDF
             </a>
           </Button>
         ) : null}

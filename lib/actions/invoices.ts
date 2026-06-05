@@ -224,6 +224,7 @@ export async function sendInvoiceAction(
 
     let stripeInvoiceId: string;
     let hostedUrl: string | null = null;
+    let invoicePdf: string | null = null;
     let stripeSubscriptionId: string | null = null;
 
     if (invoice.is_recurring && invoice.recurrence_interval) {
@@ -269,6 +270,7 @@ export async function sendInvoiceAction(
       if (stripeInvoiceId) {
         const inv = await stripe.invoices.retrieve(stripeInvoiceId, { stripeAccount });
         hostedUrl = inv.hosted_invoice_url ?? null;
+        invoicePdf = inv.invoice_pdf ?? null;
       }
     } else {
       // One-off invoice
@@ -310,6 +312,7 @@ export async function sendInvoiceAction(
 
       stripeInvoiceId = finalized.id!;
       hostedUrl = finalized.hosted_invoice_url ?? null;
+      invoicePdf = finalized.invoice_pdf ?? null;
     }
 
     // Allocate a human-readable number
@@ -332,6 +335,7 @@ export async function sendInvoiceAction(
         stripe_subscription_id: stripeSubscriptionId,
         stripe_customer_id: stripeCustomerId,
         stripe_payment_link: hostedUrl,
+        stripe_invoice_pdf: invoicePdf,
         application_fee_cents: applicationFeeCents,
       })
       .eq("id", invoice.id);

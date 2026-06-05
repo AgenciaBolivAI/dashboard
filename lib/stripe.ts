@@ -30,3 +30,47 @@ export function getAppUrl(): string {
     "http://localhost:3000"
   ).replace(/\/$/, "");
 }
+
+/**
+ * Countries where Stripe Connect Express is currently available
+ * (per Stripe docs, ISO 3166-1 alpha-2). Tenants outside this list
+ * can still use BolivAI, just with manual-mark-paid invoices.
+ *
+ * Keep this list updated when Stripe expands coverage.
+ */
+export const CONNECT_EXPRESS_COUNTRIES = new Set<string>([
+  // North America
+  "US", "CA", "MX",
+  // South America
+  "BR", "CL", "PE", "UY",
+  // EU + EEA
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
+  "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL",
+  "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+  // Other Europe
+  "GB", "NO", "CH", "LI", "IS",
+  // APAC
+  "AU", "NZ", "JP", "SG", "HK", "MY", "TH", "ID", "IN",
+  // Middle East
+  "AE", "IL", "SA",
+  // Africa
+  "ZA",
+]);
+
+export function isConnectExpressSupported(country: string | null | undefined): boolean {
+  if (!country) return true; // Don't gate when unknown — let Stripe surface the real error
+  return CONNECT_EXPRESS_COUNTRIES.has(country.toUpperCase());
+}
+
+/**
+ * URL of the n8n "Invoice Notify" webhook that emails the tenant when a
+ * customer pays or a payment fails. Configured in n8n; secret matches
+ * `bolivai_settings.notify_shared_secret`.
+ */
+export const INVOICE_NOTIFY_WEBHOOK_URL =
+  process.env.INVOICE_NOTIFY_WEBHOOK_URL ??
+  "https://n8n.srv1642711.hstgr.cloud/webhook/invoice-notify";
+
+export const INVOICE_NOTIFY_SECRET =
+  process.env.INVOICE_NOTIFY_SECRET ??
+  "bvnotify_6j55FwLXM-u4ie8VV91a0_otvIs3zqGF";

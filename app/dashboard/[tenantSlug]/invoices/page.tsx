@@ -26,7 +26,7 @@ export default async function InvoicesPage({
   const { tenantSlug } = await params;
   const { status: statusFilter } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
-  const status = (statusFilter as Parameters<typeof listInvoices>[1]["status"]) ?? "all";
+  const status = (statusFilter ?? "all") as NonNullable<Parameters<typeof listInvoices>[1]>["status"];
 
   const [invoices, summary] = await Promise.all([
     listInvoices(tenant.id, { status }),
@@ -48,9 +48,21 @@ export default async function InvoicesPage({
               href={`/api/invoices/export?tenant_id=${tenant.id}${
                 statusFilter ? `&status=${statusFilter}` : ""
               }`}
+              title="Una fila por factura (resumen)"
             >
               <Download className="size-4" />
-              Exportar CSV
+              CSV resumen
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a
+              href={`/api/invoices/export?tenant_id=${tenant.id}&detailed=1${
+                statusFilter ? `&status=${statusFilter}` : ""
+              }`}
+              title="Una fila por línea de factura, con desglose de IVA"
+            >
+              <Download className="size-4" />
+              CSV detallado
             </a>
           </Button>
           <Button asChild>
@@ -88,6 +100,7 @@ export default async function InvoicesPage({
           { v: "open", label: "Enviadas" },
           { v: "past_due", label: "Vencidas" },
           { v: "paid", label: "Pagadas" },
+          { v: "recurring", label: "Suscripciones" },
         ].map((t) => {
           const isActive = (statusFilter ?? "all") === t.v;
           const href =
