@@ -29,6 +29,11 @@ export default async function GeneralSettingsPage({
             whatsapp_number: tenant.whatsapp_number,
             support_email: tenant.support_email,
             support_whatsapp: tenant.support_whatsapp,
+            notification_email: tenant.notification_email,
+            notification_whatsapp_e164: tenant.notification_whatsapp_e164,
+            notify_on_new_reservation: tenant.notify_on_new_reservation,
+            notify_on_reschedule: tenant.notify_on_reschedule,
+            notify_on_cancel: tenant.notify_on_cancel,
           }}
         />
       </CardContent>

@@ -18,6 +18,16 @@ const generalSchema = z.object({
   whatsapp_number: z.string().optional(),
   support_email: z.string().email().optional().or(z.literal("")),
   support_whatsapp: z.string().optional(),
+  notification_email: z.string().email().optional().or(z.literal("")),
+  notification_whatsapp_e164: z
+    .string()
+    .trim()
+    .regex(/^\+?[1-9]\d{6,14}$/, "Número inválido (usa formato E.164, ej. +59171234567)")
+    .optional()
+    .or(z.literal("")),
+  notify_on_new_reservation: z.string().optional(),
+  notify_on_reschedule:      z.string().optional(),
+  notify_on_cancel:          z.string().optional(),
 });
 
 export async function updateTenantGeneralAction(
@@ -32,6 +42,14 @@ export async function updateTenantGeneralAction(
   await requireUser();
   await requireTenantAccess(parsed.data.tenant_id, { minRole: "admin" });
 
+  // Normalize WhatsApp notification number to leading-+ E.164 form
+  const rawWa = (parsed.data.notification_whatsapp_e164 || "").trim();
+  const notifyWa = rawWa
+    ? rawWa.startsWith("+")
+      ? rawWa
+      : `+${rawWa.replace(/[^0-9]/g, "")}`
+    : null;
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("tenants")
@@ -43,6 +61,11 @@ export async function updateTenantGeneralAction(
       whatsapp_number: parsed.data.whatsapp_number || null,
       support_email: parsed.data.support_email || null,
       support_whatsapp: parsed.data.support_whatsapp || null,
+      notification_email: parsed.data.notification_email || null,
+      notification_whatsapp_e164: notifyWa,
+      notify_on_new_reservation: !!parsed.data.notify_on_new_reservation,
+      notify_on_reschedule:      !!parsed.data.notify_on_reschedule,
+      notify_on_cancel:          !!parsed.data.notify_on_cancel,
     })
     .eq("id", parsed.data.tenant_id);
 

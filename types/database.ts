@@ -858,6 +858,11 @@ export type Database = {
           logo_url: string | null
           metadata: Json
           name: string
+          notification_email: string | null
+          notification_whatsapp_e164: string | null
+          notify_on_cancel: boolean
+          notify_on_new_reservation: boolean
+          notify_on_reschedule: boolean
           plan: string
           primary_color: string | null
           prompt_template: string | null
@@ -883,6 +888,11 @@ export type Database = {
           logo_url?: string | null
           metadata?: Json
           name: string
+          notification_email?: string | null
+          notification_whatsapp_e164?: string | null
+          notify_on_cancel?: boolean
+          notify_on_new_reservation?: boolean
+          notify_on_reschedule?: boolean
           plan?: string
           primary_color?: string | null
           prompt_template?: string | null
@@ -908,6 +918,11 @@ export type Database = {
           logo_url?: string | null
           metadata?: Json
           name?: string
+          notification_email?: string | null
+          notification_whatsapp_e164?: string | null
+          notify_on_cancel?: boolean
+          notify_on_new_reservation?: boolean
+          notify_on_reschedule?: boolean
           plan?: string
           primary_color?: string | null
           prompt_template?: string | null
@@ -1025,6 +1040,51 @@ export type Database = {
           start_date_local: string
           start_local: string
         }[]
+      }
+      reschedule_reservation: {
+        Args: {
+          p_reservation_id: string
+          p_new_slot_id: string
+          p_duration_min?: number
+        }
+        Returns: {
+          id: string
+          tenant_id: string
+          user_id: string | null
+          staff_id: string | null
+          slot_id: string | null
+          start_at: string
+          end_at: string
+          duration_minutes: number
+          status: string
+          customer_name: string | null
+          customer_email: string | null
+          customer_phone: string | null
+          notes: string | null
+          created_at: string
+        }
+      }
+      cancel_reservation: {
+        Args: {
+          p_reservation_id: string
+          p_reason?: string
+        }
+        Returns: {
+          id: string
+          tenant_id: string
+          user_id: string | null
+          staff_id: string | null
+          slot_id: string | null
+          start_at: string
+          end_at: string
+          duration_minutes: number
+          status: string
+          customer_name: string | null
+          customer_email: string | null
+          customer_phone: string | null
+          notes: string | null
+          created_at: string
+        }
       }
       is_admin_of: { Args: { p_tenant_id: string }; Returns: boolean }
       is_bolivai_admin: { Args: never; Returns: boolean }

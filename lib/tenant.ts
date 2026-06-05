@@ -20,6 +20,11 @@ export type Tenant = {
   custom_domain: string | null;
   support_email: string | null;
   support_whatsapp: string | null;
+  notification_email: string | null;
+  notification_whatsapp_e164: string | null;
+  notify_on_new_reservation: boolean;
+  notify_on_reschedule: boolean;
+  notify_on_cancel: boolean;
   workflow_template: string;
   gateway: string;
   gateway_config: Record<string, unknown>;
@@ -30,7 +35,7 @@ export async function getTenantBySlug(slug: string): Promise<Tenant> {
   const { data, error } = await supabase
     .from("tenants")
     .select(
-      "id, slug, name, industry, plan, status, prompt_template, prompt_variables, whatsapp_number, timezone, language, logo_url, primary_color, accent_color, custom_domain, support_email, support_whatsapp, workflow_template, gateway, gateway_config",
+      "id, slug, name, industry, plan, status, prompt_template, prompt_variables, whatsapp_number, timezone, language, logo_url, primary_color, accent_color, custom_domain, support_email, support_whatsapp, notification_email, notification_whatsapp_e164, notify_on_new_reservation, notify_on_reschedule, notify_on_cancel, workflow_template, gateway, gateway_config",
     )
     .eq("slug", slug)
     .maybeSingle();

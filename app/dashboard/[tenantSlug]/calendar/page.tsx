@@ -13,10 +13,14 @@ const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 function startOfWeek(d: Date): Date {
   const date = new Date(d);
-  date.setHours(0, 0, 0, 0);
-  const day = date.getDay();
+  // Noon UTC, not midnight, so the day-key formatted in tenant tz always
+  // lands on the intended date even for negative-UTC-offset timezones.
+  // Midnight UTC = previous evening in America/La_Paz, which pushes every
+  // column's dayKey back by one day.
+  date.setUTCHours(12, 0, 0, 0);
+  const day = date.getUTCDay();
   const diff = (day === 0 ? -6 : 1) - day; // Monday as start of week
-  date.setDate(date.getDate() + diff);
+  date.setUTCDate(date.getUTCDate() + diff);
   return date;
 }
 
@@ -54,7 +58,7 @@ export default async function CalendarPage({
   const weekStart = startOfWeek(baseDate);
   const days: Date[] = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
+    d.setUTCDate(d.getUTCDate() + i);
     return d;
   });
 
@@ -82,9 +86,9 @@ export default async function CalendarPage({
   const staffOptions = staff.map((s) => ({ id: s.id, name: s.name }));
 
   const prevWeek = new Date(weekStart);
-  prevWeek.setDate(prevWeek.getDate() - 7);
+  prevWeek.setUTCDate(prevWeek.getUTCDate() - 7);
   const nextWeek = new Date(weekStart);
-  nextWeek.setDate(nextWeek.getDate() + 7);
+  nextWeek.setUTCDate(nextWeek.getUTCDate() + 7);
 
   const weekLabel = `${weekStart.toLocaleDateString("es", {
     day: "numeric",
@@ -170,7 +174,7 @@ export default async function CalendarPage({
                       isToday ? "text-primary" : "text-foreground",
                     )}
                   >
-                    {d.getDate()}
+                    {parseInt(k.slice(8, 10), 10)}
                   </p>
                 </div>
 

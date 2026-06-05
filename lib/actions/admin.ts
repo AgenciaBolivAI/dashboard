@@ -20,7 +20,7 @@ const createSchema = z.object({
     .regex(slugRegex, "Slug inválido (sólo a-z, 0-9, guiones)"),
   industry: z.string().optional(),
   language: z.string().min(2).default("es"),
-  timezone: z.string().min(1).default("America/La_Paz"),
+  timezone: z.string().min(1).default("UTC"),
   workflow_template: z.string().default("physio"),
   gateway: z.enum(["evolution", "meta_whatsapp", "twilio"]).default("evolution"),
   gateway_config_json: z.string().optional(),

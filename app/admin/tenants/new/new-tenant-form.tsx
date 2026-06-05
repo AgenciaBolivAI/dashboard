@@ -246,7 +246,7 @@ export function NewTenantForm() {
             <Input
               id="timezone"
               name="timezone"
-              defaultValue="America/La_Paz"
+              defaultValue="UTC"
               required
             />
           </div>
