@@ -21,6 +21,7 @@ export type Reservation = {
   service_id: string | null;
   service_name: string | null;
   notes: string | null;
+  meeting_url: string | null;
 };
 
 export type Staffer = {
@@ -41,6 +42,7 @@ type RawReservationJoin = {
   customer_phone: string | null;
   service_id: string | null;
   notes: string | null;
+  meeting_url: string | null;
   services: { name: string } | null;
 };
 
@@ -68,7 +70,7 @@ export async function getWeekCalendar(
     supabase
       .from("reservations")
       .select(
-        "id, staff_id, start_at, end_at, status, duration_minutes, customer_name, customer_email, customer_phone, service_id, notes, services ( name )",
+        "id, staff_id, start_at, end_at, status, duration_minutes, customer_name, customer_email, customer_phone, service_id, notes, meeting_url, services ( name )",
       )
       .eq("tenant_id", tenantId)
       .neq("status", "cancelled")
@@ -98,6 +100,7 @@ export async function getWeekCalendar(
     service_id: r.service_id,
     service_name: r.services?.name ?? null,
     notes: r.notes,
+    meeting_url: r.meeting_url,
   }));
 
   return {

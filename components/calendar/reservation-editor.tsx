@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
-import { CalendarClock, Mail, Phone, Trash2, User, Briefcase, UserCircle2 } from "lucide-react";
+import { CalendarClock, Mail, Phone, Trash2, User, Briefcase, UserCircle2, Video, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import {
   rescheduleReservationAction,
   type CalendarState,
 } from "@/lib/actions/calendar";
+import { createInvoiceFromReservationAction } from "@/lib/actions/invoices";
 import type { Reservation, Slot, Staffer } from "@/lib/queries/calendar";
 
 const initial: CalendarState = { error: null };
@@ -28,12 +29,14 @@ const initial: CalendarState = { error: null };
 export function ReservationCard({
   reservation,
   tenantId,
+  tenantSlug,
   tenantTimezone,
   staff,
   availableSlots,
 }: {
   reservation: Reservation;
   tenantId: string;
+  tenantSlug: string;
   tenantTimezone: string;
   staff: Staffer[];
   availableSlots: Slot[];
@@ -44,29 +47,43 @@ export function ReservationCard({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full text-left rounded-md bg-primary/10 border border-primary/30 px-2 py-1.5 text-xs hover:bg-primary/15 hover:border-primary/50 transition-colors"
-      >
-        <div className="flex items-center justify-between gap-1">
-          <span className="font-medium truncate">
-            {reservation.customer_name ?? "Reserva"}
-          </span>
-          <Badge variant="success" className="shrink-0 text-[9px] px-1 py-0">
-            {reservation.duration_minutes}m
-          </Badge>
-        </div>
-        {reservation.service_name ? (
-          <div className="text-foreground/80 mt-0.5 truncate">
-            {reservation.service_name}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="w-full text-left rounded-md bg-primary/10 border border-primary/30 px-2 py-1.5 text-xs hover:bg-primary/15 hover:border-primary/50 transition-colors"
+        >
+          <div className="flex items-center justify-between gap-1">
+            <span className="font-medium truncate">
+              {reservation.customer_name ?? "Reserva"}
+            </span>
+            <Badge variant="success" className="shrink-0 text-[9px] px-1 py-0">
+              {reservation.duration_minutes}m
+            </Badge>
           </div>
+          {reservation.service_name ? (
+            <div className="text-foreground/80 mt-0.5 truncate">
+              {reservation.service_name}
+            </div>
+          ) : null}
+          <div className="text-muted-foreground mt-0.5 flex items-center gap-1">
+            <span>{formatTime(reservation.start_at, tenantTimezone)}</span>
+            {assignedStaff ? <span>· {assignedStaff.name.split(" ")[0]}</span> : null}
+          </div>
+        </button>
+        {reservation.meeting_url ? (
+          <a
+            href={reservation.meeting_url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title="Unirse a la videollamada"
+            className="absolute top-1.5 right-1.5 rounded-md bg-primary text-primary-foreground p-1 hover:opacity-90 shadow"
+          >
+            <Video className="size-3" />
+          </a>
         ) : null}
-        <div className="text-muted-foreground mt-0.5">
-          {formatTime(reservation.start_at, tenantTimezone)}
-          {assignedStaff ? <span> · {assignedStaff.name.split(" ")[0]}</span> : null}
-        </div>
-      </button>
+      </div>
 
       {open ? (
         <ReservationDialog
@@ -74,6 +91,7 @@ export function ReservationCard({
           onClose={() => setOpen(false)}
           reservation={reservation}
           tenantId={tenantId}
+          tenantSlug={tenantSlug}
           tenantTimezone={tenantTimezone}
           staff={staff}
           availableSlots={availableSlots}
@@ -88,6 +106,7 @@ function ReservationDialog({
   onClose,
   reservation,
   tenantId,
+  tenantSlug,
   tenantTimezone,
   staff,
   availableSlots,
@@ -96,6 +115,7 @@ function ReservationDialog({
   onClose: () => void;
   reservation: Reservation;
   tenantId: string;
+  tenantSlug: string;
   tenantTimezone: string;
   staff: Staffer[];
   availableSlots: Slot[];
@@ -173,6 +193,7 @@ function ReservationDialog({
             tenantTimezone={tenantTimezone}
             assignedStaffName={assignedStaff?.name ?? null}
             tenantId={tenantId}
+            tenantSlug={tenantSlug}
             notesAction={notesAction}
             notesPending={notesPending}
             cancelling={cancelling}
@@ -202,6 +223,7 @@ function ViewMode({
   tenantTimezone,
   assignedStaffName,
   tenantId,
+  tenantSlug,
   notesAction,
   notesPending,
   cancelling,
@@ -213,6 +235,7 @@ function ViewMode({
   tenantTimezone: string;
   assignedStaffName: string | null;
   tenantId: string;
+  tenantSlug: string;
   notesAction: (formData: FormData) => void;
   notesPending: boolean;
   cancelling: boolean;
@@ -244,6 +267,18 @@ function ViewMode({
           <Row icon={<UserCircle2 className="size-4" />}>{assignedStaffName}</Row>
         ) : null}
       </div>
+
+      {reservation.meeting_url ? (
+        <a
+          href={reservation.meeting_url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-2.5 text-sm font-medium hover:opacity-90"
+        >
+          <Video className="size-4" />
+          Unirse a la videollamada
+        </a>
+      ) : null}
 
       <div className="space-y-2 text-sm">
         <Row icon={<User className="size-4" />}>
@@ -313,6 +348,12 @@ function ViewMode({
             <CalendarClock className="size-4" />
             Reagendar
           </Button>
+          <CreateInvoiceButton
+            tenantId={tenantId}
+            tenantSlug={tenantSlug}
+            reservationId={reservation.id}
+            disabled={cancelling || notesPending}
+          />
         </div>
         <div className="flex gap-2">
           <Button
@@ -454,6 +495,30 @@ function RescheduleMode({
           {pending ? "Reagendando…" : "Confirmar nuevo horario"}
         </Button>
       </DialogFooter>
+    </form>
+  );
+}
+
+function CreateInvoiceButton({
+  tenantId,
+  tenantSlug,
+  reservationId,
+  disabled,
+}: {
+  tenantId: string;
+  tenantSlug: string;
+  reservationId: string;
+  disabled: boolean;
+}) {
+  return (
+    <form action={createInvoiceFromReservationAction}>
+      <input type="hidden" name="tenant_id" value={tenantId} />
+      <input type="hidden" name="tenant_slug" value={tenantSlug} />
+      <input type="hidden" name="reservation_id" value={reservationId} />
+      <Button type="submit" variant="outline" disabled={disabled}>
+        <FileText className="size-4" />
+        Crear factura
+      </Button>
     </form>
   );
 }

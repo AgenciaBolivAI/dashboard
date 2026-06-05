@@ -28,6 +28,22 @@ export type Tenant = {
   workflow_template: string;
   gateway: string;
   gateway_config: Record<string, unknown>;
+  // ── Billing / business profile ────────────────────────────────────
+  legal_name: string | null;
+  tax_id: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_postal_code: string | null;
+  address_country: string | null;
+  invoice_footer: string | null;
+  invoice_default_currency: string;
+  stripe_account_id: string | null;
+  stripe_account_country: string | null;
+  stripe_charges_enabled: boolean;
+  stripe_payouts_enabled: boolean;
+  stripe_account_updated_at: string | null;
 };
 
 export async function getTenantBySlug(slug: string): Promise<Tenant> {
@@ -35,7 +51,7 @@ export async function getTenantBySlug(slug: string): Promise<Tenant> {
   const { data, error } = await supabase
     .from("tenants")
     .select(
-      "id, slug, name, industry, plan, status, prompt_template, prompt_variables, whatsapp_number, timezone, language, logo_url, primary_color, accent_color, custom_domain, support_email, support_whatsapp, notification_email, notification_whatsapp_e164, notify_on_new_reservation, notify_on_reschedule, notify_on_cancel, workflow_template, gateway, gateway_config",
+      "id, slug, name, industry, plan, status, prompt_template, prompt_variables, whatsapp_number, timezone, language, logo_url, primary_color, accent_color, custom_domain, support_email, support_whatsapp, notification_email, notification_whatsapp_e164, notify_on_new_reservation, notify_on_reschedule, notify_on_cancel, workflow_template, gateway, gateway_config, legal_name, tax_id, address_line1, address_line2, address_city, address_state, address_postal_code, address_country, invoice_footer, invoice_default_currency, stripe_account_id, stripe_account_country, stripe_charges_enabled, stripe_payouts_enabled, stripe_account_updated_at",
     )
     .eq("slug", slug)
     .maybeSingle();

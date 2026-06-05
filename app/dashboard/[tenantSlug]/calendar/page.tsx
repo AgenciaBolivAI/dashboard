@@ -11,7 +11,7 @@ import {
   type Slot,
 } from "@/lib/queries/calendar";
 import { SlotGenerator } from "@/components/calendar/slot-generator";
-import { SlotChip } from "@/components/calendar/slot-editor";
+import { DaySlots } from "@/components/calendar/day-slots";
 import { ReservationCard } from "@/components/calendar/reservation-editor";
 import { cn } from "@/lib/utils";
 
@@ -180,26 +180,19 @@ export default async function CalendarPage({
                       key={r.id}
                       reservation={r}
                       tenantId={tenant.id}
+                      tenantSlug={tenantSlug}
                       tenantTimezone={tz}
                       staff={staff}
                       availableSlots={availableFutureSlots}
                     />
                   ))}
 
-                  {daySlots.slice(0, 8).map((s) => (
-                    <SlotChip
-                      key={s.id}
-                      slot={s}
-                      tenantId={tenant.id}
-                      tenantTimezone={tz}
-                      staff={staffOptions}
-                    />
-                  ))}
-                  {daySlots.length > 8 ? (
-                    <p className="text-[10px] text-muted-foreground text-center pt-1">
-                      +{daySlots.length - 8} más
-                    </p>
-                  ) : null}
+                  <DaySlots
+                    slots={daySlots}
+                    tenantId={tenant.id}
+                    tenantTimezone={tz}
+                    staff={staffOptions}
+                  />
 
                   {dayReservations.length === 0 && daySlots.length === 0 ? (
                     <p className="text-[10px] text-muted-foreground/60 text-center py-4">

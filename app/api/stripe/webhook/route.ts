@@ -1,0 +1,239 @@
+import { NextRequest, NextResponse } from "next/server";
+import type Stripe from "stripe";
+import { getStripe } from "@/lib/stripe";
+import { createClient } from "@/lib/supabase/server";
+
+/**
+ * Stripe Connect webhook receiver.
+ *
+ * Configure this endpoint at https://dashboard.stripe.com/webhooks under
+ * **Connect** (not Account) so events arrive for all connected accounts.
+ * Set the env var STRIPE_WEBHOOK_SECRET to the signing secret Stripe
+ * generates for this endpoint.
+ *
+ * Handled events:
+ *   invoice.paid                  -> mark our invoice paid
+ *   invoice.payment_failed        -> mark past_due
+ *   invoice.marked_uncollectible  -> mark uncollectible
+ *   invoice.voided                -> mark void
+ *   invoice.finalized             -> sync hosted_invoice_url
+ *   account.updated               -> sync charges_enabled / payouts_enabled
+ *   account.application.deauthorized -> clear connection
+ */
+export async function POST(req: NextRequest) {
+  const sig = req.headers.get("stripe-signature");
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!sig || !secret) {
+    return NextResponse.json({ error: "Missing signature/secret" }, { status: 400 });
+  }
+
+  const rawBody = await req.text();
+  const stripe = getStripe();
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(rawBody, sig, secret);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `Invalid signature: ${msg}` }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+
+  try {
+    switch (event.type) {
+      case "invoice.paid": {
+        const inv = event.data.object as Stripe.Invoice;
+        const bolivaiId = inv.metadata?.bolivai_invoice_id ?? null;
+        await supabase
+          .from("invoices")
+          .update({
+            status: "paid",
+            paid_at: new Date(inv.status_transitions?.paid_at
+              ? inv.status_transitions.paid_at * 1000
+              : Date.now()).toISOString(),
+            amount_paid_cents: inv.amount_paid ?? 0,
+            stripe_payment_link: inv.hosted_invoice_url ?? null,
+          })
+          .or(
+            bolivaiId
+              ? `id.eq.${bolivaiId},stripe_invoice_id.eq.${inv.id}`
+              : `stripe_invoice_id.eq.${inv.id}`,
+          );
+        break;
+      }
+      case "invoice.created": {
+        // Mirror a subscription's recurring cycle into our DB. We only
+        // care about Stripe-originated invoices (no bolivai_invoice_id in
+        // metadata) tied to a subscription we already know about.
+        const inv = event.data.object as Stripe.Invoice;
+        if (inv.metadata?.bolivai_invoice_id) break;
+        const subId = typeof inv.subscription === "string"
+          ? inv.subscription
+          : (inv.subscription as { id?: string } | null)?.id ?? null;
+        if (!subId) break;
+
+        // Find the parent BolivAI invoice that owns this subscription so
+        // we can copy tenant_id + customer + currency.
+        const { data: parentRow } = await supabase
+          .from("invoices")
+          .select(
+            "tenant_id, customer_name, customer_email, customer_phone, customer_address, currency, reservation_id, notes, recurrence_interval, recurrence_interval_count",
+          )
+          .eq("stripe_subscription_id", subId)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (!parentRow) break;
+
+        const parent = parentRow as {
+          tenant_id: string;
+          customer_name: string | null;
+          customer_email: string | null;
+          customer_phone: string | null;
+          customer_address: string | null;
+          currency: string;
+          reservation_id: string | null;
+          notes: string | null;
+          recurrence_interval: string | null;
+          recurrence_interval_count: number | null;
+        };
+
+        const { data: numberRow } = await supabase.rpc("next_invoice_number", {
+          p_tenant_id: parent.tenant_id,
+        });
+
+        const { data: newInv } = await supabase
+          .from("invoices")
+          .insert({
+            tenant_id: parent.tenant_id,
+            reservation_id: parent.reservation_id,
+            customer_name: parent.customer_name,
+            customer_email: parent.customer_email,
+            customer_phone: parent.customer_phone,
+            customer_address: parent.customer_address,
+            currency: parent.currency,
+            status: "open" as const,
+            number: numberRow ?? null,
+            sent_at: new Date(inv.created * 1000).toISOString(),
+            due_date: inv.due_date
+              ? new Date(inv.due_date * 1000).toISOString().slice(0, 10)
+              : null,
+            stripe_invoice_id: inv.id,
+            stripe_subscription_id: subId,
+            stripe_customer_id:
+              typeof inv.customer === "string"
+                ? inv.customer
+                : (inv.customer as { id?: string } | null)?.id ?? null,
+            stripe_payment_link: inv.hosted_invoice_url ?? null,
+            notes: parent.notes,
+            is_recurring: true,
+            recurrence_interval: parent.recurrence_interval,
+            recurrence_interval_count: parent.recurrence_interval_count,
+          })
+          .select("id")
+          .maybeSingle();
+
+        // Mirror the line items so list views and PDFs render correctly
+        const newInvId = (newInv as { id?: string } | null)?.id;
+        if (newInvId && inv.lines?.data?.length) {
+          const items = inv.lines.data.map((line, idx) => ({
+            invoice_id: newInvId,
+            position: idx,
+            description: line.description ?? "Cargo recurrente",
+            quantity: line.quantity ?? 1,
+            unit_price_cents:
+              line.quantity && line.quantity > 0
+                ? Math.round((line.amount ?? 0) / line.quantity)
+                : line.amount ?? 0,
+            tax_rate_bps: 0,
+            amount_cents: line.amount ?? 0,
+          }));
+          await supabase.from("invoice_items").insert(items);
+        }
+        break;
+      }
+      case "customer.subscription.deleted":
+      case "customer.subscription.paused": {
+        const sub = event.data.object as Stripe.Subscription;
+        // We don't have a dedicated subscription row — just flag the
+        // most recent open invoice in this sub as void (paused/canceled
+        // means no more cycles).
+        await supabase
+          .from("invoices")
+          .update({ recurrence_end_date: new Date().toISOString().slice(0, 10) })
+          .eq("stripe_subscription_id", sub.id)
+          .eq("is_recurring", true);
+        break;
+      }
+      case "invoice.payment_failed": {
+        const inv = event.data.object as Stripe.Invoice;
+        await supabase
+          .from("invoices")
+          .update({ status: "past_due" })
+          .eq("stripe_invoice_id", inv.id);
+        break;
+      }
+      case "invoice.marked_uncollectible": {
+        const inv = event.data.object as Stripe.Invoice;
+        await supabase
+          .from("invoices")
+          .update({ status: "uncollectible" })
+          .eq("stripe_invoice_id", inv.id);
+        break;
+      }
+      case "invoice.voided": {
+        const inv = event.data.object as Stripe.Invoice;
+        await supabase
+          .from("invoices")
+          .update({ status: "void" })
+          .eq("stripe_invoice_id", inv.id);
+        break;
+      }
+      case "invoice.finalized": {
+        const inv = event.data.object as Stripe.Invoice;
+        await supabase
+          .from("invoices")
+          .update({ stripe_payment_link: inv.hosted_invoice_url ?? null })
+          .eq("stripe_invoice_id", inv.id);
+        break;
+      }
+      case "account.updated": {
+        const acct = event.data.object as Stripe.Account;
+        await supabase
+          .from("tenants")
+          .update({
+            stripe_account_country: acct.country ?? null,
+            stripe_charges_enabled: acct.charges_enabled ?? false,
+            stripe_payouts_enabled: acct.payouts_enabled ?? false,
+            stripe_account_updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_account_id", acct.id);
+        break;
+      }
+      case "account.application.deauthorized": {
+        // Stripe doesn't include the account id in this event body, but
+        // does provide it as the event's `account` field at the top level.
+        const acctId = event.account;
+        if (acctId) {
+          await supabase
+            .from("tenants")
+            .update({
+              stripe_account_id: null,
+              stripe_charges_enabled: false,
+              stripe_payouts_enabled: false,
+              stripe_account_updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_account_id", acctId);
+        }
+        break;
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[stripe webhook] handler failed", event.type, msg);
+    return NextResponse.json({ received: true, warning: msg });
+  }
+
+  return NextResponse.json({ received: true });
+}
