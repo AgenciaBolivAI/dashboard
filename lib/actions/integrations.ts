@@ -87,7 +87,7 @@ export async function updateGoogleMetadataAction(
 
   const { error } = await svc
     .from("tenant_integrations")
-    .update({ metadata: next })
+    .update({ metadata: next as never })
     .eq("tenant_id", parsed.data.tenant_id)
     .eq("provider", "google");
 

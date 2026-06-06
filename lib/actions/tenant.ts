@@ -109,7 +109,7 @@ export async function updateTenantAgentAction(
     .from("tenants")
     .update({
       prompt_template: parsed.data.prompt_template,
-      prompt_variables: parsedVars,
+      prompt_variables: parsedVars as never,
     })
     .eq("id", parsed.data.tenant_id);
 
@@ -157,7 +157,7 @@ export async function updateGatewayConfigAction(
     .from("tenants")
     .update({
       gateway: parsed.data.gateway,
-      gateway_config: config,
+      gateway_config: config as never,
     })
     .eq("id", parsed.data.tenant_id);
 

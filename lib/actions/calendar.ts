@@ -318,7 +318,7 @@ export async function cancelReservationAction(
 
   const { error } = await supabase.rpc("cancel_reservation", {
     p_reservation_id: reservationId,
-    p_reason: reason ?? null,
+    p_reason: reason ?? undefined,
   });
   if (error) return { error: error.message };
 
@@ -358,7 +358,7 @@ export async function rescheduleReservationAction(
   const { error } = await supabase.rpc("reschedule_reservation", {
     p_reservation_id: reservation_id,
     p_new_slot_id: new_slot_id,
-    p_duration_min: duration_min ?? null,
+    p_duration_min: duration_min ?? undefined,
   });
   if (error) return { error: error.message };
 

@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -29,6 +29,27 @@ export type Database = {
           created_at?: string
           role?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      bolivai_settings: {
+        Row: {
+          id: number
+          notify_shared_secret: string | null
+          notify_webhook_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          notify_shared_secret?: string | null
+          notify_webhook_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          notify_shared_secret?: string | null
+          notify_webhook_url?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -312,6 +333,195 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          position: number
+          quantity: number
+          service_id: string | null
+          tax_rate_bps: number
+          unit_price_cents: number
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          position?: number
+          quantity?: number
+          service_id?: string | null
+          tax_rate_bps?: number
+          unit_price_cents?: number
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          position?: number
+          quantity?: number
+          service_id?: string | null
+          tax_rate_bps?: number
+          unit_price_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_number_sequence: {
+        Row: {
+          next_seq: number
+          tenant_id: string
+          year: number
+        }
+        Insert: {
+          next_seq?: number
+          tenant_id: string
+          year: number
+        }
+        Update: {
+          next_seq?: number
+          tenant_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          amount_paid_cents: number
+          application_fee_cents: number
+          created_at: string
+          currency: string
+          customer_address: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          due_date: string | null
+          id: string
+          is_recurring: boolean
+          issue_date: string | null
+          notes: string | null
+          number: string | null
+          paid_at: string | null
+          recurrence_end_date: string | null
+          recurrence_interval: string | null
+          recurrence_interval_count: number | null
+          reservation_id: string | null
+          sent_at: string | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_invoice_id: string | null
+          stripe_invoice_pdf: string | null
+          stripe_payment_link: string | null
+          stripe_subscription_id: string | null
+          subtotal_cents: number
+          tax_cents: number
+          tenant_id: string
+          total_cents: number
+          updated_at: string
+        }
+        Insert: {
+          amount_paid_cents?: number
+          application_fee_cents?: number
+          created_at?: string
+          currency?: string
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          due_date?: string | null
+          id?: string
+          is_recurring?: boolean
+          issue_date?: string | null
+          notes?: string | null
+          number?: string | null
+          paid_at?: string | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: string | null
+          recurrence_interval_count?: number | null
+          reservation_id?: string | null
+          sent_at?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          stripe_invoice_pdf?: string | null
+          stripe_payment_link?: string | null
+          stripe_subscription_id?: string | null
+          subtotal_cents?: number
+          tax_cents?: number
+          tenant_id: string
+          total_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_paid_cents?: number
+          application_fee_cents?: number
+          created_at?: string
+          currency?: string
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          due_date?: string | null
+          id?: string
+          is_recurring?: boolean
+          issue_date?: string | null
+          notes?: string | null
+          number?: string | null
+          paid_at?: string | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: string | null
+          recurrence_interval_count?: number | null
+          reservation_id?: string | null
+          sent_at?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          stripe_invoice_pdf?: string | null
+          stripe_payment_link?: string | null
+          stripe_subscription_id?: string | null
+          subtotal_cents?: number
+          tax_cents?: number
+          tenant_id?: string
+          total_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           conversation_id: string | null
@@ -482,6 +692,9 @@ export type Database = {
           duration_minutes: number
           end_at: string
           id: string
+          meeting_provider: string | null
+          meeting_room_name: string | null
+          meeting_url: string | null
           notes: string | null
           service_id: string | null
           slot_id: string | null
@@ -499,6 +712,9 @@ export type Database = {
           duration_minutes: number
           end_at: string
           id?: string
+          meeting_provider?: string | null
+          meeting_room_name?: string | null
+          meeting_url?: string | null
           notes?: string | null
           service_id?: string | null
           slot_id?: string | null
@@ -516,6 +732,9 @@ export type Database = {
           duration_minutes?: number
           end_at?: string
           id?: string
+          meeting_provider?: string | null
+          meeting_room_name?: string | null
+          meeting_url?: string | null
           notes?: string | null
           service_id?: string | null
           slot_id?: string | null
@@ -848,13 +1067,22 @@ export type Database = {
       tenants: {
         Row: {
           accent_color: string | null
+          address_city: string | null
+          address_country: string | null
+          address_line1: string | null
+          address_line2: string | null
+          address_postal_code: string | null
+          address_state: string | null
           created_at: string
           custom_domain: string | null
           gateway: string
           gateway_config: Json
           id: string
           industry: string | null
+          invoice_default_currency: string
+          invoice_footer: string | null
           language: string
+          legal_name: string | null
           logo_url: string | null
           metadata: Json
           name: string
@@ -869,8 +1097,14 @@ export type Database = {
           prompt_variables: Json
           slug: string
           status: string
+          stripe_account_country: string | null
+          stripe_account_id: string | null
+          stripe_account_updated_at: string | null
+          stripe_charges_enabled: boolean
+          stripe_payouts_enabled: boolean
           support_email: string | null
           support_whatsapp: string | null
+          tax_id: string | null
           timezone: string
           updated_at: string
           whatsapp_number: string | null
@@ -878,13 +1112,22 @@ export type Database = {
         }
         Insert: {
           accent_color?: string | null
+          address_city?: string | null
+          address_country?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_postal_code?: string | null
+          address_state?: string | null
           created_at?: string
           custom_domain?: string | null
           gateway?: string
           gateway_config?: Json
           id?: string
           industry?: string | null
+          invoice_default_currency?: string
+          invoice_footer?: string | null
           language?: string
+          legal_name?: string | null
           logo_url?: string | null
           metadata?: Json
           name: string
@@ -899,8 +1142,14 @@ export type Database = {
           prompt_variables?: Json
           slug: string
           status?: string
+          stripe_account_country?: string | null
+          stripe_account_id?: string | null
+          stripe_account_updated_at?: string | null
+          stripe_charges_enabled?: boolean
+          stripe_payouts_enabled?: boolean
           support_email?: string | null
           support_whatsapp?: string | null
+          tax_id?: string | null
           timezone?: string
           updated_at?: string
           whatsapp_number?: string | null
@@ -908,13 +1157,22 @@ export type Database = {
         }
         Update: {
           accent_color?: string | null
+          address_city?: string | null
+          address_country?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          address_postal_code?: string | null
+          address_state?: string | null
           created_at?: string
           custom_domain?: string | null
           gateway?: string
           gateway_config?: Json
           id?: string
           industry?: string | null
+          invoice_default_currency?: string
+          invoice_footer?: string | null
           language?: string
+          legal_name?: string | null
           logo_url?: string | null
           metadata?: Json
           name?: string
@@ -929,8 +1187,14 @@ export type Database = {
           prompt_variables?: Json
           slug?: string
           status?: string
+          stripe_account_country?: string | null
+          stripe_account_id?: string | null
+          stripe_account_updated_at?: string | null
+          stripe_charges_enabled?: boolean
+          stripe_payouts_enabled?: boolean
           support_email?: string | null
           support_whatsapp?: string | null
+          tax_id?: string | null
           timezone?: string
           updated_at?: string
           whatsapp_number?: string | null
@@ -973,9 +1237,11 @@ export type Database = {
           email: string | null
           facts: string | null
           id: string
+          is_vip: boolean
           metadata: Json
           name: string | null
           tenant_id: string
+          tenant_notes: string | null
           updated_at: string
           whatsapp_number: string
           zep_session_id: string | null
@@ -985,9 +1251,11 @@ export type Database = {
           email?: string | null
           facts?: string | null
           id?: string
+          is_vip?: boolean
           metadata?: Json
           name?: string | null
           tenant_id: string
+          tenant_notes?: string | null
           updated_at?: string
           whatsapp_number: string
           zep_session_id?: string | null
@@ -997,9 +1265,11 @@ export type Database = {
           email?: string | null
           facts?: string | null
           id?: string
+          is_vip?: boolean
           metadata?: Json
           name?: string | null
           tenant_id?: string
+          tenant_notes?: string | null
           updated_at?: string
           whatsapp_number?: string
           zep_session_id?: string | null
@@ -1041,49 +1311,33 @@ export type Database = {
           start_local: string
         }[]
       }
-      reschedule_reservation: {
-        Args: {
-          p_reservation_id: string
-          p_new_slot_id: string
-          p_duration_min?: number
-        }
-        Returns: {
-          id: string
-          tenant_id: string
-          user_id: string | null
-          staff_id: string | null
-          slot_id: string | null
-          start_at: string
-          end_at: string
-          duration_minutes: number
-          status: string
-          customer_name: string | null
-          customer_email: string | null
-          customer_phone: string | null
-          notes: string | null
-          created_at: string
-        }
-      }
       cancel_reservation: {
-        Args: {
-          p_reservation_id: string
-          p_reason?: string
-        }
+        Args: { p_reason?: string; p_reservation_id: string }
         Returns: {
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          duration_minutes: number
+          end_at: string
           id: string
+          meeting_provider: string | null
+          meeting_room_name: string | null
+          meeting_url: string | null
+          notes: string | null
+          service_id: string | null
+          slot_id: string | null
+          staff_id: string | null
+          start_at: string
+          status: string
           tenant_id: string
           user_id: string | null
-          staff_id: string | null
-          slot_id: string | null
-          start_at: string
-          end_at: string
-          duration_minutes: number
-          status: string
-          customer_name: string | null
-          customer_email: string | null
-          customer_phone: string | null
-          notes: string | null
-          created_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "reservations"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       is_admin_of: { Args: { p_tenant_id: string }; Returns: boolean }
@@ -1114,6 +1368,24 @@ export type Database = {
           staff: Json
         }[]
       }
+      lookup_customer_reservation: {
+        Args: {
+          p_customer_phone: string
+          p_request_reason?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          customer_email: string
+          customer_name: string
+          duration_minutes: number
+          end_at: string
+          reservation_id: string
+          service_id: string
+          slot_id: string
+          start_at: string
+          status: string
+        }[]
+      }
       match_documents: {
         Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
@@ -1131,6 +1403,40 @@ export type Database = {
           metadata: Json
           similarity: number
         }[]
+      }
+      next_invoice_number: { Args: { p_tenant_id: string }; Returns: string }
+      reschedule_reservation: {
+        Args: {
+          p_duration_min?: number
+          p_new_slot_id: string
+          p_reservation_id: string
+        }
+        Returns: {
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          duration_minutes: number
+          end_at: string
+          id: string
+          meeting_provider: string | null
+          meeting_room_name: string | null
+          meeting_url: string | null
+          notes: string | null
+          service_id: string | null
+          slot_id: string | null
+          staff_id: string | null
+          start_at: string
+          status: string
+          tenant_id: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "reservations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       role_on_tenant: { Args: { p_tenant_id: string }; Returns: string }
       search_slots_day: {

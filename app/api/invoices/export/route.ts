@@ -46,7 +46,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const rows = (data ?? []) as Array<Record<string, unknown>>;
+  // Double-cast through unknown — the inline relation in the select string
+  // confuses Supabase's type-level query parser.
+  const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
   const lines: string[] = [];
 
   if (detailed) {
