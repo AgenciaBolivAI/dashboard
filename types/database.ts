@@ -1075,6 +1075,7 @@ export type Database = {
           address_state: string | null
           created_at: string
           custom_domain: string | null
+          elevenlabs_agent_id: string | null
           gateway: string
           gateway_config: Json
           id: string
@@ -1107,6 +1108,19 @@ export type Database = {
           tax_id: string | null
           timezone: string
           updated_at: string
+          voice_agent_created_at: string | null
+          voice_agent_updated_at: string | null
+          voice_enabled: boolean
+          voice_greeting: string | null
+          voice_id: string | null
+          voice_kb_doc_id: string | null
+          voice_kb_synced_at: string | null
+          voice_languages: string[]
+          voice_phone_account_sid: string | null
+          voice_phone_auth_token: string | null
+          voice_phone_elevenlabs_id: string | null
+          voice_phone_number: string | null
+          voice_phone_provider: string | null
           whatsapp_number: string | null
           workflow_template: string
         }
@@ -1120,6 +1134,7 @@ export type Database = {
           address_state?: string | null
           created_at?: string
           custom_domain?: string | null
+          elevenlabs_agent_id?: string | null
           gateway?: string
           gateway_config?: Json
           id?: string
@@ -1152,6 +1167,19 @@ export type Database = {
           tax_id?: string | null
           timezone?: string
           updated_at?: string
+          voice_agent_created_at?: string | null
+          voice_agent_updated_at?: string | null
+          voice_enabled?: boolean
+          voice_greeting?: string | null
+          voice_id?: string | null
+          voice_kb_doc_id?: string | null
+          voice_kb_synced_at?: string | null
+          voice_languages?: string[]
+          voice_phone_account_sid?: string | null
+          voice_phone_auth_token?: string | null
+          voice_phone_elevenlabs_id?: string | null
+          voice_phone_number?: string | null
+          voice_phone_provider?: string | null
           whatsapp_number?: string | null
           workflow_template?: string
         }
@@ -1165,6 +1193,7 @@ export type Database = {
           address_state?: string | null
           created_at?: string
           custom_domain?: string | null
+          elevenlabs_agent_id?: string | null
           gateway?: string
           gateway_config?: Json
           id?: string
@@ -1197,6 +1226,19 @@ export type Database = {
           tax_id?: string | null
           timezone?: string
           updated_at?: string
+          voice_agent_created_at?: string | null
+          voice_agent_updated_at?: string | null
+          voice_enabled?: boolean
+          voice_greeting?: string | null
+          voice_id?: string | null
+          voice_kb_doc_id?: string | null
+          voice_kb_synced_at?: string | null
+          voice_languages?: string[]
+          voice_phone_account_sid?: string | null
+          voice_phone_auth_token?: string | null
+          voice_phone_elevenlabs_id?: string | null
+          voice_phone_number?: string | null
+          voice_phone_provider?: string | null
           whatsapp_number?: string | null
           workflow_template?: string
         }
@@ -1277,6 +1319,113 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voice_conversations: {
+        Row: {
+          call_outcome: string | null
+          caller_phone: string | null
+          charged_cents: number | null
+          cost_cents: number | null
+          created_at: string
+          direction: string
+          duration_seconds: number | null
+          elevenlabs_conversation_id: string | null
+          ended_at: string | null
+          id: string
+          started_at: string
+          tenant_id: string
+          transcript_url: string | null
+          user_id: string | null
+        }
+        Insert: {
+          call_outcome?: string | null
+          caller_phone?: string | null
+          charged_cents?: number | null
+          cost_cents?: number | null
+          created_at?: string
+          direction: string
+          duration_seconds?: number | null
+          elevenlabs_conversation_id?: string | null
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          tenant_id: string
+          transcript_url?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          call_outcome?: string | null
+          caller_phone?: string | null
+          charged_cents?: number | null
+          cost_cents?: number | null
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          elevenlabs_conversation_id?: string | null
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          tenant_id?: string
+          transcript_url?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voice_usage_monthly: {
+        Row: {
+          charged_at: string | null
+          charged_cents: number
+          cost_cents: number
+          id: string
+          minutes_used: number
+          stripe_invoice_id: string | null
+          tenant_id: string
+          year_month: string
+        }
+        Insert: {
+          charged_at?: string | null
+          charged_cents?: number
+          cost_cents?: number
+          id?: string
+          minutes_used?: number
+          stripe_invoice_id?: string | null
+          tenant_id: string
+          year_month: string
+        }
+        Update: {
+          charged_at?: string | null
+          charged_cents?: number
+          cost_cents?: number
+          id?: string
+          minutes_used?: number
+          stripe_invoice_id?: string | null
+          tenant_id?: string
+          year_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_usage_monthly_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

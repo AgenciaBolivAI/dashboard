@@ -6,6 +6,7 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components
 import { getTenantBySlug } from "@/lib/tenant";
 import { listLeads, getLeadIntents } from "@/lib/queries/leads";
 import { LeadRow, type LeadRowData } from "@/components/leads/lead-row";
+import { intentLabel } from "@/lib/leads-intents";
 import { formatDate, cn } from "@/lib/utils";
 
 const STATUS_FILTERS = [
@@ -73,7 +74,7 @@ export default async function LeadsPage({
             label="Intención"
             options={[
               { id: "all", label: "Todas" },
-              ...intents.map((i) => ({ id: i, label: i })),
+              ...intents.map((i) => ({ id: i, label: intentLabel(i) })),
             ]}
             current={intent ?? "all"}
             paramName="intent"

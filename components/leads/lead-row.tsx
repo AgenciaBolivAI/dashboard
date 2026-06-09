@@ -11,6 +11,7 @@ import {
   deleteLeadAction,
 } from "@/lib/actions/leads";
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/leads-types";
+import { intentLabel, intentBadgeClass } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
@@ -88,7 +89,9 @@ export function LeadRow({
       </TableCell>
       <TableCell>
         {lead.intent ? (
-          <Badge variant="outline">{lead.intent}</Badge>
+          <Badge variant="outline" className={intentBadgeClass(lead.intent)}>
+            {intentLabel(lead.intent)}
+          </Badge>
         ) : (
           <span className="text-muted-foreground">—</span>
         )}

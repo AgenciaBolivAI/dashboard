@@ -10,6 +10,7 @@ import {
   chunkText,
   embedTexts,
 } from "@/lib/ingestion";
+import { fireAndForgetVoiceKbSync } from "@/lib/voice-kb";
 
 export type KnowledgeType = "documents" | "pain";
 
@@ -123,6 +124,7 @@ export async function uploadKnowledgeAction(
     hash,
   });
 
+  fireAndForgetVoiceKbSync(tenantId);
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true, chunksAdded: chunks.length };
 }
@@ -188,6 +190,7 @@ export async function addManualChunkAction(
 
   if (error) return { error: error.message };
 
+  fireAndForgetVoiceKbSync(parsed.data.tenant_id);
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true, chunksAdded: 1 };
 }
@@ -247,6 +250,7 @@ export async function updateChunkAction(
 
   if (error) return { error: error.message };
 
+  fireAndForgetVoiceKbSync(parsed.data.tenant_id);
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }
@@ -267,6 +271,7 @@ export async function deleteChunkAction(
 
   if (error) return { error: error.message };
 
+  fireAndForgetVoiceKbSync(tenantId);
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }
@@ -299,6 +304,7 @@ export async function deleteSourceAction(
   // Suppress unused warning in non-strict modes
   void table;
 
+  fireAndForgetVoiceKbSync(tenantId);
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }

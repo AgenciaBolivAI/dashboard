@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "general", label: "General" },
   { href: "agent", label: "Agente" },
+  { href: "voice", label: "Voz" },
   { href: "branding", label: "Marca" },
   { href: "team", label: "Equipo" },
   { href: "integrations", label: "Integraciones" },

@@ -8,6 +8,7 @@ import {
   type KnowledgeType,
 } from "@/lib/queries/knowledge";
 import { KnowledgeManager } from "@/components/knowledge/knowledge-manager";
+import { VoiceSyncStatus } from "@/components/knowledge/voice-sync-status";
 import { cn } from "@/lib/utils";
 
 const TABS: { id: KnowledgeType; label: string; sub: string }[] = [
@@ -54,6 +55,12 @@ export default async function KnowledgePage({
           href="#sources"
         />
       </div>
+
+      <VoiceSyncStatus
+        tenantId={tenant.id}
+        voiceEnabled={tenant.voice_enabled}
+        lastSyncedAt={tenant.voice_kb_synced_at}
+      />
 
       <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto">
         {TABS.map((t) => {
