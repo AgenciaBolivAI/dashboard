@@ -31,44 +31,23 @@ export default async function SignUpPage({
     }
   }
 
-  if (!invitation) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Solo por invitación</CardTitle>
-          <CardDescription>
-            BolivAI Cloud es por invitación. Pide a tu equipo que te envíe un
-            enlace de invitación, o contáctanos para empezar.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button asChild className="w-full">
-            <a
-              href="https://wa.me/19703910466?text=Hola%20BolivAI%2C%20quiero%20una%20cuenta%20para%20mi%20negocio"
-              target="_blank"
-              rel="noopener"
-            >
-              Contactar por WhatsApp
-            </a>
-          </Button>
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/login">Ya tengo cuenta</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
+  // If a valid invitation token is present, pre-fill + tell the user which
+  // tenant they're joining. Otherwise show open self-serve sign-up.
   return (
     <Card>
       <CardHeader>
         <CardTitle>Crear cuenta</CardTitle>
         <CardDescription>
-          Te invitaron a unirte a {invitation.tenant_name}.
+          {invitation
+            ? `Te invitaron a unirte a ${invitation.tenant_name}.`
+            : "Crea tu cuenta y configura tu agente AI en menos de 5 minutos."}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <SignUpForm invitationToken={token} prefilledEmail={invitation.email} />
+        <SignUpForm
+          invitationToken={token}
+          prefilledEmail={invitation?.email}
+        />
         <div className="mt-6 text-xs text-muted-foreground">
           ¿Ya tienes cuenta?{" "}
           <Link href="/login" className="text-foreground hover:underline">

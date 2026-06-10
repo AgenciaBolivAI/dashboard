@@ -18,15 +18,17 @@ export function SignUpForm({
 }) {
   const [state, action, pending] = useActionState(signUpAction, initial);
 
+  // Success path normally redirects server-side (signUpAction → redirect).
+  // This block only fires if the auto-sign-in failed but the account was created.
   if (state.success) {
     return (
       <div className="space-y-4 text-sm">
         <p className="font-medium text-foreground">¡Cuenta creada!</p>
         <p className="text-muted-foreground">
-          Ya puedes iniciar sesión con tu email y contraseña.
+          Inicia sesión para continuar con la configuración.
         </p>
         <Button asChild className="w-full">
-          <Link href="/login">Ir a iniciar sesión</Link>
+          <Link href="/login?next=/onboarding">Iniciar sesión</Link>
         </Button>
       </div>
     );

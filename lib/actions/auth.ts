@@ -58,34 +58,41 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
-  if (!parsed.data.invitation_token) {
-    return {
-      error:
-        "BolivAI es por invitación. Pide a tu equipo que te envíe un enlace de invitación, o contáctanos.",
-    };
-  }
-
   const svc = createServiceClient();
   const email = parsed.data.email.toLowerCase();
+  const hasInvitation = !!parsed.data.invitation_token;
 
-  // Validate the invitation BEFORE creating any account
-  const { data: invitation } = await svc
-    .from("invitations")
-    .select("id, tenant_id, role, email, expires_at, accepted_at")
-    .eq("token", parsed.data.invitation_token)
-    .maybeSingle();
+  // Two paths:
+  //  1. Invitation flow — token validates, account auto-confirms, attached to existing tenant
+  //  2. Self-serve flow — account auto-confirms (sign-up implies intent), user lands on /onboarding to build their tenant
+  type InvitationRow = {
+    id: string;
+    tenant_id: string;
+    role: string;
+    email: string;
+    expires_at: string;
+    accepted_at: string | null;
+  };
+  let invitation: InvitationRow | null = null;
 
-  if (!invitation) return { error: "Invitación inválida" };
-  if (invitation.accepted_at) return { error: "Esta invitación ya fue usada" };
-  if (new Date(invitation.expires_at as string) < new Date()) {
-    return { error: "Esta invitación expiró" };
+  if (hasInvitation) {
+    const { data } = await svc
+      .from("invitations")
+      .select("id, tenant_id, role, email, expires_at, accepted_at")
+      .eq("token", parsed.data.invitation_token!)
+      .maybeSingle();
+
+    if (!data) return { error: "Invitación inválida" };
+    invitation = data as unknown as InvitationRow;
+    if (invitation.accepted_at) return { error: "Esta invitación ya fue usada" };
+    if (new Date(invitation.expires_at) < new Date()) {
+      return { error: "Esta invitación expiró" };
+    }
+    if (invitation.email.toLowerCase() !== email) {
+      return { error: "El email no coincide con el de la invitación" };
+    }
   }
-  if ((invitation.email as string).toLowerCase() !== email) {
-    return { error: "El email no coincide con el de la invitación" };
-  }
 
-  // Create the auth user via admin API. Pre-confirm email — the invite itself
-  // is the proof of email ownership, so they skip the confirmation step.
   let userId: string | null = null;
   const { data: created, error: createErr } = await svc.auth.admin.createUser({
     email,
@@ -96,8 +103,6 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
   if (created?.user?.id) {
     userId = created.user.id;
   } else if (createErr) {
-    // Email may already exist (e.g., user previously signed up before lockdown,
-    // or already a member of another tenant). Look them up and proceed.
     const msg = createErr.message?.toLowerCase() ?? "";
     if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
       const { data: list } = await svc.auth.admin.listUsers({ page: 1, perPage: 200 });
@@ -111,10 +116,24 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
 
   if (!userId) return { error: "No se pudo crear la cuenta" };
 
-  // Attach to tenant + mark invitation accepted
-  await acceptInvitationFor(userId, parsed.data.invitation_token);
+  if (invitation) {
+    await acceptInvitationFor(userId, parsed.data.invitation_token!);
+  }
 
-  return { error: null, success: true };
+  // Sign the user in so they land authenticated on /onboarding (or /dashboard
+  // if invited). Pre-confirmed accounts don't need email click-through.
+  const supabase = await createClient();
+  const { error: signInErr } = await supabase.auth.signInWithPassword({
+    email,
+    password: parsed.data.password,
+  });
+  if (signInErr) {
+    // Account exists but sign-in failed (rare — usually a wrong password we just set)
+    return { error: null, success: true };
+  }
+
+  revalidatePath("/", "layout");
+  redirect(hasInvitation ? "/dashboard" : "/onboarding");
 }
 
 // ─── Sign out ────────────────────────────────────────────────────────

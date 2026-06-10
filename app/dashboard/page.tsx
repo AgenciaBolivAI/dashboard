@@ -16,6 +16,11 @@ export default async function DashboardIndex() {
 
   const isAdmin = await isBolivAIAdmin();
 
+  // Non-admin user without any tenant → self-serve onboarding
+  if (!isAdmin) {
+    redirect("/onboarding");
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <Card className="max-w-md w-full">
