@@ -26,6 +26,7 @@
  */
 import { NextResponse } from "next/server";
 import { debitCredits, reserveCredits, releaseCredits } from "@/lib/billing/credits";
+import { checkBearer } from "@/lib/security/bearer";
 
 export const runtime = "nodejs";
 
@@ -34,9 +35,7 @@ function unauthorized() {
 }
 
 export async function POST(req: Request) {
-  const auth = req.headers.get("authorization") ?? "";
-  const expected = process.env.CCAVAI_WEBHOOK_SECRET;
-  if (!expected || auth !== `Bearer ${expected}`) {
+  if (!checkBearer(req, process.env.CCAVAI_WEBHOOK_SECRET)) {
     return unauthorized();
   }
 

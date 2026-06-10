@@ -32,7 +32,16 @@ export function TenantSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-sm hover:bg-secondary transition">
+        <button
+          type="button"
+          // Some password-manager / form-filler extensions (LastPass, Dashlane,
+          // 1Password) inject `fdprocessedid` attributes onto buttons after
+          // page load, causing a hydration mismatch. The element is a
+          // generic action button (no name/value), so we tell React to
+          // not panic about attribute mismatches on it.
+          suppressHydrationWarning
+          className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left text-sm hover:bg-secondary transition"
+        >
           <div
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded font-display text-xs font-bold"
             style={{

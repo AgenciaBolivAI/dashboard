@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { startTopupAction } from "@/lib/actions/billing";
-import { TOPUP_PRESETS, calculateBonusCredits } from "@/lib/billing/credits";
+import { TOPUP_PRESETS, calculateBonusCredits } from "@/lib/billing/pricing";
 import { cn } from "@/lib/utils";
 
 const MIN_DOLLARS = 10;

@@ -15,6 +15,7 @@
  */
 import { NextResponse } from "next/server";
 import { renderBrandedPng, type BrandRenderInput } from "@/lib/content/brand-render";
+import { checkBearer } from "@/lib/security/bearer";
 
 export const runtime = "nodejs";   // needs node:fs for font loading
 export const maxDuration = 30;
@@ -24,9 +25,7 @@ function unauthorized() {
 }
 
 export async function POST(req: Request) {
-  const auth = req.headers.get("authorization") ?? "";
-  const expected = process.env.CCAVAI_WEBHOOK_SECRET;
-  if (!expected || auth !== `Bearer ${expected}`) {
+  if (!checkBearer(req, process.env.CCAVAI_WEBHOOK_SECRET)) {
     return unauthorized();
   }
 

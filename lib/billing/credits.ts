@@ -14,6 +14,16 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe, getAppUrl } from "@/lib/stripe";
+import {
+  MIN_TOPUP_CENTS,
+  MAX_TOPUP_CENTS,
+  TOPUP_PRESETS,
+  calculateBonusCredits,
+} from "./pricing";
+
+// Re-export so existing imports from "@/lib/billing/credits" keep working,
+// but client components should now prefer "@/lib/billing/pricing" directly.
+export { MIN_TOPUP_CENTS, MAX_TOPUP_CENTS, TOPUP_PRESETS, calculateBonusCredits };
 
 export type CreditBalance = {
   balance_credits: number;
@@ -38,41 +48,6 @@ export type CreditTransaction = {
   metadata: Record<string, unknown>;
   created_at: string;
 };
-
-/**
- * Bonus credit tiers. The amounts are tunable; pricing.locked_in says
- * 5/10/15/20% at $50/$100/$250/$500. Cents thresholds + bonus percentages.
- */
-const BONUS_TIERS = [
-  { min_cents: 50_000, bonus_pct: 20 },   // $500+
-  { min_cents: 25_000, bonus_pct: 15 },   // $250+
-  { min_cents: 10_000, bonus_pct: 10 },   // $100+
-  { min_cents:  5_000, bonus_pct: 5 },    // $50+
-  // Anything under $50 → 0% bonus
-] as const;
-
-export function calculateBonusCredits(paidCents: number): number {
-  for (const tier of BONUS_TIERS) {
-    if (paidCents >= tier.min_cents) {
-      // 1¢ = 1 credit; bonus is a % of credits, rounded down.
-      return Math.floor((paidCents * tier.bonus_pct) / 100);
-    }
-  }
-  return 0;
-}
-
-/** Suggested top-up amounts on the billing page. Custom amount too. */
-export const TOPUP_PRESETS = [
-  { cents: 1_000,  label: "$10",  bonus: 0 },
-  { cents: 2_500,  label: "$25",  bonus: 0 },
-  { cents: 5_000,  label: "$50",  bonus: 250 },
-  { cents: 10_000, label: "$100", bonus: 1_000 },
-  { cents: 25_000, label: "$250", bonus: 3_750 },
-  { cents: 50_000, label: "$500", bonus: 10_000 },
-];
-
-export const MIN_TOPUP_CENTS = 1_000;     // $10
-export const MAX_TOPUP_CENTS = 1_000_000; // $10,000 single transaction cap
 
 /** Server-side: read a tenant's current balance snapshot via the RPC. */
 export async function getBalance(tenantId: string): Promise<CreditBalance | null> {
