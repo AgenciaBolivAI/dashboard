@@ -527,6 +527,7 @@ export type Database = {
           description: string | null
           unit_label: string
           updated_at: string
+          vendor_cost_micros: Json
         }
         Insert: {
           action_key: string
@@ -535,6 +536,7 @@ export type Database = {
           description?: string | null
           unit_label: string
           updated_at?: string
+          vendor_cost_micros?: Json
         }
         Update: {
           action_key?: string
@@ -543,6 +545,7 @@ export type Database = {
           description?: string | null
           unit_label?: string
           updated_at?: string
+          vendor_cost_micros?: Json
         }
         Relationships: []
       }

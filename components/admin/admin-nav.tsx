@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
+  { href: "/admin/overview", label: "Resumen" },
   { href: "/admin", label: "Tenants", exact: true },
+  { href: "/admin/usage", label: "Uso & Costos" },
+  { href: "/admin/pricing", label: "Precios" },
   { href: "/admin/templates", label: "Plantillas" },
-  { href: "/admin/usage", label: "Uso" },
   { href: "/admin/users", label: "Equipo BolivAI" },
 ];
 
