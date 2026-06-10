@@ -25,23 +25,49 @@ export async function GET(request: NextRequest) {
   const leads = await listLeads(tenant.id, {
     status: searchParams.get("status") ?? undefined,
     intent: searchParams.get("intent") ?? undefined,
+    source: searchParams.get("source") ?? undefined,
+    city: searchParams.get("city") ?? undefined,
+    vertical: searchParams.get("vertical") ?? undefined,
     limit: 10_000,
   });
 
-  const header = ["name", "whatsapp_number", "email", "intent", "status", "notes", "created_at"];
-  const rows = leads.map((l) =>
-    [
+  // Wider header for batch-call workflows: phone is the primary key (Sandra
+  // needs it), then everything else useful for the CSV consumer.
+  const header = [
+    "name",
+    "whatsapp_number",
+    "email",
+    "intent",
+    "status",
+    "source",
+    "vertical",
+    "city",
+    "website",
+    "address",
+    "phone_display",
+    "notes",
+    "created_at",
+  ];
+  const rows = leads.map((l) => {
+    const m = (l.metadata ?? {}) as Record<string, unknown>;
+    return [
       l.name,
       l.whatsapp_number,
       l.email,
       l.intent,
       l.status,
+      l.source,
+      m.vertical ?? "",
+      m.city ?? "",
+      m.website ?? "",
+      m.address ?? "",
+      m.phone_display ?? "",
       l.notes,
       l.created_at,
     ]
       .map(csvEscape)
-      .join(","),
-  );
+      .join(",");
+  });
 
   const csv = [header.join(","), ...rows].join("\n");
   const filename = `leads-${tenantSlug}-${new Date().toISOString().slice(0, 10)}.csv`;

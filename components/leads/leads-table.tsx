@@ -31,6 +31,8 @@ export type LeadFromQuery = {
   created_at: string;
   conversation_id?: string | null;
   notes?: string | null;
+  source?: string | null;
+  metadata?: { city?: string; vertical?: string; website?: string; primary_type?: string } | null;
 };
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
@@ -132,19 +134,24 @@ export function LeadsTable({
       <div className="mb-3 flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm text-muted-foreground">
           {selected.size > 0
-            ? `${selected.size} seleccionado${selected.size === 1 ? "" : "s"}`
-            : `${leads.length} lead${leads.length === 1 ? "" : "s"}`}
+            ? `${selected.size} seleccionado${selected.size === 1 ? "" : "s"} · ${callableIds.length} con teléfono`
+            : `${leads.length} lead${leads.length === 1 ? "" : "s"} · ${callableIds.length} con teléfono`}
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {selected.size > 0 ? (
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+              Limpiar
+            </Button>
+          ) : null}
           <Button
             size="sm"
             variant="outline"
             onClick={toggleAllCallable}
             disabled={callableIds.length === 0}
           >
-            {selected.size > 0
-              ? "Limpiar selección"
-              : `Con teléfono (${callableIds.length})`}
+            {selected.size === callableIds.length && callableIds.length > 0
+              ? "Deseleccionar todos"
+              : `Seleccionar todos (${callableIds.length})`}
           </Button>
           <Button
             size="sm"

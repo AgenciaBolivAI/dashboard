@@ -3,7 +3,7 @@ import { UserPlus, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getTenantBySlug } from "@/lib/tenant";
-import { listLeads, getLeadIntents } from "@/lib/queries/leads";
+import { listLeads, getLeadIntents, getLeadFacets } from "@/lib/queries/leads";
 import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
 import { intentLabel } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
@@ -16,28 +16,73 @@ const STATUS_FILTERS = [
   { id: "lost", label: "Perdidos" },
 ];
 
+const SOURCE_LABELS: Record<string, string> = {
+  aima: "AIMA",
+  whatsapp: "WhatsApp",
+  manual: "Manual",
+  voice: "Voz",
+  webform: "Formulario",
+};
+
+const VERTICAL_LABELS: Record<string, string> = {
+  dental_clinic: "Dental",
+  physiotherapy_clinic: "Fisio",
+  real_estate: "Inmobiliaria",
+  fitness_studio: "Fitness",
+  aesthetic_clinic: "Estética",
+  chiropractor: "Quiropráctico",
+  veterinary_clinic: "Veterinaria",
+  restaurant: "Restaurante",
+};
+
+type LeadsSearchParams = {
+  status?: string;
+  intent?: string;
+  source?: string;
+  city?: string;
+  vertical?: string;
+};
+
 export default async function LeadsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
-  searchParams: Promise<{ status?: string; intent?: string }>;
+  searchParams: Promise<LeadsSearchParams>;
 }) {
   const { tenantSlug } = await params;
-  const { status, intent } = await searchParams;
+  const filters = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
 
-  const [leads, intents] = await Promise.all([
+  const [leads, intents, facets] = await Promise.all([
     listLeads(tenant.id, {
-      status: status && status !== "all" ? status : undefined,
-      intent: intent && intent !== "all" ? intent : undefined,
+      status: filters.status && filters.status !== "all" ? filters.status : undefined,
+      intent: filters.intent && filters.intent !== "all" ? filters.intent : undefined,
+      source: filters.source && filters.source !== "all" ? filters.source : undefined,
+      city: filters.city && filters.city !== "all" ? filters.city : undefined,
+      vertical: filters.vertical && filters.vertical !== "all" ? filters.vertical : undefined,
     }),
     getLeadIntents(tenant.id),
+    getLeadFacets(tenant.id),
   ]);
 
+  // Reflect ALL active filters in the export URL so the CSV matches the visible table
   const exportQs = new URLSearchParams();
-  if (status && status !== "all") exportQs.set("status", status);
-  if (intent && intent !== "all") exportQs.set("intent", intent);
+  for (const key of ["status", "intent", "source", "city", "vertical"] as const) {
+    const v = filters[key];
+    if (v && v !== "all") exportQs.set(key, v);
+  }
+
+  function hrefFor(swap: Partial<LeadsSearchParams>): string {
+    const params = new URLSearchParams();
+    const next = { ...filters, ...swap } as LeadsSearchParams;
+    for (const k of ["status", "intent", "source", "city", "vertical"] as const) {
+      const v = next[k];
+      if (v && v !== "all") params.set(k, v);
+    }
+    const qs = params.toString();
+    return `/dashboard/${tenantSlug}/leads${qs ? "?" + qs : ""}`;
+  }
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
@@ -46,6 +91,7 @@ export default async function LeadsPage({
           <h1 className="text-3xl font-display font-extrabold tracking-tight">Leads</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {leads.length} {leads.length === 1 ? "lead" : "leads"}
+            {(filters.city || filters.vertical || filters.source) && " (filtrado)"}
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -63,11 +109,45 @@ export default async function LeadsPage({
         <FilterRow
           label="Estado"
           options={STATUS_FILTERS}
-          current={status ?? "all"}
-          paramName="status"
-          tenantSlug={tenantSlug}
-          otherParam={intent ? `intent=${intent}` : ""}
+          current={filters.status ?? "all"}
+          hrefFor={(id) => hrefFor({ status: id })}
         />
+        {facets.sources.length > 1 ? (
+          <FilterRow
+            label="Origen"
+            options={[
+              { id: "all", label: "Todos" },
+              ...facets.sources.map((s) => ({ id: s, label: SOURCE_LABELS[s] ?? s })),
+            ]}
+            current={filters.source ?? "all"}
+            hrefFor={(id) => hrefFor({ source: id })}
+          />
+        ) : null}
+        {facets.verticals.length > 0 ? (
+          <FilterRow
+            label="Vertical"
+            options={[
+              { id: "all", label: "Todas" },
+              ...facets.verticals.map((v) => ({
+                id: v,
+                label: VERTICAL_LABELS[v] ?? v.replace(/_/g, " "),
+              })),
+            ]}
+            current={filters.vertical ?? "all"}
+            hrefFor={(id) => hrefFor({ vertical: id })}
+          />
+        ) : null}
+        {facets.cities.length > 0 ? (
+          <FilterRow
+            label="Ciudad"
+            options={[
+              { id: "all", label: "Todas" },
+              ...facets.cities.map((c) => ({ id: c, label: c })),
+            ]}
+            current={filters.city ?? "all"}
+            hrefFor={(id) => hrefFor({ city: id })}
+          />
+        ) : null}
         {intents.length > 0 ? (
           <FilterRow
             label="Intención"
@@ -75,10 +155,8 @@ export default async function LeadsPage({
               { id: "all", label: "Todas" },
               ...intents.map((i) => ({ id: i, label: intentLabel(i) })),
             ]}
-            current={intent ?? "all"}
-            paramName="intent"
-            tenantSlug={tenantSlug}
-            otherParam={status ? `status=${status}` : ""}
+            current={filters.intent ?? "all"}
+            hrefFor={(id) => hrefFor({ intent: id })}
           />
         ) : null}
       </div>
@@ -86,13 +164,14 @@ export default async function LeadsPage({
       {leads.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
           <UserPlus className="size-10 text-muted-foreground mb-4" />
-          <p className="font-medium">Sin leads todavía</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Cuando el agente capture datos de un cliente, aparecerán aquí.
+          <p className="font-medium">Sin leads que coincidan</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md">
+            Cuando AIMA encuentre nuevos negocios o el agente capture datos de un cliente,
+            aparecerán aquí.
           </p>
         </Card>
       ) : (
-        <LeadsTable tenantId={tenant.id} leads={leads as LeadFromQuery[]} />
+        <LeadsTable tenantId={tenant.id} leads={leads as unknown as LeadFromQuery[]} />
       )}
     </div>
   );
@@ -102,36 +181,24 @@ function FilterRow({
   label,
   options,
   current,
-  paramName,
-  tenantSlug,
-  otherParam,
+  hrefFor,
 }: {
   label: string;
   options: { id: string; label: string }[];
   current: string;
-  paramName: string;
-  tenantSlug: string;
-  otherParam: string;
+  hrefFor: (id: string) => string;
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-muted-foreground uppercase tracking-wider mr-1">
+      <span className="text-xs text-muted-foreground uppercase tracking-wider mr-1 min-w-[68px]">
         {label}:
       </span>
       {options.map((o) => {
         const active = current === o.id;
-        const params = new URLSearchParams();
-        if (o.id !== "all") params.set(paramName, o.id);
-        if (otherParam) {
-          const [k, v] = otherParam.split("=");
-          if (k && v && k !== paramName) params.set(k, v);
-        }
-        const qs = params.toString();
-        const href = `/dashboard/${tenantSlug}/leads${qs ? "?" + qs : ""}`;
         return (
           <Link
             key={o.id}
-            href={href}
+            href={hrefFor(o.id)}
             className={cn(
               "px-3 py-1 rounded-md text-xs font-medium transition",
               active

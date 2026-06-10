@@ -15,6 +15,7 @@ import {
 import { createServiceClient } from "@/lib/supabase/service";
 import { TenantAdminForm } from "@/components/admin/tenant-admin-form";
 import { TenantDangerZone } from "@/components/admin/tenant-danger-zone";
+import { EvolutionProvisioner } from "@/components/admin/evolution-provisioner";
 import { Sparkline } from "@/components/admin/sparkline";
 import { fmtUsd, fmtCents, fmtCredits, microsToDollars } from "@/lib/queries/admin-pnl";
 import {
@@ -371,6 +372,21 @@ export default async function AdminTenantDetail({
           </TableBody>
         </Table>
       </Card>
+
+      {/* ── EVOLUTION PROVISIONING ───────────────────────────────── */}
+      {t.gateway === "evolution" && (
+        <div className="mb-6">
+          <EvolutionProvisioner
+            tenantId={t.id}
+            tenantStatus={t.status}
+            currentInstance={
+              t.gateway_config && typeof t.gateway_config === "object" && "instance" in t.gateway_config
+                ? String((t.gateway_config as { instance?: unknown }).instance ?? "") || null
+                : null
+            }
+          />
+        </div>
+      )}
 
       <Card className="mb-6">
         <CardHeader>

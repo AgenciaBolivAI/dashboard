@@ -11,6 +11,8 @@ import {
   Mail,
   Target,
   Sparkles,
+  X,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,28 @@ const SOURCE_OPTIONS = [
   { id: "web_directory", label: "Web directorios" },
   { id: "apollo", label: "Apollo" },
 ] as const;
+
+const VERTICAL_PRESETS = [
+  { id: "dental_clinic",        emoji: "🦷", label: "Dental" },
+  { id: "physiotherapy_clinic", emoji: "🩺", label: "Fisio" },
+  { id: "real_estate",          emoji: "🏠", label: "Inmobiliaria" },
+  { id: "fitness_studio",       emoji: "💪", label: "Fitness" },
+  { id: "aesthetic_clinic",     emoji: "✨", label: "Estética" },
+  { id: "chiropractor",         emoji: "🦴", label: "Quiropráctico" },
+  { id: "veterinary_clinic",    emoji: "🐶", label: "Veterinaria" },
+  { id: "restaurant",           emoji: "🍽️", label: "Restaurante" },
+  { id: "spa_wellness",         emoji: "🧖", label: "Spa" },
+  { id: "beauty_salon",         emoji: "💇", label: "Belleza" },
+  { id: "law_firm",             emoji: "⚖️", label: "Abogados" },
+  { id: "accounting_firm",      emoji: "📊", label: "Contadores" },
+] as const;
+
+const GEO_PRESETS = [
+  "Ciudad de México", "Bogotá", "Buenos Aires", "Santiago Chile", "Lima Perú",
+  "La Paz Bolivia", "Caracas", "Quito", "São Paulo", "Asunción", "Montevideo",
+  "Miami FL", "Houston TX", "New York", "Los Angeles", "Chicago",
+  "Madrid", "Barcelona", "Lisboa", "London",
+];
 
 export function AimaSettingsForm({
   tenantId,
@@ -60,8 +84,9 @@ export function AimaSettingsForm({
   );
   const [coldEmailCap, setColdEmailCap] = useState(settings.cold_email_daily_cap);
 
-  const [verticals, setVerticals] = useState(settings.target_verticals.join(", "));
-  const [geographies, setGeographies] = useState(settings.target_geographies.join(", "));
+  const [verticals, setVerticals] = useState<string[]>(settings.target_verticals);
+  const [geographies, setGeographies] = useState<string[]>(settings.target_geographies);
+  const [newCity, setNewCity] = useState("");
 
   function toggleSource(id: typeof SOURCE_OPTIONS[number]["id"]) {
     setScraperSources((cur) =>
@@ -83,14 +108,8 @@ export function AimaSettingsForm({
         instantly_api_key: instantlyKey.trim() || null,
         instantly_campaign_id: instantlyCampaign.trim() || null,
         cold_email_daily_cap: coldEmailCap,
-        target_verticals: verticals
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-        target_geographies: geographies
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
+        target_verticals: verticals,
+        target_geographies: geographies,
       });
       if (res.error) {
         toast.error(res.error);
@@ -300,27 +319,126 @@ export function AimaSettingsForm({
       </Card>
 
       {/* Targeting */}
-      <Card className="p-6 space-y-3">
+      <Card className="p-6 space-y-5">
         <h2 className="text-lg font-display font-semibold flex items-center gap-2">
           <Target className="size-5 text-rose-500" />
           A quién buscar
         </h2>
-        <div className="space-y-1">
-          <Label className="text-xs">Verticales</Label>
-          <Input
-            value={verticals}
-            onChange={(e) => setVerticals(e.target.value)}
-            placeholder="dental_clinic, real_estate, fitness_studio"
-          />
-          <p className="text-xs text-muted-foreground">Separadas por coma.</p>
+
+        {/* Verticals as chip multi-select from preset list */}
+        <div className="space-y-2">
+          <Label className="text-xs">Verticales ({verticals.length} seleccionadas)</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {VERTICAL_PRESETS.map((v) => {
+              const on = verticals.includes(v.id);
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() =>
+                    setVerticals((cur) =>
+                      cur.includes(v.id) ? cur.filter((x) => x !== v.id) : [...cur, v.id],
+                    )
+                  }
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-medium border transition flex items-center gap-1",
+                    on
+                      ? "bg-rose-500/15 border-rose-500/40 text-rose-600 dark:text-rose-400"
+                      : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-rose-500/30",
+                  )}
+                >
+                  <span>{v.emoji}</span>
+                  {v.label}
+                </button>
+              );
+            })}
+          </div>
+          {verticals.filter((v) => !VERTICAL_PRESETS.some((p) => p.id === v)).length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Verticales personalizadas:{" "}
+              {verticals
+                .filter((v) => !VERTICAL_PRESETS.some((p) => p.id === v))
+                .map((v) => (
+                  <code key={v} className="ml-1 px-1.5 py-0.5 rounded bg-secondary">
+                    {v}
+                  </code>
+                ))}
+            </p>
+          )}
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Geografías</Label>
-          <Input
-            value={geographies}
-            onChange={(e) => setGeographies(e.target.value)}
-            placeholder="Miami FL, Bogotá CO, Madrid ES"
-          />
+
+        {/* Cities as removable chips + add-new input */}
+        <div className="space-y-2">
+          <Label className="text-xs">Geografías ({geographies.length})</Label>
+          {geographies.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {geographies.map((c) => (
+                <span
+                  key={c}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-secondary border border-border"
+                >
+                  {c}
+                  <button
+                    type="button"
+                    onClick={() => setGeographies((cur) => cur.filter((x) => x !== c))}
+                    className="text-muted-foreground hover:text-destructive transition"
+                    aria-label={`Eliminar ${c}`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2 mt-2">
+            <Input
+              value={newCity}
+              onChange={(e) => setNewCity(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const v = newCity.trim();
+                  if (v && !geographies.includes(v)) {
+                    setGeographies((cur) => [...cur, v]);
+                  }
+                  setNewCity("");
+                }
+              }}
+              placeholder="Ciudad nueva, ej. Asunción"
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const v = newCity.trim();
+                if (v && !geographies.includes(v)) {
+                  setGeographies((cur) => [...cur, v]);
+                }
+                setNewCity("");
+              }}
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
+          {GEO_PRESETS.length > 0 && (
+            <div className="pt-2">
+              <p className="text-xs text-muted-foreground mb-1.5">Sugeridas:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {GEO_PRESETS.filter((g) => !geographies.includes(g)).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGeographies((cur) => [...cur, g])}
+                    className="px-2.5 py-1 rounded-full text-xs bg-secondary/50 border border-dashed border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition"
+                  >
+                    + {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 
