@@ -457,6 +457,133 @@ export type Database = {
           },
         ]
       }
+      credit_accounts: {
+        Row: {
+          auto_refill_amount_cents: number | null
+          auto_refill_enabled: boolean
+          auto_refill_trigger: number
+          balance_credits: number
+          created_at: string
+          default_payment_method: string | null
+          lifetime_spent_credits: number
+          lifetime_topped_up_cents: number
+          low_balance_threshold: number
+          out_of_credits_at: string | null
+          reserved_credits: number
+          stripe_customer_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_refill_amount_cents?: number | null
+          auto_refill_enabled?: boolean
+          auto_refill_trigger?: number
+          balance_credits?: number
+          created_at?: string
+          default_payment_method?: string | null
+          lifetime_spent_credits?: number
+          lifetime_topped_up_cents?: number
+          low_balance_threshold?: number
+          out_of_credits_at?: string | null
+          reserved_credits?: number
+          stripe_customer_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          auto_refill_amount_cents?: number | null
+          auto_refill_enabled?: boolean
+          auto_refill_trigger?: number
+          balance_credits?: number
+          created_at?: string
+          default_payment_method?: string | null
+          lifetime_spent_credits?: number
+          lifetime_topped_up_cents?: number
+          low_balance_threshold?: number
+          out_of_credits_at?: string | null
+          reserved_credits?: number
+          stripe_customer_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_pricing: {
+        Row: {
+          action_key: string
+          credits_per_unit: number
+          description: string | null
+          unit_label: string
+          updated_at: string
+        }
+        Insert: {
+          action_key: string
+          credits_per_unit: number
+          description?: string | null
+          unit_label: string
+          updated_at?: string
+        }
+        Update: {
+          action_key?: string
+          credits_per_unit?: number
+          description?: string | null
+          unit_label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      credit_transactions: {
+        Row: {
+          action_key: string | null
+          balance_after: number
+          created_at: string
+          credits_delta: number
+          id: string
+          metadata: Json
+          reference_id: string | null
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          action_key?: string | null
+          balance_after: number
+          created_at?: string
+          credits_delta: number
+          id?: string
+          metadata?: Json
+          reference_id?: string | null
+          tenant_id: string
+          type: string
+        }
+        Update: {
+          action_key?: string | null
+          balance_after?: number
+          created_at?: string
+          credits_delta?: number
+          id?: string
+          metadata?: Json
+          reference_id?: string | null
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_users: {
         Row: {
           created_at: string
@@ -1832,6 +1959,35 @@ export type Database = {
           window_start: string
         }[]
       }
+      credit_topup: {
+        Args: {
+          p_bonus_credits?: number
+          p_metadata?: Json
+          p_paid_cents: number
+          p_stripe_pi_id?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          credits_added: number
+          new_balance: number
+          was_idempotent: boolean
+        }[]
+      }
+      debit_credits: {
+        Args: {
+          p_action_key: string
+          p_metadata?: Json
+          p_reference_id?: string
+          p_tenant_id: string
+          p_units?: number
+        }
+        Returns: {
+          balance_after: number
+          credits_debited: number
+          ok: boolean
+          reason: string
+        }[]
+      }
       is_admin_of: { Args: { p_tenant_id: string }; Returns: boolean }
       is_bolivai_admin: { Args: never; Returns: boolean }
       is_member_of: { Args: { p_tenant_id: string }; Returns: boolean }
@@ -1897,6 +2053,20 @@ export type Database = {
         }[]
       }
       next_invoice_number: { Args: { p_tenant_id: string }; Returns: string }
+      release_credits: {
+        Args: {
+          p_action_key: string
+          p_reservation_id: string
+          p_tenant_id: string
+          p_units?: number
+        }
+        Returns: {
+          balance_after: number
+          credits_charged: number
+          ok: boolean
+          reason: string
+        }[]
+      }
       reschedule_reservation: {
         Args: {
           p_duration_min?: number
@@ -1930,6 +2100,21 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reserve_credits: {
+        Args: {
+          p_action_key: string
+          p_reference_id?: string
+          p_tenant_id: string
+          p_units?: number
+        }
+        Returns: {
+          balance_after: number
+          ok: boolean
+          reason: string
+          reservation_id: string
+          reserved_after: number
+        }[]
+      }
       role_on_tenant: { Args: { p_tenant_id: string }; Returns: string }
       search_slots_day: {
         Args: {
@@ -1944,6 +2129,20 @@ export type Database = {
           staff_id: string
           staff_name: string
           start_time: string
+        }[]
+      }
+      tenant_balance: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          available_credits: number
+          balance_credits: number
+          is_low: boolean
+          is_zero: boolean
+          lifetime_spent_credits: number
+          lifetime_topped_up_cents: number
+          low_balance_threshold: number
+          out_of_credits_at: string
+          reserved_credits: number
         }[]
       }
     }

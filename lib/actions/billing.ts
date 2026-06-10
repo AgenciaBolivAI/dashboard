@@ -5,6 +5,11 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
+import {
+  createTopupCheckoutSession,
+  MIN_TOPUP_CENTS,
+  MAX_TOPUP_CENTS,
+} from "@/lib/billing/credits";
 
 export type BillingState = {
   error: string | null;
@@ -69,6 +74,49 @@ export async function updateBusinessProfileAction(
   if (error) return { error: error.message };
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
+}
+
+// ── Credit top-ups ────────────────────────────────────────────────────
+
+const topupSchema = z.object({
+  cents: z.coerce
+    .number()
+    .int()
+    .min(MIN_TOPUP_CENTS, `Mínimo $${MIN_TOPUP_CENTS / 100}`)
+    .max(MAX_TOPUP_CENTS, `Máximo $${MAX_TOPUP_CENTS / 100} por transacción`),
+});
+
+/**
+ * Server action: open a Stripe Checkout session for a credit top-up.
+ * The client redirects to the returned URL; on payment success the
+ * Stripe webhook calls credit_topup() RPC + the user lands back on
+ * /billing?topup=success.
+ */
+export async function startTopupAction(
+  tenantId: string,
+  tenantSlug: string,
+  cents: number,
+): Promise<{ error: string | null; url?: string | null }> {
+  const parsed = topupSchema.safeParse({ cents });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Monto inválido" };
+  }
+
+  const user = await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+
+  try {
+    const { url } = await createTopupCheckoutSession({
+      tenantId,
+      paidCents: parsed.data.cents,
+      customerEmail: user.email ?? undefined,
+      tenantSlug,
+    });
+    return { error: null, url };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "No se pudo crear la sesión de pago";
+    return { error: msg };
+  }
 }
 
 /**

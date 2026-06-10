@@ -7,6 +7,7 @@ import {
   INVOICE_NOTIFY_SECRET,
 } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
+import { applyTopupFromStripe } from "@/lib/billing/credits";
 
 /**
  * Fire-and-forget POST to the n8n Invoice Notify webhook. We don't await
@@ -123,6 +124,46 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
+      case "checkout.session.completed": {
+        // Credit top-up flow: bolivai_purpose=credit_topup in metadata.
+        // Other checkout sessions (none today, but Connect onboarding
+        // may use this event in the future) get ignored.
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.metadata?.bolivai_purpose !== "credit_topup") break;
+
+        const tenantId = session.metadata.bolivai_tenant_id;
+        const paidCents = parseInt(session.metadata.bolivai_paid_cents ?? "0", 10);
+        const bonus = parseInt(session.metadata.bolivai_bonus_credits ?? "0", 10);
+        const paymentIntentId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null;
+
+        if (!tenantId || !paymentIntentId || !(paidCents > 0)) {
+          console.warn("[stripe webhook] topup missing metadata", session.id);
+          break;
+        }
+        if (session.payment_status !== "paid") {
+          console.warn(
+            "[stripe webhook] topup checkout completed but not paid:",
+            session.id,
+            session.payment_status,
+          );
+          break;
+        }
+
+        const result = await applyTopupFromStripe({
+          tenantId,
+          paidCents,
+          bonusCredits: bonus,
+          stripePaymentIntentId: paymentIntentId,
+          stripeCheckoutSessionId: session.id,
+        });
+        console.log(
+          `[stripe webhook] topup applied ${tenantId} +${result.creditsAdded} → ${result.newBalance} (idempotent=${result.wasIdempotent})`,
+        );
+        break;
+      }
       case "invoice.paid": {
         const inv = event.data.object as Stripe.Invoice;
         const bolivaiId = inv.metadata?.bolivai_invoice_id ?? null;

@@ -5,6 +5,8 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { TenantSwitcher, type TenantOption } from "@/components/shell/tenant-switcher";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { UserMenu } from "@/components/shell/user-menu";
+import { BalanceWidget } from "@/components/billing/balance-widget";
+import { OutOfCreditsBanner } from "@/components/billing/out-of-credits-banner";
 import { Separator } from "@/components/ui/separator";
 import { hslVar, readableForeground } from "@/lib/color";
 
@@ -146,8 +148,13 @@ export default async function TenantLayout({
             />
             <span className="text-sm text-muted-foreground truncate">{tenant.name}</span>
           </div>
-          <UserMenu email={user.email ?? "—"} />
+          <div className="flex items-center gap-2 md:gap-3">
+            <BalanceWidget tenantId={tenant.id} tenantSlug={tenant.slug} />
+            <UserMenu email={user.email ?? "—"} />
+          </div>
         </header>
+
+        <OutOfCreditsBanner tenantId={tenant.id} tenantSlug={tenant.slug} />
 
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
+  Coins,
   Contact,
   FileText,
   MessagesSquare,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: "services", label: "Servicios", icon: Sparkles },
   { href: "staff", label: "Personal", icon: Users },
   { href: "knowledge", label: "Conocimiento", icon: FileText },
+  { href: "billing", label: "Facturación", icon: Coins },
   { href: "settings", label: "Ajustes", icon: Settings },
 ];
 
