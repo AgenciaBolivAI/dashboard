@@ -48,10 +48,14 @@ export async function listCcavaiDrafts(opts: {
   limit?: number;
 } = {}): Promise<CcavaiDraft[]> {
   const supabase = await createClient();
+  // Deliberately DO NOT select image_url or subject_image_url here — each
+  // is a ~2MB base64 data URI; inlining 9+ rows blows Vercel's 4.5MB
+  // serverless response cap. The browser pulls images lazily from
+  // /api/ccavai/drafts/[id]/image instead.
   let q = supabase
     .from("ccavai_drafts")
     .select(
-      "id, run_id, generated_at, platform, story_title, story_url, story_source, story_summary, draft_title, draft_body, draft_hashtags, visual_prompt, image_prompt, image_url, subject_image_url, branded_headline, accent_phrases, status, decided_at, decided_notes, posted_url",
+      "id, run_id, generated_at, platform, story_title, story_url, story_source, story_summary, draft_title, draft_body, draft_hashtags, visual_prompt, image_prompt, branded_headline, accent_phrases, status, decided_at, decided_notes, posted_url",
     )
     .order("generated_at", { ascending: false })
     .limit(opts.limit ?? 200);
@@ -59,7 +63,13 @@ export async function listCcavaiDrafts(opts: {
   if (opts.status) q = q.eq("status", opts.status);
 
   const { data } = await q;
-  return (data ?? []) as CcavaiDraft[];
+  // Synthesize the URL fields so the card components can treat them as
+  // present without having to know about the separate /image route.
+  return (data ?? []).map((row) => ({
+    ...(row as Omit<CcavaiDraft, "image_url" | "subject_image_url">),
+    image_url: `/api/ccavai/drafts/${(row as { id: string }).id}/image`,
+    subject_image_url: `/api/ccavai/drafts/${(row as { id: string }).id}/image?variant=subject`,
+  })) as CcavaiDraft[];
 }
 
 export async function listCcavaiRuns(limit = 30): Promise<CcavaiRun[]> {

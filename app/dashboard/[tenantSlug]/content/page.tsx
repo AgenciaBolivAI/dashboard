@@ -13,6 +13,11 @@ import { DraftCard } from "@/components/content/draft-card";
 import { GenerateContentButton } from "@/components/content/generate-button";
 import { cn } from "@/lib/utils";
 
+// Drafts change throughout the day (new generations, edits, approvals,
+// publishes). Caching would mean Celiel sees stale state until the next
+// deploy; force a fresh render on every request.
+export const dynamic = "force-dynamic";
+
 const STATUS_FILTERS: { id: string; label: string }[] = [
   { id: "pending", label: "Pendientes" },
   { id: "approved", label: "Aprobados" },

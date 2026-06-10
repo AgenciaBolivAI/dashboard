@@ -82,38 +82,30 @@ export function DraftCard({
     toast.success(`Copiado para ${platform.label}`);
   }
 
-  function downloadImage() {
+  async function downloadImage() {
     if (!draft.image_url) {
       toast.error("Sin imagen para descargar");
       return;
     }
-    // The image_url is a data URI (data:image/png;base64,…). Convert to a
-    // blob so the browser treats it as a file download, then trigger an
-    // anchor click. Works across Chrome/Safari/Firefox without needing
-    // the deprecated download-as-href trick on huge data URIs.
-    const match = draft.image_url.match(/^data:(image\/[a-z]+);base64,(.+)$/);
-    if (!match) {
-      // Fallback for non-data-URI (e.g. https URL once we migrate to Storage)
+    try {
+      // image_url is now an /api/ccavai/drafts/[id]/image URL (stream of PNG bytes).
+      // Fetch → blob → anchor click. Works for both data URIs and HTTP URLs.
+      const res = await fetch(draft.image_url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = draft.image_url;
+      a.href = url;
       a.download = filename();
+      document.body.appendChild(a);
       a.click();
-      return;
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Descargada — ${platform.label}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "fallo descarga";
+      toast.error(`No se pudo descargar: ${msg}`);
     }
-    const [, mime, b64] = match;
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const blob = new Blob([bytes], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename();
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success(`Descargada — ${platform.label}`);
   }
 
   function filename(): string {
