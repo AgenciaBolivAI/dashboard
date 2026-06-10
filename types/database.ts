@@ -14,6 +14,121 @@ export type Database = {
   }
   public: {
     Tables: {
+      aima_scrape_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          leads_found: number
+          leads_new: number
+          metadata: Json
+          source: string
+          started_at: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          leads_found?: number
+          leads_new?: number
+          metadata?: Json
+          source: string
+          started_at?: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          leads_found?: number
+          leads_new?: number
+          metadata?: Json
+          source?: string
+          started_at?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aima_scrape_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aima_settings: {
+        Row: {
+          apollo_api_key: string | null
+          apollo_enabled: boolean
+          apollo_search_params: Json
+          cold_email_daily_cap: number
+          cold_email_enabled: boolean
+          instantly_api_key: string | null
+          instantly_campaign_id: string | null
+          scraper_concurrency: number
+          scraper_enabled: boolean
+          scraper_max_per_run: number
+          scraper_proxy_token: string | null
+          scraper_proxy_url: string | null
+          scraper_sources: Json
+          target_geographies: string[]
+          target_verticals: string[]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          apollo_api_key?: string | null
+          apollo_enabled?: boolean
+          apollo_search_params?: Json
+          cold_email_daily_cap?: number
+          cold_email_enabled?: boolean
+          instantly_api_key?: string | null
+          instantly_campaign_id?: string | null
+          scraper_concurrency?: number
+          scraper_enabled?: boolean
+          scraper_max_per_run?: number
+          scraper_proxy_token?: string | null
+          scraper_proxy_url?: string | null
+          scraper_sources?: Json
+          target_geographies?: string[]
+          target_verticals?: string[]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          apollo_api_key?: string | null
+          apollo_enabled?: boolean
+          apollo_search_params?: Json
+          cold_email_daily_cap?: number
+          cold_email_enabled?: boolean
+          instantly_api_key?: string | null
+          instantly_campaign_id?: string | null
+          scraper_concurrency?: number
+          scraper_enabled?: boolean
+          scraper_max_per_run?: number
+          scraper_proxy_token?: string | null
+          scraper_proxy_url?: string | null
+          scraper_sources?: Json
+          target_geographies?: string[]
+          target_verticals?: string[]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aima_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bolivai_admins: {
         Row: {
           created_at: string
@@ -97,6 +212,129 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      castillo_webhook_secrets: {
+        Row: {
+          created_at: string
+          secret: string
+          workflow_slug: string
+        }
+        Insert: {
+          created_at?: string
+          secret: string
+          workflow_slug: string
+        }
+        Update: {
+          created_at?: string
+          secret?: string
+          workflow_slug?: string
+        }
+        Relationships: []
+      }
+      ccavai_drafts: {
+        Row: {
+          decided_at: string | null
+          decided_notes: string | null
+          draft_body: string
+          draft_hashtags: Json
+          draft_title: string | null
+          generated_at: string
+          id: string
+          image_prompt: string | null
+          image_url: string | null
+          metadata: Json
+          platform: string
+          posted_url: string | null
+          run_id: string
+          status: string
+          story_source: string | null
+          story_summary: string | null
+          story_title: string
+          story_url: string | null
+          visual_prompt: string | null
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_notes?: string | null
+          draft_body: string
+          draft_hashtags?: Json
+          draft_title?: string | null
+          generated_at?: string
+          id?: string
+          image_prompt?: string | null
+          image_url?: string | null
+          metadata?: Json
+          platform: string
+          posted_url?: string | null
+          run_id: string
+          status?: string
+          story_source?: string | null
+          story_summary?: string | null
+          story_title: string
+          story_url?: string | null
+          visual_prompt?: string | null
+        }
+        Update: {
+          decided_at?: string | null
+          decided_notes?: string | null
+          draft_body?: string
+          draft_hashtags?: Json
+          draft_title?: string | null
+          generated_at?: string
+          id?: string
+          image_prompt?: string | null
+          image_url?: string | null
+          metadata?: Json
+          platform?: string
+          posted_url?: string | null
+          run_id?: string
+          status?: string
+          story_source?: string | null
+          story_summary?: string | null
+          story_title?: string
+          story_url?: string | null
+          visual_prompt?: string | null
+        }
+        Relationships: []
+      }
+      ccavai_runs: {
+        Row: {
+          articles_seen: number
+          drafts_created: number
+          error: string | null
+          finished_at: string | null
+          id: string
+          metadata: Json
+          sources_polled: number
+          started_at: string
+          status: string
+          stories_picked: number
+        }
+        Insert: {
+          articles_seen?: number
+          drafts_created?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          sources_polled?: number
+          started_at?: string
+          status?: string
+          stories_picked?: number
+        }
+        Update: {
+          articles_seen?: number
+          drafts_created?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          sources_polled?: number
+          started_at?: string
+          status?: string
+          stories_picked?: number
+        }
+        Relationships: []
       }
       chat_history: {
         Row: {
@@ -529,8 +767,10 @@ export type Database = {
           email: string | null
           id: string
           intent: string | null
+          metadata: Json
           name: string | null
           notes: string | null
+          source: string
           status: string
           tenant_id: string
           user_id: string | null
@@ -542,8 +782,10 @@ export type Database = {
           email?: string | null
           id?: string
           intent?: string | null
+          metadata?: Json
           name?: string | null
           notes?: string | null
+          source?: string
           status?: string
           tenant_id: string
           user_id?: string | null
@@ -555,8 +797,10 @@ export type Database = {
           email?: string | null
           id?: string
           intent?: string | null
+          metadata?: Json
           name?: string | null
           notes?: string | null
+          source?: string
           status?: string
           tenant_id?: string
           user_id?: string | null
@@ -778,6 +1022,69 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sandra_call_queue: {
+        Row: {
+          attempts: number
+          call_conversation_id: string | null
+          id: string
+          last_attempt_at: string | null
+          lead_id: string | null
+          metadata: Json
+          notes: string | null
+          outcome: string | null
+          priority: number
+          queued_at: string
+          scheduled_for: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          attempts?: number
+          call_conversation_id?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          lead_id?: string | null
+          metadata?: Json
+          notes?: string | null
+          outcome?: string | null
+          priority?: number
+          queued_at?: string
+          scheduled_for?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          attempts?: number
+          call_conversation_id?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          lead_id?: string | null
+          metadata?: Json
+          notes?: string | null
+          outcome?: string | null
+          priority?: number
+          queued_at?: string
+          scheduled_for?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sandra_call_queue_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sandra_call_queue_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -1438,6 +1745,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aima_stats: {
+        Args: { p_window?: string }
+        Returns: {
+          cold_email_enabled: boolean
+          demos_booked: number
+          emails_opened: number
+          emails_replied: number
+          emails_sent: number
+          in_sandra_queue: number
+          last_scrape_at: string
+          leads_sourced: number
+          scraper_enabled: boolean
+          window_start: string
+        }[]
+      }
       book_slot: {
         Args: {
           p_customer_email: string
@@ -1488,6 +1810,18 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      ccavai_stats: {
+        Args: { p_window?: string }
+        Returns: {
+          approved: number
+          drafts_generated: number
+          last_run_at: string
+          pending_review: number
+          posted: number
+          rejected: number
+          window_start: string
+        }[]
       }
       is_admin_of: { Args: { p_tenant_id: string }; Returns: boolean }
       is_bolivai_admin: { Args: never; Returns: boolean }

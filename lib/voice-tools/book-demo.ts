@@ -28,7 +28,7 @@ const schema = z.object({
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/,
       "ISO 8601 with timezone (e.g. 2026-06-15T14:00:00-04:00 or 2026-06-15T18:00:00Z)",
     ),
-  duration_min: z.coerce.number().int().min(15).max(60).default(15),
+  duration_min: z.coerce.number().int().min(15).max(60).optional(),
   notes: z.string().trim().max(2000).optional(),
 });
 

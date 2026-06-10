@@ -13,6 +13,7 @@ import {
   Sparkles,
   Users,
   UserPlus,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,13 +30,19 @@ const NAV_ITEMS = [
   { href: "settings", label: "Ajustes", icon: Settings },
 ];
 
+const BOLIVAI_ONLY_ITEMS = [
+  { href: "content", label: "Contenido IA", icon: Wand2 },
+];
+
 export function Sidebar({ tenantSlug }: { tenantSlug: string }) {
   const pathname = usePathname();
   const base = `/dashboard/${tenantSlug}`;
 
+  const items = tenantSlug === "bolivai" ? [...NAV_ITEMS, ...BOLIVAI_ONLY_ITEMS] : NAV_ITEMS;
+
   return (
     <nav className="flex flex-col gap-0.5 px-2 py-2">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon }) => {
         const fullHref = `${base}/${href}`;
         const active =
           pathname === fullHref || pathname.startsWith(`${fullHref}/`);
