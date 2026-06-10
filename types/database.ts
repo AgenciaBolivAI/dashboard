@@ -233,6 +233,8 @@ export type Database = {
       }
       ccavai_drafts: {
         Row: {
+          accent_phrases: Json
+          branded_headline: string | null
           decided_at: string | null
           decided_notes: string | null
           draft_body: string
@@ -251,9 +253,12 @@ export type Database = {
           story_summary: string | null
           story_title: string
           story_url: string | null
+          subject_image_url: string | null
           visual_prompt: string | null
         }
         Insert: {
+          accent_phrases?: Json
+          branded_headline?: string | null
           decided_at?: string | null
           decided_notes?: string | null
           draft_body: string
@@ -272,9 +277,12 @@ export type Database = {
           story_summary?: string | null
           story_title: string
           story_url?: string | null
+          subject_image_url?: string | null
           visual_prompt?: string | null
         }
         Update: {
+          accent_phrases?: Json
+          branded_headline?: string | null
           decided_at?: string | null
           decided_notes?: string | null
           draft_body?: string
@@ -293,6 +301,7 @@ export type Database = {
           story_summary?: string | null
           story_title?: string
           story_url?: string | null
+          subject_image_url?: string | null
           visual_prompt?: string | null
         }
         Relationships: []

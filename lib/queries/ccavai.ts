@@ -15,6 +15,9 @@ export type CcavaiDraft = {
   visual_prompt: string | null;
   image_prompt: string | null;
   image_url: string | null;
+  subject_image_url: string | null;
+  branded_headline: string | null;
+  accent_phrases: string[] | null;
   status: "pending" | "approved" | "rejected" | "posted" | "archived";
   decided_at: string | null;
   decided_notes: string | null;
@@ -48,7 +51,7 @@ export async function listCcavaiDrafts(opts: {
   let q = supabase
     .from("ccavai_drafts")
     .select(
-      "id, run_id, generated_at, platform, story_title, story_url, story_source, story_summary, draft_title, draft_body, draft_hashtags, visual_prompt, image_prompt, image_url, status, decided_at, decided_notes, posted_url",
+      "id, run_id, generated_at, platform, story_title, story_url, story_source, story_summary, draft_title, draft_body, draft_hashtags, visual_prompt, image_prompt, image_url, subject_image_url, branded_headline, accent_phrases, status, decided_at, decided_notes, posted_url",
     )
     .order("generated_at", { ascending: false })
     .limit(opts.limit ?? 200);

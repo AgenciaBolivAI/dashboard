@@ -11,12 +11,15 @@ import {
   Linkedin,
   Instagram,
   Facebook,
+  Pencil,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { updateCcavaiDraftStatusAction } from "@/lib/actions/ccavai";
+import { EditDraftDialog } from "@/components/content/edit-draft-dialog";
 import { cn } from "@/lib/utils";
 import type { CcavaiDraft } from "@/lib/queries/ccavai";
 
@@ -59,6 +62,7 @@ export function DraftCard({
   const [optimisticStatus, setOptimisticStatus] = useState(draft.status);
   const [showPostedInput, setShowPostedInput] = useState(false);
   const [postedUrl, setPostedUrl] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
 
   const platform = PLATFORM_META[draft.platform] ?? PLATFORM_META.x;
   const Icon = platform.icon;
@@ -76,6 +80,49 @@ export function DraftCard({
   function copy() {
     navigator.clipboard.writeText(fullText);
     toast.success(`Copiado para ${platform.label}`);
+  }
+
+  function downloadImage() {
+    if (!draft.image_url) {
+      toast.error("Sin imagen para descargar");
+      return;
+    }
+    // The image_url is a data URI (data:image/png;base64,…). Convert to a
+    // blob so the browser treats it as a file download, then trigger an
+    // anchor click. Works across Chrome/Safari/Firefox without needing
+    // the deprecated download-as-href trick on huge data URIs.
+    const match = draft.image_url.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+    if (!match) {
+      // Fallback for non-data-URI (e.g. https URL once we migrate to Storage)
+      const a = document.createElement("a");
+      a.href = draft.image_url;
+      a.download = filename();
+      a.click();
+      return;
+    }
+    const [, mime, b64] = match;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Descargada — ${platform.label}`);
+  }
+
+  function filename(): string {
+    const slug = (draft.story_title ?? "post")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60);
+    return `bolivai-${draft.platform}-${slug}.png`;
   }
 
   function changeStatus(newStatus: CcavaiDraft["status"], extra?: { postedUrl?: string }) {
@@ -170,6 +217,25 @@ export function DraftCard({
             <Copy className="size-3.5" />
             Copiar
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setEditOpen(true)}
+            className="gap-1.5"
+          >
+            <Pencil className="size-3.5" />
+            Editar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={downloadImage}
+            disabled={!draft.image_url}
+            className="gap-1.5"
+          >
+            <Download className="size-3.5" />
+            Descargar
+          </Button>
 
           {optimisticStatus === "pending" && (
             <>
@@ -256,6 +322,13 @@ export function DraftCard({
           </a>
         )}
       </div>
+
+      <EditDraftDialog
+        tenantId={tenantId}
+        draft={draft}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </Card>
   );
 }

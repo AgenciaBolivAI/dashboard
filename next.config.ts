@@ -6,6 +6,11 @@ const config: NextConfig = {
       bodySizeLimit: "10mb", // FAQ uploads
     },
   },
+  // Native node modules can't be bundled by Turbopack/webpack; they need
+  // to stay as runtime require()'s so the platform-specific binary loads.
+  // @resvg/resvg-js: brand image rasterisation (Satori SVG -> PNG).
+  // sharp: server-side image processing (logo prep, future thumbnails).
+  serverExternalPackages: ["@resvg/resvg-js", "sharp"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co" },

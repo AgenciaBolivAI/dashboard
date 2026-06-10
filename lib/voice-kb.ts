@@ -181,23 +181,27 @@ export async function performVoiceKbSync(tenantId: string): Promise<KbSyncResult
  * Errors are logged but not surfaced — knowledge mutations should never
  * fail because the voice sync is flaky.
  */
-export function fireAndForgetVoiceKbSync(tenantId: string): void {
-  void (async () => {
-    const supabase = createServiceClient();
-    const { data } = await supabase
-      .from("tenants")
-      .select("voice_enabled, elevenlabs_agent_id")
-      .eq("id", tenantId)
-      .maybeSingle();
-    const t = data as { voice_enabled: boolean; elevenlabs_agent_id: string | null } | null;
-    if (!t || !t.voice_enabled || !t.elevenlabs_agent_id) return;
-    try {
-      const result = await performVoiceKbSync(tenantId);
-      if (!result.ok) {
-        console.warn(`[voice-kb auto-sync] ${tenantId}: ${result.error}`);
-      }
-    } catch (e) {
-      console.error("[voice-kb auto-sync] threw", e);
-    }
-  })();
+async function runVoiceKbSync(tenantId: string): Promise<void> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("tenants")
+    .select("voice_enabled, elevenlabs_agent_id")
+    .eq("id", tenantId)
+    .maybeSingle();
+  const t = data as { voice_enabled: boolean; elevenlabs_agent_id: string | null } | null;
+  if (!t || !t.voice_enabled || !t.elevenlabs_agent_id) return;
+  const result = await performVoiceKbSync(tenantId);
+  if (!result.ok) {
+    console.warn(`[voice-kb auto-sync] ${tenantId}: ${result.error}`);
+  }
+}
+
+export async function fireAndForgetVoiceKbSync(tenantId: string): Promise<void> {
+  // Intentionally NOT awaited — the inner sync runs in the background,
+  // the outer async function returns immediately. "use server" requires
+  // every export to be async; this satisfies that without losing the
+  // fire-and-forget semantics callers depend on.
+  runVoiceKbSync(tenantId).catch((e) => {
+    console.error("[voice-kb auto-sync] threw", e);
+  });
 }
