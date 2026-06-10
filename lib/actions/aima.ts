@@ -22,6 +22,7 @@ const settingsSchema = z.object({
   scraper_max_per_run: z.coerce.number().int().min(10).max(5000).optional(),
   scraper_proxy_url: z.string().trim().max(500).nullable().optional(),
   scraper_proxy_token: z.string().trim().max(500).nullable().optional(),
+  google_maps_api_key: z.string().trim().max(500).nullable().optional(),
   apollo_enabled: z.boolean().optional(),
   apollo_api_key: z.string().trim().max(500).nullable().optional(),
   cold_email_enabled: z.boolean().optional(),
@@ -29,7 +30,7 @@ const settingsSchema = z.object({
   instantly_campaign_id: z.string().trim().max(200).nullable().optional(),
   cold_email_daily_cap: z.coerce.number().int().min(1).max(2000).optional(),
   target_verticals: z.array(z.string().trim().max(60)).max(20).optional(),
-  target_geographies: z.array(z.string().trim().max(120)).max(50).optional(),
+  target_geographies: z.array(z.string().trim().max(120)).max(120).optional(),
 });
 
 export async function updateAimaSettingsAction(

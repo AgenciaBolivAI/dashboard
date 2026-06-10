@@ -50,11 +50,50 @@ const VERTICAL_PRESETS = [
   { id: "accounting_firm",      emoji: "📊", label: "Contadores" },
 ] as const;
 
+// Leading business cities worldwide. Grouped by region for readability,
+// flattened into one suggestion list. Google Maps coverage is reliable in
+// every one of these. ~95 cities; user can still add custom ones below.
 const GEO_PRESETS = [
-  "Ciudad de México", "Bogotá", "Buenos Aires", "Santiago Chile", "Lima Perú",
-  "La Paz Bolivia", "Caracas", "Quito", "São Paulo", "Asunción", "Montevideo",
-  "Miami FL", "Houston TX", "New York", "Los Angeles", "Chicago",
-  "Madrid", "Barcelona", "Lisboa", "London",
+  // LatAm
+  "Ciudad de México", "Guadalajara", "Monterrey", "Tijuana", "Puebla",
+  "Bogotá", "Medellín", "Cali",
+  "Lima Perú", "Arequipa",
+  "Santiago Chile", "Valparaíso",
+  "Buenos Aires", "Córdoba Argentina", "Rosario",
+  "La Paz Bolivia", "Santa Cruz Bolivia", "Cochabamba",
+  "Caracas", "Maracaibo",
+  "Quito", "Guayaquil",
+  "São Paulo", "Rio de Janeiro", "Belo Horizonte", "Brasília", "Porto Alegre",
+  "Asunción", "Montevideo", "Panamá", "San José Costa Rica", "San Salvador",
+  "Tegucigalpa", "Managua", "Guatemala", "Santo Domingo", "San Juan PR",
+  // United States
+  "New York", "Los Angeles", "Chicago", "Houston TX", "Phoenix",
+  "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose CA",
+  "Austin", "Jacksonville FL", "Miami FL", "Orlando FL", "Tampa FL",
+  "Atlanta", "Boston", "Seattle", "Denver", "Washington DC",
+  "Las Vegas", "Portland OR", "Charlotte NC", "Nashville",
+  // Canada
+  "Toronto", "Vancouver", "Montreal", "Calgary",
+  // Europe
+  "Madrid", "Barcelona", "Sevilla", "Valencia ES",
+  "Lisboa", "Porto Portugal",
+  "London", "Manchester", "Dublin",
+  "Paris", "Lyon", "Marseille",
+  "Berlin", "Munich", "Hamburg",
+  "Amsterdam", "Rotterdam", "Brussels",
+  "Rome", "Milan", "Naples",
+  "Vienna", "Zurich", "Geneva",
+  "Stockholm", "Copenhagen", "Oslo", "Helsinki",
+  "Warsaw", "Prague", "Budapest", "Athens",
+  // Middle East & Asia
+  "Dubai", "Abu Dhabi", "Riyadh", "Doha", "Tel Aviv", "Istanbul",
+  "Singapore", "Hong Kong", "Tokyo", "Seoul", "Bangkok",
+  "Kuala Lumpur", "Jakarta", "Manila", "Ho Chi Minh City",
+  "Mumbai", "Delhi", "Bangalore",
+  // Africa
+  "Cairo", "Lagos", "Johannesburg", "Cape Town", "Nairobi", "Casablanca",
+  // Oceania
+  "Sydney", "Melbourne", "Brisbane", "Auckland",
 ];
 
 export function AimaSettingsForm({
@@ -73,6 +112,7 @@ export function AimaSettingsForm({
   const [scraperMax, setScraperMax] = useState(settings.scraper_max_per_run);
   const [scraperProxy, setScraperProxy] = useState(settings.scraper_proxy_url ?? "");
   const [scraperProxyToken, setScraperProxyToken] = useState(settings.scraper_proxy_token ?? "");
+  const [googleMapsKey, setGoogleMapsKey] = useState(settings.google_maps_api_key ?? "");
 
   const [apolloEnabled, setApolloEnabled] = useState(settings.apollo_enabled);
   const [apolloKey, setApolloKey] = useState(settings.apollo_api_key ?? "");
@@ -102,6 +142,7 @@ export function AimaSettingsForm({
         scraper_max_per_run: scraperMax,
         scraper_proxy_url: scraperProxy.trim() || null,
         scraper_proxy_token: scraperProxyToken.trim() || null,
+        google_maps_api_key: googleMapsKey.trim() || null,
         apollo_enabled: apolloEnabled,
         apollo_api_key: apolloKey.trim() || null,
         cold_email_enabled: coldEmailEnabled,
@@ -146,6 +187,8 @@ export function AimaSettingsForm({
     });
   }
 
+  const hasKey = googleMapsKey.trim().length > 10;
+
   return (
     <div className="space-y-6">
       {/* Big controls */}
@@ -154,11 +197,12 @@ export function AimaSettingsForm({
           <div>
             <h2 className="text-lg font-display font-semibold flex items-center gap-2">
               <Globe className="size-5 text-violet-500" />
-              Scraper de leads
+              Buscador de leads (AIMA)
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Busca dueños de negocios en Yellow Pages, Google Maps, y la web
-              abierta. Toggle abajo para activarlo + botón para empezar ahora.
+              AIMA busca negocios en Google Maps con sus teléfonos verificados, en
+              cualquier ciudad del mundo. Para activarlo necesitas tu propia clave
+              de Google Maps Places API.
             </p>
           </div>
           <ToggleButton
@@ -166,6 +210,38 @@ export function AimaSettingsForm({
             onChange={setScraperEnabled}
             label={scraperEnabled ? "ON" : "OFF"}
           />
+        </div>
+
+        {/* Google Maps API key — required for AIMA to do anything */}
+        <div className="space-y-1 pt-2">
+          <Label className="text-xs flex items-center gap-1.5">
+            Google Maps Places API key
+            {hasKey ? (
+              <Badge variant="success" className="text-[10px] py-0">configurada</Badge>
+            ) : scraperEnabled ? (
+              <Badge variant="warning" className="text-[10px] py-0">requerida</Badge>
+            ) : null}
+          </Label>
+          <Input
+            type="password"
+            value={googleMapsKey}
+            onChange={(e) => setGoogleMapsKey(e.target.value)}
+            placeholder="AIza••••••••••••••"
+            autoComplete="off"
+          />
+          <p className="text-xs text-muted-foreground">
+            Crea una en{" "}
+            <a
+              href="https://console.cloud.google.com/apis/credentials"
+              target="_blank"
+              rel="noopener"
+              className="underline hover:text-foreground"
+            >
+              Google Cloud Console
+            </a>{" "}
+            → New API key → habilita <strong>Places API (New)</strong>. Cobramos 5
+            créditos por lead encontrado (~$0.05); tu costo real de Maps es ~$0.017.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 pt-2">
           {SOURCE_OPTIONS.map((s) => {

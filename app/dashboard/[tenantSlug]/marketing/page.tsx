@@ -12,8 +12,6 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_TENANT_SLUG = "bolivai";
-
 export default async function AimaMarketingPage({
   params,
 }: {
@@ -21,21 +19,6 @@ export default async function AimaMarketingPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
-
-  if (tenant.slug !== ALLOWED_TENANT_SLUG) {
-    return (
-      <div className="p-6 md:p-8 max-w-3xl">
-        <h1 className="text-3xl font-display font-extrabold tracking-tight">
-          Marketing IA
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          AIMA está activa solo para el tenant{" "}
-          <code className="px-1.5 py-0.5 rounded bg-secondary text-xs">bolivai</code>{" "}
-          por ahora.
-        </p>
-      </div>
-    );
-  }
 
   const [settings, runs, stats7d] = await Promise.all([
     getAimaSettings(tenant.id),

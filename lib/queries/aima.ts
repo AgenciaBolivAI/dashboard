@@ -8,6 +8,7 @@ export type AimaSettings = {
   scraper_max_per_run: number;
   scraper_proxy_url: string | null;
   scraper_proxy_token: string | null;
+  google_maps_api_key: string | null;
   apollo_enabled: boolean;
   apollo_api_key: string | null;
   apollo_search_params: Record<string, unknown>;
@@ -50,7 +51,7 @@ export async function getAimaSettings(tenantId: string): Promise<AimaSettings | 
   const { data } = await supabase
     .from("aima_settings")
     .select(
-      "tenant_id, scraper_enabled, scraper_sources, scraper_concurrency, scraper_max_per_run, scraper_proxy_url, scraper_proxy_token, apollo_enabled, apollo_api_key, apollo_search_params, cold_email_enabled, instantly_api_key, instantly_campaign_id, cold_email_daily_cap, target_verticals, target_geographies, updated_at",
+      "tenant_id, scraper_enabled, scraper_sources, scraper_concurrency, scraper_max_per_run, scraper_proxy_url, scraper_proxy_token, google_maps_api_key, apollo_enabled, apollo_api_key, apollo_search_params, cold_email_enabled, instantly_api_key, instantly_campaign_id, cold_email_daily_cap, target_verticals, target_geographies, updated_at",
     )
     .eq("tenant_id", tenantId)
     .maybeSingle();
