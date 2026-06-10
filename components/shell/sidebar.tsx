@@ -14,6 +14,8 @@ import {
   Users,
   UserPlus,
   Wand2,
+  Megaphone,
+  PhoneCall,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +34,8 @@ const NAV_ITEMS = [
 
 const BOLIVAI_ONLY_ITEMS = [
   { href: "content", label: "Contenido IA", icon: Wand2 },
+  { href: "marketing", label: "Marketing IA", icon: Megaphone },
+  { href: "sandra", label: "Cola de Sandra", icon: PhoneCall },
 ];
 
 export function Sidebar({ tenantSlug }: { tenantSlug: string }) {

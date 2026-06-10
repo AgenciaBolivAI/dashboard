@@ -2,12 +2,11 @@ import Link from "next/link";
 import { UserPlus, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listLeads, getLeadIntents } from "@/lib/queries/leads";
-import { LeadRow, type LeadRowData } from "@/components/leads/lead-row";
+import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
 import { intentLabel } from "@/lib/leads-intents";
-import { formatDate, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS = [
   { id: "all", label: "Todos" },
@@ -93,30 +92,7 @@ export default async function LeadsPage({
           </p>
         </Card>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>Intención</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="w-32">Capturado</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leads.map((l) => (
-                <LeadRow
-                  key={l.id}
-                  tenantId={tenant.id}
-                  lead={l as LeadRowData}
-                  capturedLabel={formatDate(l.created_at)}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <LeadsTable tenantId={tenant.id} leads={leads as LeadFromQuery[]} />
       )}
     </div>
   );
