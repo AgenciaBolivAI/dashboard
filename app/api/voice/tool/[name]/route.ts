@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TOOLS } from "@/lib/voice-tools";
+import { debitCredits } from "@/lib/billing/credits";
 
 /**
  * Server Tool dispatcher for voice agents.
@@ -60,6 +61,34 @@ export async function POST(
       },
       { status: 200 },
     );
+  }
+
+  // Credit gate — only for tools with a credit_action_key set. Free tools
+  // (search_slots, get_business_info, lookup_customer_reservations,
+  // capture_lead) skip this entirely. The actual voice MINUTE charge
+  // is debited separately by the Rebecca/Sandra tick workflows.
+  if (tool.credit_action_key) {
+    const debit = await debitCredits({
+      tenantId,
+      actionKey: tool.credit_action_key,
+      units: tool.credit_units ?? 1,
+      referenceId: `voice_tool:${name}:${Date.now()}`,
+      metadata: { tool: name },
+    });
+    if (!debit.ok) {
+      console.warn(
+        `[voice tool ${name}] credit gate refused tenant=${tenantId} reason=${debit.reason}`,
+      );
+      return NextResponse.json(
+        {
+          ok: false,
+          error: debit.reason ?? "insufficient credits",
+          user_facing_error:
+            "I can't complete that booking right now — the business needs to top up. Let me take your details so they can follow up.",
+        },
+        { status: 200 },
+      );
+    }
   }
 
   try {

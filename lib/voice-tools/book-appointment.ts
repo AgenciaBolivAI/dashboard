@@ -16,6 +16,7 @@ export const bookAppointment: ToolDef<z.infer<typeof schema>> = {
   name: "book_appointment",
   description:
     "Confirm a reservation for the customer. Call this ONLY after you have the slot_id (from search_slots), the service_id, AND the customer's name, email, and phone number. Don't call until you've collected all five — ask for them if missing.",
+  credit_action_key: "calendar.appointment_booked",
   schema,
   parametersJsonSchema: {
     type: "object",

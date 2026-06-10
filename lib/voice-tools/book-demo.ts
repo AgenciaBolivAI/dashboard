@@ -39,6 +39,7 @@ export const bookDemo: ToolDef<z.infer<typeof schema>> = {
   name: "book_demo",
   description:
     "Lock a 15-minute discovery demo with Celiel directly on his calendar. Call ONLY after the prospect has agreed to a specific date and time AND given you their full name, email, and phone. Pass start_iso as ISO 8601 WITH a timezone (their local time + offset, or UTC). If the slot is taken, the tool returns an error — ask for an alternative time.",
+  credit_action_key: "calendar.appointment_booked",
   schema,
   parametersJsonSchema: {
     type: "object",

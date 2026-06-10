@@ -39,6 +39,14 @@ export type ToolDef<TInput> = {
   handler: (input: TInput, ctx: ToolContext) => Promise<ToolResult>;
   /** Parameters as JSON Schema, registered on ElevenLabs side. */
   parametersJsonSchema: Record<string, unknown>;
+  /**
+   * If set, the dispatcher debits credits from the tenant BEFORE invoking
+   * the handler. Insufficient balance → handler not called; agent sees an
+   * ok:false with a polite "service paused" user_facing_error so the
+   * tenant's caller hears something sensible.
+   */
+  credit_action_key?: string;
+  credit_units?: number;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
