@@ -519,6 +519,7 @@ export type Database = {
       credit_pricing: {
         Row: {
           action_key: string
+          cost_per_unit_micros: number
           credits_per_unit: number
           description: string | null
           unit_label: string
@@ -526,6 +527,7 @@ export type Database = {
         }
         Insert: {
           action_key: string
+          cost_per_unit_micros?: number
           credits_per_unit: number
           description?: string | null
           unit_label: string
@@ -533,6 +535,7 @@ export type Database = {
         }
         Update: {
           action_key?: string
+          cost_per_unit_micros?: number
           credits_per_unit?: number
           description?: string | null
           unit_label?: string
@@ -2053,6 +2056,44 @@ export type Database = {
         }[]
       }
       next_invoice_number: { Args: { p_tenant_id: string }; Returns: string }
+      platform_action_breakdown: {
+        Args: { p_window?: string }
+        Returns: {
+          action_key: string
+          cost_micros: number
+          margin_micros: number
+          margin_pct: number
+          revenue_credits: number
+          unique_tenants: number
+          units: number
+        }[]
+      }
+      platform_daily_timeseries: {
+        Args: { p_days?: number }
+        Returns: {
+          cost_micros: number
+          day: string
+          margin_micros: number
+          revenue_cents: number
+          usage_credits: number
+        }[]
+      }
+      platform_pnl: {
+        Args: { p_window?: string }
+        Returns: {
+          active_tenants: number
+          cost_micros: number
+          margin_micros: number
+          margin_pct: number
+          revenue_micros: number
+          tenants_at_zero: number
+          tenants_low_balance: number
+          topup_cents: number
+          total_tenants: number
+          usage_credits: number
+          window_start: string
+        }[]
+      }
       release_credits: {
         Args: {
           p_action_key: string
@@ -2143,6 +2184,22 @@ export type Database = {
           low_balance_threshold: number
           out_of_credits_at: string
           reserved_credits: number
+        }[]
+      }
+      tenant_pnl_summary: {
+        Args: { p_window?: string }
+        Returns: {
+          balance_credits: number
+          cost_micros: number
+          last_activity_at: string
+          margin_micros: number
+          margin_pct: number
+          name: string
+          revenue_cents: number
+          slug: string
+          status: string
+          tenant_id: string
+          usage_credits: number
         }[]
       }
     }
