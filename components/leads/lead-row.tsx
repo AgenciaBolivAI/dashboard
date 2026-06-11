@@ -17,14 +17,20 @@ import { cn } from "@/lib/utils";
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: "Nuevo",
   contacted: "Contactado",
+  warm: "Caliente",
   converted: "Convertido",
+  not_interested: "No interesado",
+  do_not_contact: "No contactar",
   lost: "Perdido",
 };
 
 const STATUS_CLASS: Record<LeadStatus, string> = {
   new: "bg-primary/10 text-primary border-primary/30 hover:bg-primary/15",
   contacted: "bg-yellow-500/10 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/15",
+  warm: "bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/15",
   converted: "bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/15",
+  not_interested: "bg-slate-500/10 text-slate-600 border-slate-500/30 hover:bg-slate-500/15",
+  do_not_contact: "bg-red-500/10 text-red-600 border-red-500/30 hover:bg-red-500/15",
   lost: "bg-muted text-muted-foreground border-border hover:bg-muted/80",
 };
 

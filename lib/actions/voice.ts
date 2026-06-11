@@ -449,6 +449,9 @@ const callSchema = z.object({
     .string()
     .trim()
     .regex(/^\+[1-9]\d{1,14}$/, "Phone must be E.164 format (e.g. +5491134567890)"),
+  // lead_id is what lets the Sandra Tick workflow map this conversation back
+  // to the originating lead and auto-update its status after the call.
+  lead_id: z.string().uuid().optional(),
   context: z
     .object({
       lead_name: z.string().trim().max(120).optional(),
@@ -504,13 +507,17 @@ export async function initiateSandraCallAction(
     agent_phone_number_id: tenant.voice_elevenlabs_outbound_phone_id,
     to_number: parsed.data.to_number,
   };
-  if (parsed.data.context) {
+  if (parsed.data.context || parsed.data.lead_id) {
     body.conversation_initiation_client_data = {
       dynamic_variables: {
-        lead_name: parsed.data.context.lead_name ?? "",
-        lead_company: parsed.data.context.lead_company ?? "",
-        lead_role: parsed.data.context.lead_role ?? "",
-        notes: parsed.data.context.notes ?? "",
+        // lead_id is the join key the Sandra Tick uses to auto-update the
+        // lead's status after the call ends — empty string means "manually-
+        // dialed call, no status auto-update".
+        lead_id: parsed.data.lead_id ?? "",
+        lead_name: parsed.data.context?.lead_name ?? "",
+        lead_company: parsed.data.context?.lead_company ?? "",
+        lead_role: parsed.data.context?.lead_role ?? "",
+        notes: parsed.data.context?.notes ?? "",
       },
     };
   }
@@ -559,5 +566,227 @@ export async function initiateSandraCallAction(
     error: null,
     success: true,
     conversation_id: conversationId ?? undefined,
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Batch call — submit N leads to ElevenLabs's batch-calling endpoint.
+// ElevenLabs handles pacing, retry, and per-recipient state on their
+// side; we just hand them the list + per-recipient context. The batch
+// fires immediately (scheduled_time_unix = now).
+// ────────────────────────────────────────────────────────────────────
+
+export type BatchCallState = {
+  error: string | null;
+  success?: boolean;
+  batch_id?: string;
+  queued: number;
+  skipped_dnc: number;
+  skipped_no_phone: number;
+};
+
+const batchCallSchema = z.object({
+  tenant_id: z.string().uuid(),
+  lead_ids: z.array(z.string().uuid()).min(1).max(200),
+  batch_name: z.string().trim().max(100).optional(),
+});
+
+export async function initiateBatchSandraCallAction(
+  input: z.infer<typeof batchCallSchema>,
+): Promise<BatchCallState> {
+  const parsed = batchCallSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+      queued: 0,
+      skipped_dnc: 0,
+      skipped_no_phone: 0,
+    };
+  }
+
+  await requireUser();
+  await requireTenantAccess(parsed.data.tenant_id, { minRole: "operator" });
+
+  const elKey = process.env.ELEVENLABS_API_KEY;
+  if (!elKey) {
+    return {
+      error: "ELEVENLABS_API_KEY not configured",
+      queued: 0,
+      skipped_dnc: 0,
+      skipped_no_phone: 0,
+    };
+  }
+
+  const supabase = await createClient();
+
+  // 1. Load tenant voice config
+  const { data: tRow, error: tErr } = await supabase
+    .from("tenants")
+    .select(
+      "voice_elevenlabs_outbound_phone_id, voice_elevenlabs_sandra_agent_id" as never,
+    )
+    .eq("id", parsed.data.tenant_id)
+    .single();
+  if (tErr || !tRow) {
+    return {
+      error: tErr?.message ?? "Tenant not found",
+      queued: 0,
+      skipped_dnc: 0,
+      skipped_no_phone: 0,
+    };
+  }
+  const tenant = tRow as unknown as {
+    voice_elevenlabs_outbound_phone_id: string | null;
+    voice_elevenlabs_sandra_agent_id: string | null;
+  };
+  if (
+    !tenant.voice_elevenlabs_outbound_phone_id ||
+    !tenant.voice_elevenlabs_sandra_agent_id
+  ) {
+    return {
+      error: "Voice configuration missing on tenant.",
+      queued: 0,
+      skipped_dnc: 0,
+      skipped_no_phone: 0,
+    };
+  }
+
+  // 2. Load the leads + their metadata
+  const { data: leadRows, error: lErr } = await supabase
+    .from("leads")
+    .select("id, name, whatsapp_number, status, notes, metadata")
+    .eq("tenant_id", parsed.data.tenant_id)
+    .in("id", parsed.data.lead_ids);
+  if (lErr) {
+    return {
+      error: lErr.message,
+      queued: 0,
+      skipped_dnc: 0,
+      skipped_no_phone: 0,
+    };
+  }
+
+  type LeadShape = {
+    id: string;
+    name: string | null;
+    whatsapp_number: string | null;
+    status: string | null;
+    notes: string | null;
+    metadata: Record<string, unknown> | null;
+  };
+
+  let skippedDnc = 0;
+  let skippedNoPhone = 0;
+  const recipients: Array<{
+    phone_number: string;
+    conversation_initiation_client_data: {
+      dynamic_variables: Record<string, string>;
+    };
+  }> = [];
+
+  for (const r of (leadRows ?? []) as LeadShape[]) {
+    if (r.status === "do_not_contact") {
+      skippedDnc++;
+      continue;
+    }
+    const raw = r.whatsapp_number?.trim();
+    if (!raw) {
+      skippedNoPhone++;
+      continue;
+    }
+    const e164 = raw.startsWith("+") ? raw : `+${raw}`;
+    if (!/^\+[1-9]\d{1,14}$/.test(e164)) {
+      skippedNoPhone++;
+      continue;
+    }
+    const meta = r.metadata ?? {};
+    const vertical = typeof meta.vertical === "string" ? meta.vertical : "";
+    recipients.push({
+      phone_number: e164,
+      conversation_initiation_client_data: {
+        dynamic_variables: {
+          lead_id: r.id,
+          lead_name: r.name ?? "",
+          lead_company: vertical,
+          lead_role: "",
+          notes: r.notes ?? "",
+        },
+      },
+    });
+  }
+
+  if (recipients.length === 0) {
+    return {
+      error:
+        skippedDnc > 0
+          ? `Todos los leads seleccionados están marcados como "no contactar" o no tienen teléfono.`
+          : "Ninguno de los leads tiene teléfono válido.",
+      queued: 0,
+      skipped_dnc: skippedDnc,
+      skipped_no_phone: skippedNoPhone,
+    };
+  }
+
+  // 3. Submit the batch to ElevenLabs
+  const body = {
+    call_name: parsed.data.batch_name ?? `Lote ${new Date().toISOString().slice(0, 16)}`,
+    agent_id: tenant.voice_elevenlabs_sandra_agent_id,
+    agent_phone_number_id: tenant.voice_elevenlabs_outbound_phone_id,
+    scheduled_time_unix: Math.floor(Date.now() / 1000),
+    recipients,
+  };
+
+  let batchId: string | undefined;
+  try {
+    const res = await fetch(
+      "https://api.elevenlabs.io/v1/convai/batch-calling/submit",
+      {
+        method: "POST",
+        headers: { "xi-api-key": elKey, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+    if (!res.ok) {
+      return {
+        error: `ElevenLabs ${res.status}: ${(await res.text()).slice(0, 300)}`,
+        queued: 0,
+        skipped_dnc: skippedDnc,
+        skipped_no_phone: skippedNoPhone,
+      };
+    }
+    const json = (await res.json()) as { id?: string; batch_id?: string };
+    batchId = json.id ?? json.batch_id ?? undefined;
+  } catch (e) {
+    return {
+      error: `Batch failed: ${e instanceof Error ? e.message : String(e)}`,
+      queued: 0,
+      skipped_dnc: skippedDnc,
+      skipped_no_phone: skippedNoPhone,
+    };
+  }
+
+  // 4. Mirror into sandra_call_queue for audit (best-effort, non-fatal)
+  try {
+    const rows = recipients.map((r) => ({
+      tenant_id: parsed.data.tenant_id,
+      lead_id: r.conversation_initiation_client_data.dynamic_variables.lead_id,
+      to_number: r.phone_number,
+      status: "initiated",
+      elevenlabs_batch_id: batchId ?? null,
+      context: r.conversation_initiation_client_data.dynamic_variables,
+    }));
+    await supabase.from("sandra_call_queue" as never).insert(rows as never);
+  } catch {
+    /* non-fatal */
+  }
+
+  return {
+    error: null,
+    success: true,
+    batch_id: batchId,
+    queued: recipients.length,
+    skipped_dnc: skippedDnc,
+    skipped_no_phone: skippedNoPhone,
   };
 }

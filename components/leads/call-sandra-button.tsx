@@ -20,6 +20,7 @@ import { initiateSandraCallAction } from "@/lib/actions/voice";
  */
 export function CallSandraButton({
   tenantId,
+  leadId,
   phone,
   leadName,
   leadCompany,
@@ -29,6 +30,12 @@ export function CallSandraButton({
   variant = "outline",
 }: {
   tenantId: string;
+  /**
+   * Lead UUID — forwarded to ElevenLabs as a dynamic variable so the
+   * Sandra Tick can map this conversation back to the lead and auto-update
+   * the lead's status after the call.
+   */
+  leadId?: string;
   phone: string | null | undefined;
   leadName?: string | null;
   leadCompany?: string | null;
@@ -66,6 +73,7 @@ export function CallSandraButton({
       const res = await initiateSandraCallAction({
         tenant_id: tenantId,
         to_number: phone,
+        lead_id: leadId,
         context: {
           lead_name: leadName ?? undefined,
           lead_company: leadCompany ?? undefined,

@@ -2,10 +2,10 @@ import Link from "next/link";
 import { UserSearch, Star } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listCustomers } from "@/lib/queries/customers";
+import { CustomersSearch } from "@/components/customers/customers-search";
 
 export default async function CustomersPage({
   params,
@@ -37,18 +37,10 @@ export default async function CustomersPage({
         </div>
       </div>
 
-      <form className="flex gap-2 mb-4" action={`/dashboard/${tenantSlug}/customers`}>
-        <div className="relative flex-1 max-w-md">
-          <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder={t("search_placeholder")}
-            className="pl-9"
-          />
-        </div>
+      <div className="flex gap-2 mb-4">
+        <CustomersSearch initialValue={q ?? ""} />
         <Link
-          href={`/dashboard/${tenantSlug}/customers${vip === "1" ? "" : "?vip=1"}`}
+          href={`/dashboard/${tenantSlug}/customers${vip === "1" ? "" : "?vip=1"}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
           className={
             "inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm border " +
             (vip === "1"
@@ -59,7 +51,7 @@ export default async function CustomersPage({
           <Star className="size-4" />
           {t("vip_only")}
         </Link>
-      </form>
+      </div>
 
       {customers.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">

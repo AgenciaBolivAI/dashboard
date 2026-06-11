@@ -10,11 +10,72 @@ export type CustomerActionState = {
   success?: boolean;
 };
 
+/**
+ * Customer profile update — covers basic info (name, phone, email,
+ * business_name, point_of_contact) PLUS VIP flag and internal notes.
+ *
+ * All fields are optional in the payload (any subset can be sent). Empty
+ * strings normalize to null so we don't store `""` for missing data.
+ *
+ * The form uses FormData (Server Action) so the schema preprocesses
+ * checkbox values + trims strings.
+ */
 const profileSchema = z.object({
   tenant_id: z.string().uuid(),
   user_id: z.string().uuid(),
-  is_vip: z.string().optional().transform((v) => v === "on" || v === "true"),
-  tenant_notes: z.string().max(4000).optional().transform((v) => v || null),
+
+  // Basic info
+  name: z.string().trim().max(160).optional().transform((v) => v || null),
+  whatsapp_number: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .transform((v) => {
+      if (!v) return null;
+      // Normalize: strip everything except digits + leading '+', keep leading '+'
+      const had_plus = v.startsWith("+");
+      const digits = v.replace(/\D/g, "");
+      if (!digits) return null;
+      return had_plus ? digits : digits; // store digits-only (DB convention)
+    })
+    .refine(
+      (v) => v === null || /^[1-9]\d{6,14}$/.test(v),
+      "Phone must be 7–15 digits in E.164 format (no leading 0)",
+    ),
+  email: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((v) => (v ? v.toLowerCase() : null))
+    .refine(
+      (v) => v === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      "Invalid email",
+    ),
+  business_name: z
+    .string()
+    .trim()
+    .max(160)
+    .optional()
+    .transform((v) => v || null),
+  point_of_contact: z
+    .string()
+    .trim()
+    .max(160)
+    .optional()
+    .transform((v) => v || null),
+
+  // Flags + notes
+  is_vip: z
+    .string()
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
+  tenant_notes: z
+    .string()
+    .max(4000)
+    .optional()
+    .transform((v) => v || null),
 });
 
 export async function updateCustomerProfileAction(
@@ -25,15 +86,36 @@ export async function updateCustomerProfileAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const { tenant_id, user_id, is_vip, tenant_notes } = parsed.data;
+  const {
+    tenant_id,
+    user_id,
+    name,
+    whatsapp_number,
+    email,
+    business_name,
+    point_of_contact,
+    is_vip,
+    tenant_notes,
+  } = parsed.data;
 
   await requireUser();
   await requireTenantAccess(tenant_id, { minRole: "operator" });
 
   const supabase = await createClient();
+  // The generated DB types may not include business_name + point_of_contact
+  // yet (run npm run db:types after schema-step24 to refresh). Use the
+  // `as never` cast to avoid a stale-types compile error.
   const { error } = await supabase
     .from("users")
-    .update({ is_vip, tenant_notes })
+    .update({
+      name,
+      whatsapp_number,
+      email,
+      business_name,
+      point_of_contact,
+      is_vip,
+      tenant_notes,
+    } as never)
     .eq("id", user_id)
     .eq("tenant_id", tenant_id);
 

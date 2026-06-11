@@ -77,6 +77,78 @@ export async function listLeads(
 // Re-export for callers that want to derive flags client-side
 export { getCountryFromPhone };
 
+export async function getLeadById(
+  tenantId: string,
+  leadId: string,
+): Promise<Lead | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("leads")
+    .select(
+      "id, name, whatsapp_number, email, intent, status, notes, created_at, conversation_id, source, metadata",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("id", leadId)
+    .maybeSingle();
+  return (data as Lead | null) ?? null;
+}
+
+export type LeadCallHistoryItem = {
+  conversation_id: string;
+  title: string;
+  started_at: string;
+  duration_secs: number;
+  call_successful: string | null;
+  direction: string | null;
+  transcript: string | null;
+};
+
+/**
+ * Past voice calls related to a lead. We look in brain.episodes where
+ * metadata.lead_id matches. Both Sandra and Rebecca write here; sorted newest
+ * first.
+ */
+export async function getLeadCallHistory(
+  leadId: string,
+  limit = 10,
+): Promise<LeadCallHistoryItem[]> {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const params = new URLSearchParams({
+    select: "title,metadata,created_at",
+    order: "created_at.desc",
+    limit: String(limit),
+    "metadata->>lead_id": `eq.${leadId}`,
+    source: "eq.elevenlabs",
+  });
+  const res = await fetch(`${url}/rest/v1/episodes?${params}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Accept-Profile": "brain",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const rows = (await res.json()) as Array<{
+    title: string;
+    metadata: Record<string, unknown>;
+    created_at: string;
+  }>;
+  return rows.map((r) => {
+    const m = r.metadata ?? {};
+    return {
+      conversation_id: String(m.conversation_id ?? ""),
+      title: r.title,
+      started_at: String(m.started_at ?? r.created_at),
+      duration_secs: Number(m.duration_secs ?? 0),
+      call_successful: m.call_successful ? String(m.call_successful) : null,
+      direction: m.direction ? String(m.direction) : null,
+      transcript: m.transcript ? String(m.transcript) : null,
+    };
+  });
+}
+
 export async function getLeadIntents(tenantId: string): Promise<string[]> {
   const supabase = await createClient();
   const { data } = await supabase

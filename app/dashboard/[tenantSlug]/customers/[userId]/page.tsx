@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
+  Building2,
   Calendar,
+  Contact,
   FileText,
   Mail,
   Phone,
@@ -95,6 +97,18 @@ export default async function CustomerDetailPage({
           ) : null}
         </h1>
         <div className="text-sm text-muted-foreground mt-1 flex flex-wrap gap-x-4 gap-y-1">
+          {customer.business_name ? (
+            <span className="inline-flex items-center gap-1">
+              <Building2 className="size-3" />
+              {customer.business_name}
+            </span>
+          ) : null}
+          {customer.point_of_contact ? (
+            <span className="inline-flex items-center gap-1">
+              <Contact className="size-3" />
+              {customer.point_of_contact}
+            </span>
+          ) : null}
           {customer.whatsapp_number ? (
             <a
               href={`https://wa.me/${customer.whatsapp_number.replace(/[^\d]/g, "")}`}
@@ -283,9 +297,9 @@ export default async function CustomerDetailPage({
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">{t("internal_notes_title")}</CardTitle>
+              <CardTitle className="text-base">{t("profile_card_title")}</CardTitle>
               <CardDescription>
-                {t("internal_notes_desc")}
+                {t("profile_card_desc")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -294,6 +308,11 @@ export default async function CustomerDetailPage({
                 userId={customer.id}
                 isVip={customer.is_vip}
                 tenantNotes={customer.tenant_notes}
+                name={customer.name}
+                whatsappNumber={customer.whatsapp_number}
+                email={customer.email}
+                businessName={customer.business_name}
+                pointOfContact={customer.point_of_contact}
               />
             </CardContent>
           </Card>

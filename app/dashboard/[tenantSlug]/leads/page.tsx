@@ -36,7 +36,10 @@ export default async function LeadsPage({
     { id: "all", label: t("status_all") },
     { id: "new", label: t("status_new") },
     { id: "contacted", label: t("status_contacted") },
+    { id: "warm", label: t("status_warm") },
     { id: "converted", label: t("status_converted") },
+    { id: "not_interested", label: t("status_not_interested") },
+    { id: "do_not_contact", label: t("status_do_not_contact") },
     { id: "lost", label: t("status_lost") },
   ];
 

@@ -66,6 +66,8 @@ export type Customer360 = {
   name: string | null;
   whatsapp_number: string | null;
   email: string | null;
+  business_name: string | null;
+  point_of_contact: string | null;
   is_vip: boolean;
   tenant_notes: string | null;
   facts: string | null;
@@ -102,7 +104,7 @@ export async function getCustomer360(
     supabase
       .from("users")
       .select(
-        "id, name, whatsapp_number, email, is_vip, tenant_notes, facts, created_at",
+        "id, name, whatsapp_number, email, business_name, point_of_contact, is_vip, tenant_notes, facts, created_at" as never,
       )
       .eq("id", userId)
       .eq("tenant_id", tenantId)
@@ -126,11 +128,13 @@ export async function getCustomer360(
   ]);
 
   if (!userRes.data) return null;
-  const user = userRes.data as {
+  const user = userRes.data as unknown as {
     id: string;
     name: string | null;
     whatsapp_number: string | null;
     email: string | null;
+    business_name: string | null;
+    point_of_contact: string | null;
     is_vip: boolean;
     tenant_notes: string | null;
     facts: string | null;

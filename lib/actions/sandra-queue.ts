@@ -35,7 +35,23 @@ export async function addLeadsToSandraQueueAction(
 
   const svc = createServiceClient();
 
-  // Find which of these are already actively queued so we don't double-add.
+  // Step A — pull the candidate leads' status so we can hard-block any
+  // marked as do_not_contact. DNC is non-negotiable: even an explicit user
+  // action shouldn't queue them; they have to be reactivated by changing
+  // status away from DNC first.
+  const { data: leadRows, error: leadErr } = await svc
+    .from("leads")
+    .select("id, status")
+    .eq("tenant_id", tenantId)
+    .in("id", parsed.data);
+  if (leadErr) return { error: leadErr.message };
+  const dncSet = new Set(
+    ((leadRows ?? []) as { id: string; status: string | null }[])
+      .filter((r) => r.status === "do_not_contact")
+      .map((r) => r.id),
+  );
+
+  // Step B — find which are already actively queued so we don't double-add.
   const { data: existing, error: existingErr } = await svc
     .from("sandra_call_queue")
     .select("lead_id")
@@ -49,23 +65,36 @@ export async function addLeadsToSandraQueueAction(
       .filter((id): id is string => !!id),
   );
   const toInsert = parsed.data
-    .filter((id) => !skip.has(id))
+    .filter((id) => !skip.has(id) && !dncSet.has(id))
     .map((leadId) => ({
       tenant_id: tenantId,
       lead_id: leadId,
       priority,
       status: "pending" as const,
     }));
+  const blockedDnc = parsed.data.filter((id) => dncSet.has(id)).length;
 
   if (toInsert.length === 0) {
-    return { error: null, success: true, count: 0 };
+    return {
+      error: blockedDnc > 0
+        ? `${blockedDnc} lead${blockedDnc > 1 ? "s" : ""} bloqueado${blockedDnc > 1 ? "s" : ""} (marcado${blockedDnc > 1 ? "s" : ""} como "no contactar")`
+        : null,
+      success: true,
+      count: 0,
+    };
   }
 
   const { error } = await svc.from("sandra_call_queue").insert(toInsert);
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard", "layout");
-  return { error: null, success: true, count: toInsert.length };
+  return {
+    error: blockedDnc > 0
+      ? `${blockedDnc} lead${blockedDnc > 1 ? "s" : ""} bloqueado${blockedDnc > 1 ? "s" : ""} por DNC`
+      : null,
+    success: true,
+    count: toInsert.length,
+  };
 }
 
 const statusSchema = z.enum(STATUS_VALUES);

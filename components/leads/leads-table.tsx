@@ -15,7 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { addLeadsToSandraQueueAction } from "@/lib/actions/sandra-queue";
+import { initiateBatchSandraCallAction } from "@/lib/actions/voice";
 import { updateLeadStatusAction, deleteLeadAction } from "@/lib/actions/leads";
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/leads-types";
 import { intentLabel, intentBadgeClass } from "@/lib/leads-intents";
@@ -40,14 +43,20 @@ export type LeadFromQuery = {
 const STATUS_LABEL: Record<LeadStatus, string> = {
   new: "Nuevo",
   contacted: "Contactado",
+  warm: "Caliente",
   converted: "Convertido",
+  not_interested: "No interesado",
+  do_not_contact: "No contactar",
   lost: "Perdido",
 };
 
 const STATUS_CLASS: Record<LeadStatus, string> = {
   new: "bg-primary/10 text-primary border-primary/30 hover:bg-primary/15",
   contacted: "bg-yellow-500/10 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/15",
+  warm: "bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/15",
   converted: "bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/15",
+  not_interested: "bg-slate-500/10 text-slate-600 border-slate-500/30 hover:bg-slate-500/15",
+  do_not_contact: "bg-red-500/10 text-red-600 border-red-500/30 hover:bg-red-500/15",
   lost: "bg-muted text-muted-foreground border-border hover:bg-muted/80",
 };
 
@@ -58,6 +67,8 @@ export function LeadsTable({
   tenantId: string;
   leads: LeadFromQuery[];
 }) {
+  const params = useParams<{ tenantSlug?: string }>();
+  const tenantSlugParam = params?.tenantSlug ?? "";
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [adding, startAdd] = useTransition();
@@ -101,6 +112,42 @@ export function LeadsTable({
             ? `${added} agregados, ${skipped} ya estaban en cola`
             : `${added} agregados a la cola de Sandra`,
       );
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
+  function callSelectedBatch() {
+    if (selected.size === 0) {
+      toast.error("Selecciona al menos un lead con teléfono");
+      return;
+    }
+    if (selected.size > 100 && !confirm(`Llamar a ${selected.size} leads en lote. Sandra los llamará a todos en paralelo (controlado por ElevenLabs). ¿Confirmar?`)) return;
+    startAdd(async () => {
+      const res = await initiateBatchSandraCallAction({
+        tenant_id: tenantId,
+        lead_ids: [...selected],
+        batch_name: `Lote ${selected.size} leads — ${new Date().toLocaleString()}`,
+      });
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      const parts: string[] = [`${res.queued} llamadas iniciadas`];
+      if (res.skipped_dnc > 0) parts.push(`${res.skipped_dnc} bloqueadas (DNC)`);
+      if (res.skipped_no_phone > 0) parts.push(`${res.skipped_no_phone} sin teléfono`);
+      toast.success(parts.join(" · "), {
+        action: res.batch_id
+          ? {
+              label: "Ver lote",
+              onClick: () =>
+                window.open(
+                  `https://elevenlabs.io/app/conversational-ai/batch-calling/${res.batch_id}`,
+                  "_blank",
+                ),
+            }
+          : undefined,
+      });
       setSelected(new Set());
       router.refresh();
     });
@@ -157,6 +204,17 @@ export function LeadsTable({
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            onClick={callSelectedBatch}
+            disabled={adding || selected.size === 0}
+            className="gap-1.5"
+            title="Sandra llama a todos los leads seleccionados en lote (ElevenLabs gestiona el ritmo)"
+          >
+            {adding ? <Loader2 className="size-4 animate-spin" /> : <PhoneCall className="size-4 text-emerald-500" />}
+            Llamar en lote
+          </Button>
+          <Button
+            size="sm"
             onClick={addToSandra}
             disabled={adding || selected.size === 0}
             className="gap-1.5"
@@ -198,7 +256,14 @@ export function LeadsTable({
                       title={canSelect ? "Seleccionar" : "Sin teléfono"}
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{l.name ?? "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/dashboard/${tenantSlugParam}/leads/${l.id}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {l.name ?? "—"}
+                    </Link>
+                  </TableCell>
                   <TableCell className="text-sm">
                     {l.whatsapp_number ? (
                       <div className="flex items-center gap-1.5">
@@ -255,9 +320,12 @@ export function LeadsTable({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 justify-end">
-                      {l.whatsapp_number ? (
+                      {/* Call button is hidden for DNC'd leads. The button itself
+                          also no-ops on DNC defensively, but hiding is cleaner UX. */}
+                      {l.whatsapp_number && l.status !== "do_not_contact" ? (
                         <CallSandraButton
                           tenantId={tenantId}
+                          leadId={l.id}
                           phone={`+${l.whatsapp_number}`}
                           leadName={l.name}
                           leadCompany={l.metadata?.vertical ?? null}
