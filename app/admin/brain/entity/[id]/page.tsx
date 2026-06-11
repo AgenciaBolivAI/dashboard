@@ -184,22 +184,29 @@ export default async function EntityDetailPage({
             {docs.map((d) => {
               const label = SOURCE_LABELS[d.source_type] ?? d.source_type;
               return (
-                <li key={d.doc_id} className="p-4 flex items-start gap-3">
-                  <FileText className="size-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <span className="text-sm font-medium truncate">{d.title}</span>
-                      <Badge variant="outline" className="text-[10px]">{label}</Badge>
-                      {d.extraction_count > 1 && (
-                        <Badge variant="muted" className="text-[10px]">
-                          {t("extractions_count", { count: d.extraction_count })}
-                        </Badge>
-                      )}
+                <li key={d.doc_id}>
+                  <Link
+                    href={`/admin/brain/doc/${d.doc_id}`}
+                    className="p-4 flex items-start gap-3 hover:bg-secondary/40 transition-colors group"
+                  >
+                    <FileText className="size-4 text-muted-foreground shrink-0 mt-0.5 group-hover:text-primary" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <span className="text-sm font-medium truncate group-hover:text-primary group-hover:underline">
+                          {d.title}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">{label}</Badge>
+                        {d.extraction_count > 1 && (
+                          <Badge variant="muted" className="text-[10px]">
+                            {t("extractions_count", { count: d.extraction_count })}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        {d.source_path}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground font-mono truncate">
-                      {d.source_path}
-                    </p>
-                  </div>
+                  </Link>
                 </li>
               );
             })}
