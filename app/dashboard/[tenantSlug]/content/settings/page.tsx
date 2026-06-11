@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getTenantBySlug } from "@/lib/tenant";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
-import { getCcavaiSettings } from "@/lib/queries/ccavai";
+import { getCcavaiSettings, getContentReadiness } from "@/lib/queries/ccavai";
 import { CcavaiSettingsForm } from "@/components/ccavai/ccavai-settings-form";
+import { ContentReadinessCard } from "@/components/ccavai/content-readiness-card";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,10 @@ export default async function CcavaiSettingsPage({
   await requireTenantAccess(tenant.id, { minRole: "admin" });
   const t = await getTranslations("content");
 
-  const settings = await getCcavaiSettings(tenant.id);
+  const [settings, readiness] = await Promise.all([
+    getCcavaiSettings(tenant.id),
+    getContentReadiness(tenant.id),
+  ]);
 
   if (!settings) {
     return (
@@ -56,6 +60,8 @@ export default async function CcavaiSettingsPage({
           {t("settings_subtitle")}
         </p>
       </div>
+
+      <ContentReadinessCard tenantSlug={tenantSlug} readiness={readiness} />
 
       <CcavaiSettingsForm tenantId={tenant.id} settings={settings} />
     </div>

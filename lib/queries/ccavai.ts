@@ -120,3 +120,67 @@ export async function getCcavaiStats(
   const row = Array.isArray(data) ? data[0] : data;
   return (row ?? null) as CcavaiStats | null;
 }
+
+export type ContentReadiness = {
+  business_description: boolean;
+  services_count: number;
+  faq: boolean;
+  brand_voice: boolean;
+  /** 0-100 completeness used for the progress bar */
+  score: number;
+};
+
+/**
+ * How much per-tenant business context CCAVAI has to work with. The richer
+ * this is, the more on-brand the business-pillar content. Drives the
+ * "content readiness" nudge on the CCAVAI settings page.
+ */
+export async function getContentReadiness(
+  tenantId: string,
+): Promise<ContentReadiness> {
+  const supabase = await createClient();
+  const [tenantRes, servicesRes, settingsRes] = await Promise.all([
+    supabase.from("tenants").select("voice_persona").eq("id", tenantId).maybeSingle(),
+    supabase
+      .from("services")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("active", true),
+    supabase
+      .from("ccavai_settings")
+      .select("brand_vocabulary")
+      .eq("tenant_id", tenantId)
+      .maybeSingle(),
+  ]);
+
+  const persona =
+    ((tenantRes.data as { voice_persona?: Record<string, unknown> } | null)
+      ?.voice_persona) ?? {};
+  const businessDesc =
+    typeof persona.business_description === "string" &&
+    persona.business_description.trim().length > 20;
+  const rebecca = (persona.rebecca ?? {}) as Record<string, unknown>;
+  const faq =
+    typeof rebecca.faq === "string" && rebecca.faq.trim().length > 20;
+  const servicesCount = servicesRes.count ?? 0;
+  const brandVoice =
+    typeof (settingsRes.data as { brand_vocabulary?: string } | null)
+      ?.brand_vocabulary === "string" &&
+    ((settingsRes.data as { brand_vocabulary?: string }).brand_vocabulary ?? "")
+      .trim().length > 0;
+
+  // Weighted: description + services are the load-bearing inputs.
+  let score = 0;
+  if (businessDesc) score += 35;
+  if (servicesCount > 0) score += 35;
+  if (faq) score += 20;
+  if (brandVoice) score += 10;
+
+  return {
+    business_description: businessDesc,
+    services_count: servicesCount,
+    faq,
+    brand_voice: brandVoice,
+    score,
+  };
+}

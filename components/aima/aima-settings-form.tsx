@@ -36,18 +36,61 @@ const SOURCE_OPTIONS = [
 ] as const;
 
 const VERTICAL_PRESETS = [
+  // Health & medical
   { id: "dental_clinic",        emoji: "🦷", label: "Dental" },
   { id: "physiotherapy_clinic", emoji: "🩺", label: "Fisio" },
-  { id: "real_estate",          emoji: "🏠", label: "Inmobiliaria" },
-  { id: "fitness_studio",       emoji: "💪", label: "Fitness" },
-  { id: "aesthetic_clinic",     emoji: "✨", label: "Estética" },
+  { id: "medical_clinic",       emoji: "🏥", label: "Clínica médica" },
+  { id: "dermatology_clinic",   emoji: "🧴", label: "Dermatología" },
+  { id: "optometry",            emoji: "👓", label: "Óptica" },
+  { id: "psychology_practice",  emoji: "🧠", label: "Psicología" },
+  { id: "nutritionist",         emoji: "🥗", label: "Nutrición" },
   { id: "chiropractor",         emoji: "🦴", label: "Quiropráctico" },
   { id: "veterinary_clinic",    emoji: "🐶", label: "Veterinaria" },
-  { id: "restaurant",           emoji: "🍽️", label: "Restaurante" },
-  { id: "spa_wellness",         emoji: "🧖", label: "Spa" },
+  { id: "pharmacy",             emoji: "💊", label: "Farmacia" },
+  // Beauty & wellness
+  { id: "aesthetic_clinic",     emoji: "✨", label: "Estética" },
   { id: "beauty_salon",         emoji: "💇", label: "Belleza" },
+  { id: "barber_shop",          emoji: "💈", label: "Barbería" },
+  { id: "nail_salon",           emoji: "💅", label: "Uñas" },
+  { id: "spa_wellness",         emoji: "🧖", label: "Spa" },
+  { id: "massage_therapy",      emoji: "💆", label: "Masajes" },
+  { id: "tattoo_studio",        emoji: "🎨", label: "Tatuajes" },
+  // Fitness
+  { id: "fitness_studio",       emoji: "💪", label: "Fitness" },
+  { id: "yoga_studio",          emoji: "🧘", label: "Yoga" },
+  { id: "martial_arts",         emoji: "🥋", label: "Artes marciales" },
+  // Food & hospitality
+  { id: "restaurant",           emoji: "🍽️", label: "Restaurante" },
+  { id: "cafe",                 emoji: "☕", label: "Café" },
+  { id: "bakery",               emoji: "🥐", label: "Panadería" },
+  { id: "catering",             emoji: "🍱", label: "Catering" },
+  { id: "hotel",                emoji: "🏨", label: "Hotel" },
+  // Professional services
+  { id: "real_estate",          emoji: "🏠", label: "Inmobiliaria" },
   { id: "law_firm",             emoji: "⚖️", label: "Abogados" },
   { id: "accounting_firm",      emoji: "📊", label: "Contadores" },
+  { id: "insurance_agency",     emoji: "🛡️", label: "Seguros" },
+  { id: "marketing_agency",     emoji: "📣", label: "Marketing" },
+  { id: "travel_agency",        emoji: "✈️", label: "Viajes" },
+  { id: "photography_studio",   emoji: "📷", label: "Fotografía" },
+  { id: "event_planning",       emoji: "🎉", label: "Eventos" },
+  // Home & auto services
+  { id: "cleaning_service",     emoji: "🧹", label: "Limpieza" },
+  { id: "plumbing",             emoji: "🔧", label: "Plomería" },
+  { id: "electrician",          emoji: "⚡", label: "Electricista" },
+  { id: "hvac",                 emoji: "❄️", label: "Climatización" },
+  { id: "landscaping",          emoji: "🌿", label: "Jardinería" },
+  { id: "auto_repair",          emoji: "🚗", label: "Taller mecánico" },
+  // Retail
+  { id: "florist",              emoji: "🌸", label: "Florería" },
+  { id: "jewelry_store",        emoji: "💍", label: "Joyería" },
+  { id: "pet_store",            emoji: "🐾", label: "Mascotas" },
+  // Education
+  { id: "tutoring_center",      emoji: "📚", label: "Tutorías" },
+  { id: "language_school",      emoji: "🗣️", label: "Idiomas" },
+  { id: "driving_school",       emoji: "🚙", label: "Autoescuela" },
+  { id: "daycare",              emoji: "🧸", label: "Guardería" },
+  { id: "music_school",         emoji: "🎵", label: "Música" },
 ] as const;
 
 // Leading business cities worldwide. Grouped by region for readability,

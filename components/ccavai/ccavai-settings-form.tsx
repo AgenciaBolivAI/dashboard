@@ -2,14 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   Save,
   Play,
   Wand2,
-  Mail,
-  Globe,
-  Sparkles,
   X,
   Plus,
   Rss,
@@ -19,7 +17,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   updateCcavaiSettingsAction,
   triggerCcavaiRunAction,
@@ -28,25 +25,33 @@ import type { CcavaiSettings } from "@/lib/queries/ccavai";
 import { cn } from "@/lib/utils";
 
 const PLATFORM_OPTIONS = [
-  { id: "linkedin",  emoji: "💼", label: "LinkedIn" },
+  { id: "linkedin", emoji: "💼", label: "LinkedIn" },
   { id: "instagram", emoji: "📸", label: "Instagram" },
-  { id: "facebook",  emoji: "👥", label: "Facebook" },
-  { id: "x",         emoji: "𝕏",  label: "X / Twitter" },
+  { id: "facebook", emoji: "👥", label: "Facebook" },
+  { id: "x", emoji: "𝕏", label: "X / Twitter" },
 ] as const;
 
-const TONE_OPTIONS = [
-  { id: "professional_warm", emoji: "🤝", label: "Profesional cálido", desc: "Autoridad amistosa, ideal para LinkedIn." },
-  { id: "casual_friendly",   emoji: "💬", label: "Casual amigable",    desc: "Comunidad, conversacional, IG / FB." },
-  { id: "bold_punchy",       emoji: "⚡", label: "Audaz y punzante",   desc: "Hooks virales, frases cortas, alto impacto." },
-  { id: "educational",       emoji: "🎓", label: "Educativo",          desc: "Explica un concepto por post, dejá takeaway." },
-  { id: "industry_voice",    emoji: "🏢", label: "Voz de tu industria", desc: "Espeja el tono de tu vertical específico." },
+const TONE_IDS = [
+  "professional_warm",
+  "casual_friendly",
+  "bold_punchy",
+  "educational",
+  "industry_voice",
 ] as const;
 
-const IMAGE_STYLE_OPTIONS = [
-  { id: "branded_modern", label: "Branded moderno" },
-  { id: "editorial",      label: "Editorial" },
-  { id: "photographic",   label: "Fotográfico" },
-  { id: "illustration",   label: "Ilustración" },
+const TONE_EMOJI: Record<string, string> = {
+  professional_warm: "🤝",
+  casual_friendly: "💬",
+  bold_punchy: "⚡",
+  educational: "🎓",
+  industry_voice: "🏢",
+};
+
+const IMAGE_STYLE_IDS = [
+  "branded_modern",
+  "editorial",
+  "photographic",
+  "illustration",
 ] as const;
 
 export function CcavaiSettingsForm({
@@ -57,6 +62,7 @@ export function CcavaiSettingsForm({
   settings: CcavaiSettings;
 }) {
   const router = useRouter();
+  const t = useTranslations("content");
   const [saving, startSave] = useTransition();
   const [acting, startAct] = useTransition();
 
@@ -83,7 +89,7 @@ export function CcavaiSettingsForm({
     const url = newRssUrl.trim();
     if (!url) return;
     if (rssSources.some((s) => s.url === url)) {
-      toast.error("Ese feed ya está en la lista");
+      toast.error(t("cf_feed_exists"));
       return;
     }
     setRssSources((cur) => [...cur, { url, name: newRssName.trim() || undefined }]);
@@ -101,13 +107,11 @@ export function CcavaiSettingsForm({
 
   function handleSave() {
     if (platforms.length === 0) {
-      toast.error("Selecciona al menos una plataforma");
+      toast.error(t("cf_platform_required"));
       return;
     }
     startSave(async () => {
       const res = await updateCcavaiSettingsAction(tenantId, {
-        // enabled is always true — credit-based billing makes the toggle
-        // meaningless. If the user doesn't want CCAVAI, they just don't trigger it.
         enabled: true,
         platforms: platforms as ("linkedin" | "instagram" | "facebook" | "x")[],
         tone,
@@ -123,23 +127,21 @@ export function CcavaiSettingsForm({
         toast.error(res.error);
         return;
       }
-      toast.success("Ajustes guardados");
+      toast.success(t("cf_settings_saved"));
       router.refresh();
     });
   }
 
   function handleTrigger() {
-    if (rssSources.length === 0) {
-      toast.error("Agrega al menos un feed RSS para que CCAVAI tenga material");
-      return;
-    }
+    // No RSS requirement: CCAVAI always has curated sources to work with;
+    // custom feeds are additive.
     startAct(async () => {
       const res = await triggerCcavaiRunAction(tenantId);
       if (res.error) {
         toast.error(res.error);
         return;
       }
-      toast.success("CCAVAI arrancando — los drafts aparecerán en pocos minutos.");
+      toast.success(t("cf_starting"));
       router.refresh();
     });
   }
@@ -152,17 +154,15 @@ export function CcavaiSettingsForm({
           <div>
             <h2 className="text-lg font-display font-semibold flex items-center gap-2">
               <Wand2 className="size-5 text-purple-500" />
-              CCAVAI — Generador de contenido
+              {t("cf_gen_title")}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
-              Lee los feeds que le des, elige las historias relevantes para tu
-              negocio, y genera borradores listos para LinkedIn, Instagram, Facebook
-              y X — con imágenes brandeadas si lo activás.
+              {t("cf_gen_desc")}
             </p>
           </div>
           <Button size="sm" onClick={handleTrigger} disabled={acting} className="gap-1.5">
             {acting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-            Generar ahora
+            {t("cf_generate_now")}
           </Button>
         </div>
       </Card>
@@ -170,11 +170,13 @@ export function CcavaiSettingsForm({
       {/* Platforms + tone */}
       <Card className="p-6 space-y-5">
         <h3 className="text-sm uppercase tracking-wider text-muted-foreground">
-          Plataformas y tono
+          {t("cf_section_platforms_tone")}
         </h3>
 
         <div className="space-y-2">
-          <Label className="text-xs">Plataformas ({platforms.length})</Label>
+          <Label className="text-xs">
+            {t("cf_platforms")} ({platforms.length})
+          </Label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {PLATFORM_OPTIONS.map((p) => {
               const on = platforms.includes(p.id);
@@ -199,15 +201,15 @@ export function CcavaiSettingsForm({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs">Tono — guía a CCAVAI cómo escribir</Label>
+          <Label className="text-xs">{t("cf_tone_label")}</Label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {TONE_OPTIONS.map((t) => {
-              const on = tone === t.id;
+            {TONE_IDS.map((id) => {
+              const on = tone === id;
               return (
                 <button
-                  key={t.id}
+                  key={id}
                   type="button"
-                  onClick={() => setTone(t.id)}
+                  onClick={() => setTone(id)}
                   className={cn(
                     "text-left rounded-lg border-2 p-3 transition",
                     on
@@ -216,10 +218,12 @@ export function CcavaiSettingsForm({
                   )}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xl">{t.emoji}</span>
-                    <span className="font-medium">{t.label}</span>
+                    <span className="text-xl">{TONE_EMOJI[id]}</span>
+                    <span className="font-medium">{t(`cf_tone_${id}` as `cf_tone_${typeof id}`)}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">{t.desc}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(`cf_tone_${id}_desc` as `cf_tone_${typeof id}_desc`)}
+                  </p>
                 </button>
               );
             })}
@@ -227,22 +231,23 @@ export function CcavaiSettingsForm({
         </div>
       </Card>
 
-      {/* RSS sources */}
+      {/* News sources */}
       <Card className="p-6 space-y-4">
         <div>
           <h3 className="text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Rss className="size-4 text-orange-500" />
-            Fuentes RSS ({rssSources.length})
+            {t("cf_section_sources")}
           </h3>
           <p className="text-xs text-muted-foreground mt-1">
-            CCAVAI lee estas fuentes en cada corrida y elige las historias más
-            relevantes. Agrega blogs de tu industria, sitios de noticias, podcasts
-            con feed, lo que quieras.
+            {t("cf_sources_desc")}
           </p>
         </div>
 
         {rssSources.length > 0 && (
           <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              {t("cf_custom_feeds")} ({rssSources.length})
+            </Label>
             {rssSources.map((s, i) => (
               <div
                 key={s.url}
@@ -257,7 +262,7 @@ export function CcavaiSettingsForm({
                   type="button"
                   onClick={() => setRssSources((cur) => cur.filter((_, idx) => idx !== i))}
                   className="text-muted-foreground hover:text-destructive transition shrink-0"
-                  aria-label="Eliminar feed"
+                  aria-label={t("cf_remove_feed")}
                 >
                   <X className="size-4" />
                 </button>
@@ -268,7 +273,7 @@ export function CcavaiSettingsForm({
 
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end">
           <div className="space-y-1">
-            <Label className="text-xs">URL del feed</Label>
+            <Label className="text-xs">{t("cf_feed_url")}</Label>
             <Input
               type="url"
               value={newRssUrl}
@@ -283,11 +288,11 @@ export function CcavaiSettingsForm({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Nombre (opcional)</Label>
+            <Label className="text-xs">{t("cf_feed_name")}</Label>
             <Input
               value={newRssName}
               onChange={(e) => setNewRssName(e.target.value)}
-              placeholder="Mi blog favorito"
+              placeholder={t("cf_feed_name_ph")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -298,7 +303,7 @@ export function CcavaiSettingsForm({
           </div>
           <Button type="button" variant="outline" onClick={addRss}>
             <Plus className="size-4" />
-            Agregar
+            {t("cf_add")}
           </Button>
         </div>
       </Card>
@@ -306,11 +311,11 @@ export function CcavaiSettingsForm({
       {/* Volume + images */}
       <Card className="p-6 space-y-5">
         <h3 className="text-sm uppercase tracking-wider text-muted-foreground">
-          Volumen e imágenes
+          {t("cf_section_volume")}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
-            <Label className="text-xs">Borradores por corrida</Label>
+            <Label className="text-xs">{t("cf_drafts_per_run")}</Label>
             <Input
               type="number"
               min={1}
@@ -319,44 +324,49 @@ export function CcavaiSettingsForm({
               onChange={(e) => setDraftsPerRun(parseInt(e.target.value || "0", 10))}
             />
             <p className="text-xs text-muted-foreground">
-              Cada borrador genera 1 post por plataforma. Con {platforms.length}{" "}
-              plataformas × {draftsPerRun} borradores = {platforms.length * draftsPerRun}{" "}
-              posts por corrida (~{platforms.length * draftsPerRun * 5} cr ={" "}
-              ${(platforms.length * draftsPerRun * 0.05).toFixed(2)}).
+              {t("cf_drafts_cost", {
+                platforms: platforms.length,
+                drafts: draftsPerRun,
+                posts: platforms.length * draftsPerRun,
+                credits: platforms.length * draftsPerRun * 5,
+                usd: (platforms.length * draftsPerRun * 0.05).toFixed(2),
+              })}
             </p>
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Label className="text-xs">Generar imágenes brandeadas</Label>
+              <Label className="text-xs">{t("cf_generate_images")}</Label>
               <ToggleButton
                 on={generateImages}
                 onChange={setGenerateImages}
-                label={generateImages ? "Sí" : "No"}
+                label={generateImages ? t("cf_yes") : t("cf_no")}
               />
             </div>
             {generateImages && (
               <>
-                <Label className="text-xs mt-2 block">Estilo</Label>
+                <Label className="text-xs mt-2 block">{t("cf_style")}</Label>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {IMAGE_STYLE_OPTIONS.map((s) => (
+                  {IMAGE_STYLE_IDS.map((id) => (
                     <button
-                      key={s.id}
+                      key={id}
                       type="button"
-                      onClick={() => setImageStyle(s.id)}
+                      onClick={() => setImageStyle(id)}
                       className={cn(
                         "text-xs px-2 py-1.5 rounded-md border transition",
-                        imageStyle === s.id
+                        imageStyle === id
                           ? "bg-purple-500/15 border-purple-500/40 text-purple-600 dark:text-purple-400"
                           : "border-border text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {s.label}
+                      {t(`cf_style_${id}` as `cf_style_${typeof id}`)}
                     </button>
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  +25 cr por imagen × {draftsPerRun} borradores = +{draftsPerRun * 25} cr
-                  por corrida.
+                  {t("cf_image_cost", {
+                    drafts: draftsPerRun,
+                    credits: draftsPerRun * 25,
+                  })}
                 </p>
               </>
             )}
@@ -367,26 +377,26 @@ export function CcavaiSettingsForm({
       {/* Brand voice */}
       <Card className="p-6 space-y-4">
         <h3 className="text-sm uppercase tracking-wider text-muted-foreground">
-          Voz de marca
+          {t("cf_section_brand_voice")}
         </h3>
 
         <div className="space-y-1">
-          <Label className="text-xs">Vocabulario propio</Label>
+          <Label className="text-xs">{t("cf_vocab")}</Label>
           <textarea
             value={brandVocab}
             onChange={(e) => setBrandVocab(e.target.value)}
             rows={3}
             maxLength={2000}
-            placeholder="Ej: decimos 'clientes' no 'usuarios'. Decimos 'plataforma' no 'producto'. Hablamos de 'agentes IA' no 'chatbots'."
+            placeholder={t("cf_vocab_ph")}
             className="w-full text-sm px-3 py-2 rounded-md border border-border bg-background"
           />
-          <p className="text-xs text-muted-foreground">
-            CCAVAI lo lee antes de cada draft y respeta tus elecciones de palabras.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("cf_vocab_help")}</p>
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs">No decir ({doNotSay.length})</Label>
+          <Label className="text-xs">
+            {t("cf_dont_say")} ({doNotSay.length})
+          </Label>
           {doNotSay.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {doNotSay.map((d) => (
@@ -399,7 +409,7 @@ export function CcavaiSettingsForm({
                     type="button"
                     onClick={() => setDoNotSay((cur) => cur.filter((x) => x !== d))}
                     className="text-muted-foreground hover:text-destructive transition"
-                    aria-label={`Eliminar ${d}`}
+                    aria-label={`${t("cf_remove")} ${d}`}
                   >
                     <X className="size-3" />
                   </button>
@@ -411,7 +421,7 @@ export function CcavaiSettingsForm({
             <Input
               value={newDontSay}
               onChange={(e) => setNewDontSay(e.target.value)}
-              placeholder="Ej: revolucionario, disruptivo, único"
+              placeholder={t("cf_dont_say_ph")}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -423,10 +433,7 @@ export function CcavaiSettingsForm({
               <Plus className="size-4" />
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Frases o palabras que CCAVAI debe evitar. Buzzwords sobreutilizados,
-            términos que no encajan con tu marca, etc.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("cf_dont_say_help")}</p>
         </div>
       </Card>
 
@@ -434,21 +441,21 @@ export function CcavaiSettingsForm({
       <Card className="p-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <Label className="text-sm">Auto-publicar borradores aprobados</Label>
-            <p className="text-xs text-muted-foreground mt-1">
-              Cuando esté disponible, los borradores aprobados se publicarán
-              automáticamente. Por ahora se mantienen como "aprobados" para que
-              los copies y pegues manualmente.
-            </p>
+            <Label className="text-sm">{t("cf_autopost")}</Label>
+            <p className="text-xs text-muted-foreground mt-1">{t("cf_autopost_help")}</p>
           </div>
-          <ToggleButton on={autoPost} onChange={setAutoPost} label={autoPost ? "Sí" : "No"} />
+          <ToggleButton
+            on={autoPost}
+            onChange={setAutoPost}
+            label={autoPost ? t("cf_yes") : t("cf_no")}
+          />
         </div>
       </Card>
 
       <div className="sticky bottom-4 z-10 flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-1.5 shadow-lg">
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          Guardar cambios
+          {t("cf_save_changes")}
         </Button>
       </div>
     </div>
@@ -471,16 +478,10 @@ function ToggleButton({
       className={cn(
         "relative inline-flex items-center gap-2 h-9 px-3 rounded-full border text-xs font-semibold transition",
         on
-          ? "bg-purple-500/15 border-purple-500/40 text-purple-600 dark:text-purple-400"
+          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
           : "bg-secondary border-border text-muted-foreground",
       )}
     >
-      <span
-        className={cn(
-          "size-2.5 rounded-full transition",
-          on ? "bg-purple-500" : "bg-muted-foreground",
-        )}
-      />
       {label}
     </button>
   );
