@@ -15,9 +15,18 @@ export type BrainSearchHit = {
   decided_at: string | null;
 };
 
+export type BrainAnswerCitation = {
+  index: number;       // 1-based citation marker as it appears in the answer
+  hit_id: string;      // brain.docs.id or brain.decisions.id
+  source: "doc" | "decision";
+  title: string;
+};
+
 export type BrainSearchState = {
   error: string | null;
   query?: string;
+  answer?: string | null;
+  citations?: BrainAnswerCitation[];
   hits?: BrainSearchHit[];
   total_ms?: number;
 };
@@ -93,7 +102,11 @@ export async function searchCompanyBrainAction(
       body: JSON.stringify({
         p_query_embedding: queryEmbedding,
         p_top_k: parsed.data.top_k,
-        p_min_similarity: 0.3,
+        // Lowered from 0.30 → 0.18: text-embedding-3-small cross-lingual
+        // similarity (Spanish query vs English doc) lives in the 0.20-0.35
+        // band even for highly relevant matches. 0.18 gives us a generous
+        // recall floor; ranking still puts the truly relevant ones first.
+        p_min_similarity: 0.18,
       }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -106,9 +119,70 @@ export async function searchCompanyBrainAction(
     return { error: `RPC failed: ${msg}` };
   }
 
+  // ── Synthesize a natural-language answer from the top 5 hits ─────────
+  // gpt-4o-mini reads the top hits and answers the question in the
+  // user's language with [n] citation markers. Citations carry the
+  // matching hit_id so the client can render them as clickable links.
+  let answer: string | null = null;
+  let citations: BrainAnswerCitation[] = [];
+
+  if (hits.length > 0) {
+    const topForAnswer = hits.slice(0, 5);
+    citations = topForAnswer.map((h, i) => ({
+      index: i + 1,
+      hit_id: h.id,
+      source: h.source,
+      title: h.title,
+    }));
+
+    const sourceBlock = topForAnswer
+      .map((h, i) => {
+        const excerpt = h.content.length > 1800 ? h.content.slice(0, 1800) + "…" : h.content;
+        return `[${i + 1}] ${h.title}\n     source: ${h.source_path || "(decision)"}\n     ${excerpt.replace(/\n/g, "\n     ")}`;
+      })
+      .join("\n\n");
+
+    const system =
+      "Sos el brain de BolivAI. Te paso una pregunta + los documentos más relevantes del corpus interno. " +
+      "Respondé en 3-6 oraciones, en el mismo idioma de la pregunta. " +
+      "Citá las fuentes con [1], [2], etc. — usando los números entre corchetes que aparecen al lado de cada fuente. " +
+      "Solo usá hechos que aparezcan literalmente en las fuentes. " +
+      "Si las fuentes no responden bien la pregunta, decilo abiertamente — no inventes. " +
+      "Tono claro, técnico, sin relleno. Empezá DIRECTO con la respuesta, sin 'Según las fuentes...' ni preámbulos.";
+
+    const user = `Pregunta: ${parsed.data.query}\n\nFuentes relevantes:\n\n${sourceBlock}`;
+
+    try {
+      const synthRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (synthRes.ok) {
+        const json = (await synthRes.json()) as {
+          choices: { message: { content: string } }[];
+        };
+        answer = json.choices[0]?.message?.content?.trim() ?? null;
+      }
+    } catch {
+      // Answer is optional — if synthesis fails, hits still render
+      answer = null;
+    }
+  }
+
   return {
     error: null,
     query: parsed.data.query,
+    answer,
+    citations,
     hits,
     total_ms: Date.now() - t0,
   };

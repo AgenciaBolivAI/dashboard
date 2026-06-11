@@ -246,7 +246,31 @@ async function findOrCreateEntity(
   }
 }
 
-// ── 4. Upsert edge ───────────────────────────────────────────────────
+// ── 4a. Link doc ↔ entity so we know which docs mention which entities
+async function linkDocEntity(docId: string, entityId: string) {
+  try {
+    await brainRest(
+      "POST",
+      "doc_entities?on_conflict=doc_id,entity_id",
+      {
+        doc_id: docId,
+        entity_id: entityId,
+        extraction_count: 1,
+        last_extracted_at: new Date().toISOString(),
+      },
+      { Prefer: "resolution=merge-duplicates" },
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // PostgREST's merge-duplicates path doesn't auto-increment count, just
+    // re-overwrites — that's fine for our purposes. Suppress dup errors.
+    if (!msg.includes("23505")) {
+      console.warn(`  doc_entity link failed: ${msg.slice(0, 100)}`);
+    }
+  }
+}
+
+// ── 4b. Upsert edge ──────────────────────────────────────────────────
 async function upsertEdge(fromId: string, toId: string, relation: string) {
   if (fromId === toId) return; // skip self-edges (constraint would reject anyway)
   const cleanRel = relation.trim().toLowerCase().replace(/\s+/g, "_").slice(0, 60);
@@ -316,6 +340,7 @@ async function main() {
       const row = await findOrCreateEntity(ent.name, type, ent.summary ?? "");
       if (row) {
         nameToId.set(ent.name.toLowerCase(), row.id);
+        await linkDocEntity(doc.id, row.id);
         entCount++;
       }
     }
@@ -333,6 +358,17 @@ async function main() {
     totalEntities += entCount;
     totalEdges += edgeCount;
     processed++;
+  }
+
+  // ── Self-heal: recompute mention_count from doc_entities count.
+  // Guarantees node sizes in the graph reflect real distinct-doc counts
+  // even if individual upserts skipped the per-call increment.
+  console.log(`\n[brain-extract] Recomputing mention_count from doc_entities…`);
+  try {
+    await brainRest("POST", "rpc/recompute_mention_counts", {});
+    console.log(`  ✓ mention_count synced`);
+  } catch (e) {
+    console.warn(`  mention_count recompute failed: ${e instanceof Error ? e.message : e}`);
   }
 
   console.log(`\n[brain-extract] Done.`);

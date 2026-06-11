@@ -15,7 +15,16 @@ export function UserMenu({ email }: { email: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded-md p-1.5 hover:bg-secondary transition">
+        {/*
+          suppressHydrationWarning: some browser extensions (form-fillers,
+          password managers) inject an `fdprocessedid` attribute onto buttons
+          before React hydrates, which causes a hydration mismatch. The
+          attribute is harmless; we tell React not to scream about it.
+        */}
+        <button
+          suppressHydrationWarning
+          className="flex items-center gap-2 rounded-md p-1.5 hover:bg-secondary transition"
+        >
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary text-primary-foreground">
               {initials}

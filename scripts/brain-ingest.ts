@@ -186,55 +186,66 @@ async function gatherN8nWorkflows(): Promise<Doc[]> {
 }
 
 async function gatherVoiceCalls(): Promise<Doc[]> {
-  // BolivAI tenant only — voice transcripts are tenant-internal data.
-  // Same isolation rule as the brain tick.
-  const BOLIVAI = "5e0a3c3a-3a64-4d51-a51d-9e233fb9da4f";
+  // Voice calls live in brain.episodes (written by Rebecca + Sandra ticks
+  // which pull from ElevenLabs). Each episode carries metadata.transcript
+  // (full text) and metadata.conversation_id for stable identity.
+  //
+  // BolivAI-internal by nature — both Rebecca and Sandra are Celiel-owned
+  // agents, the conversations they have ARE BolivAI's. No tenant filter
+  // needed here.
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/voice_conversations?tenant_id=eq.${BOLIVAI}&select=id,direction,caller_phone,started_at,duration_seconds,call_outcome,charged_cents&order=started_at.desc&limit=200`,
-      {
-        headers: {
-          apikey: SUPABASE_SERVICE_KEY,
-          Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-        },
+    const url =
+      `${SUPABASE_URL}/rest/v1/episodes` +
+      `?source=eq.elevenlabs` +
+      `&order=created_at.desc&limit=300` +
+      `&select=id,title,content,metadata,created_at`;
+    const res = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "Accept-Profile": "brain",
       },
-    );
+    });
     if (!res.ok) {
-      console.warn(`[brain-ingest] voice_conversations fetch ${res.status}`);
+      console.warn(`[brain-ingest] brain.episodes voice fetch ${res.status}`);
       return [];
     }
     const rows = (await res.json()) as Array<{
       id: string;
-      direction: string;
-      caller_phone: string | null;
-      started_at: string;
-      duration_seconds: number | null;
-      call_outcome: string | null;
-      charged_cents: number | null;
+      title: string;
+      content: string;
+      metadata: Record<string, unknown>;
+      created_at: string;
     }>;
 
-    // Future: pull transcript text from voice_conversations.transcript when
-    // ElevenLabs ingest workflow writes it. For now, build a structured
-    // summary that's still useful for "patterns in our voice calls" queries.
     return rows
-      .filter((r) => r.duration_seconds && r.duration_seconds > 0)
+      .filter((r) => r.metadata?.conversation_id)
       .map((r) => {
-        const direction = r.direction === "inbound" ? "Rebecca (inbound)" : "Sandra (outbound)";
-        const minutes = Math.round((r.duration_seconds ?? 0) / 60);
-        const outcome = r.call_outcome ?? "unknown";
-        const charged = r.charged_cents != null ? `$${(r.charged_cents / 100).toFixed(2)}` : "—";
-        const content = [
-          `Voice call — ${direction}`,
-          `Caller: ${r.caller_phone ?? "(unknown)"}`,
-          `Started: ${r.started_at}`,
+        const meta = r.metadata as Record<string, string | number | null>;
+        const transcript = (meta.transcript as string | undefined) ?? "";
+        const direction = (meta.direction as string | undefined) ?? "inbound";
+        const agent = direction === "outbound" ? "Sandra (outbound)" : "Rebecca (inbound)";
+        const durationSecs = Number(meta.duration_secs ?? 0);
+        const minutes = Math.round(durationSecs / 60);
+
+        const header = [
+          `Voice call — ${agent}`,
+          `Title: ${r.title}`,
+          `Started: ${meta.started_at ?? r.created_at}`,
           `Duration: ${minutes} min`,
-          `Outcome: ${outcome}`,
-          `Charged: ${charged}`,
+          `Language: ${meta.language ?? "?"}`,
+          `Outcome: ${meta.call_successful ?? meta.status ?? "?"}`,
         ].join("\n");
+
+        const content = transcript
+          ? `${header}\n\nSummary: ${r.content}\n\n--- Transcript ---\n${transcript}`
+          : `${header}\n\nSummary: ${r.content}\n\n(Full transcript not yet captured for this call)`;
+
         return {
           source_type: "voice_call" as const,
-          source_path: `voice/${r.id}`,
-          title: `${direction} · ${r.started_at.slice(0, 10)} · ${outcome}`,
+          // Use the ElevenLabs conversation_id for stable identity across re-ingests
+          source_path: `voice/${meta.conversation_id}`,
+          title: `${agent} · ${(meta.started_at as string | undefined)?.slice(0, 10) ?? r.created_at.slice(0, 10)} · ${r.title}`,
           content,
         };
       });

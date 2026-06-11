@@ -1,5 +1,7 @@
-import { Brain, FileText, Lightbulb, HelpCircle, Database } from "lucide-react";
+import Link from "next/link";
+import { Brain, FileText, Lightbulb, HelpCircle, Database, Network } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { getBrainStats, listOpenUnknowns } from "@/lib/actions/company-brain";
 import { BrainSearch } from "@/components/admin/brain-search";
 import { DecisionForm } from "@/components/admin/decision-form";
@@ -15,16 +17,24 @@ export default async function AdminBrainPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-5xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
-          <Brain className="size-7 text-primary" />
-          Company Brain
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-          Mapa vivo de cómo funciona BolivAI. Memoria, decisiones, esquemas, prompts
-          y conocimiento operacional indexado y buscable. Hacé una pregunta abajo y
-          el brain responde citando las fuentes.
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
+        <div>
+          <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
+            <Brain className="size-7 text-primary" />
+            Company Brain
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
+            Mapa vivo de cómo funciona BolivAI. Memoria, decisiones, esquemas, prompts
+            y conocimiento operacional indexado y buscable. Hacé una pregunta abajo y
+            el brain responde citando las fuentes.
+          </p>
+        </div>
+        <Button asChild variant="outline" className="gap-1.5">
+          <Link href="/admin/brain/graph">
+            <Network className="size-4" />
+            Ver el mapa
+          </Link>
+        </Button>
       </div>
 
       {/* Stats */}
