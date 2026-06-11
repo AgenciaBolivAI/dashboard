@@ -202,7 +202,8 @@
     "deselect_all": "Desmarcar todos",
     "select_all": "Selecionar todos ({count})",
     "batch_call_tooltip": "Sandra liga para todos os leads selecionados em lote (ElevenLabs controla o ritmo)",
-    "add_to_sandra_queue": "Adicionar à fila da Sandra"
+    "add_to_sandra_queue": "Adicionar à fila da Sandra",
+    "search_placeholder": "Buscar por nome, telefone ou email…"
   },
   "customers": {
     "page_title": "Clientes",

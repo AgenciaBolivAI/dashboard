@@ -202,7 +202,8 @@
     "deselect_all": "Deseleccionar todos",
     "select_all": "Seleccionar todos ({count})",
     "batch_call_tooltip": "Sandra llama a todos los leads seleccionados en lote (ElevenLabs gestiona el ritmo)",
-    "add_to_sandra_queue": "Agregar a la cola de Sandra"
+    "add_to_sandra_queue": "Agregar a la cola de Sandra",
+    "search_placeholder": "Buscar por nombre, teléfono o email…"
   },
   "customers": {
     "page_title": "Clientes",

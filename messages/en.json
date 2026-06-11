@@ -202,7 +202,8 @@
     "deselect_all": "Deselect all",
     "select_all": "Select all ({count})",
     "batch_call_tooltip": "Sandra calls all selected leads in batch (ElevenLabs paces them)",
-    "add_to_sandra_queue": "Add to Sandra's queue"
+    "add_to_sandra_queue": "Add to Sandra's queue",
+    "search_placeholder": "Search by name, phone or email…"
   },
   "customers": {
     "page_title": "Customers",

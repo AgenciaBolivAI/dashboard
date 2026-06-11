@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { buildRebeccaOverride, type VoicePersona } from "@/lib/voice/persona";
 import { timingSafeEqualStr } from "@/lib/security/voice-bearer";
 
@@ -53,8 +53,11 @@ export async function POST(req: NextRequest) {
   const callerNumber = body.caller_id ?? "";
   const calledNumber = body.called_number ?? "";
 
-  // Look up the tenant by ElevenLabs phone_number_id. Falls back by called number.
-  const supabase = await createClient();
+  // Look up the tenant by ElevenLabs phone_number_id. Falls back by called
+  // number. Service client: this is a machine-to-machine webhook with no
+  // user session — the RLS-bound client would see zero rows. The static
+  // bearer check above is the auth for this surface.
+  const supabase = createServiceClient();
   type TenantRow = {
     id: string;
     name: string;

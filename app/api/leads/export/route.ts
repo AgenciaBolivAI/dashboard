@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
     source: searchParams.get("source") ?? undefined,
     city: searchParams.get("city") ?? undefined,
     vertical: searchParams.get("vertical") ?? undefined,
+    country: searchParams.get("country") ?? undefined,
+    state: searchParams.get("state") ?? undefined,
+    search: searchParams.get("q") ?? undefined,
     limit: 10_000,
   });
 

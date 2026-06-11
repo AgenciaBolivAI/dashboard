@@ -7,6 +7,7 @@ import { getTenantBySlug } from "@/lib/tenant";
 import { listLeads, getLeadIntents, getLeadFacets } from "@/lib/queries/leads";
 import { COUNTRY_BY_CODE } from "@/lib/leads-geo";
 import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
+import { RealtimeSearch } from "@/components/ui/realtime-search";
 import { intentLabel } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ type LeadsSearchParams = {
   vertical?: string;
   country?: string;   // ISO alpha-2 (e.g. "US")
   state?: string;     // e.g. "Florida"
+  q?: string;         // realtime search — name / phone / email
 };
 
 export default async function LeadsPage({
@@ -71,6 +73,7 @@ export default async function LeadsPage({
       vertical: filters.vertical && filters.vertical !== "all" ? filters.vertical : undefined,
       country: filters.country && filters.country !== "all" ? filters.country : undefined,
       state: filters.state && filters.state !== "all" ? filters.state : undefined,
+      search: filters.q?.trim() || undefined,
     }),
     getLeadIntents(tenant.id),
     getLeadFacets(tenant.id),
@@ -78,7 +81,7 @@ export default async function LeadsPage({
 
   // Reflect ALL active filters in the export URL so the CSV matches the visible table
   const exportQs = new URLSearchParams();
-  for (const key of ["status", "intent", "source", "city", "vertical", "country", "state"] as const) {
+  for (const key of ["status", "intent", "source", "city", "vertical", "country", "state", "q"] as const) {
     const v = filters[key];
     if (v && v !== "all") exportQs.set(key, v);
   }
@@ -88,7 +91,7 @@ export default async function LeadsPage({
     const next = { ...filters, ...swap } as LeadsSearchParams;
     // Changing country clears the state filter — they don't mix.
     if ("country" in swap) delete next.state;
-    for (const k of ["status", "intent", "source", "city", "vertical", "country", "state"] as const) {
+    for (const k of ["status", "intent", "source", "city", "vertical", "country", "state", "q"] as const) {
       const v = next[k];
       if (v && v !== "all") params.set(k, v);
     }
@@ -126,6 +129,10 @@ export default async function LeadsPage({
             {t("export_csv")}
           </a>
         </Button>
+      </div>
+
+      <div className="mb-4">
+        <RealtimeSearch placeholder={t("search_placeholder")} />
       </div>
 
       <div className="mb-4 space-y-3">

@@ -6,6 +6,7 @@ import { getTenantBySlug } from "@/lib/tenant";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { listVoiceConversations } from "@/lib/queries/voice-conversations";
 import { RecordingPlayer } from "@/components/voice/recording-player";
+import { RealtimeSearch } from "@/components/ui/realtime-search";
 
 export const dynamic = "force-dynamic";
 
@@ -17,15 +18,32 @@ const OUTCOME_CLASS: Record<string, string> = {
 
 export default async function CallsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams: Promise<{ q?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const { q } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   await requireUser();
   await requireTenantAccess(tenant.id);
 
-  const calls = await listVoiceConversations(tenant.id, 100);
+  // Fetch a wider window when searching so matches beyond the first page
+  // surface; filter server-side in JS (name + phone), cheap at this scale.
+  const all = await listVoiceConversations(tenant.id, q ? 500 : 100);
+  const needle = q?.trim().toLowerCase() ?? "";
+  const digits = needle.replace(/\D/g, "");
+  const calls = needle
+    ? all.filter((c) => {
+        const name = (c.user_name ?? "").toLowerCase();
+        const phone = `${c.caller_phone ?? ""}${c.user_whatsapp ?? ""}`;
+        return (
+          name.includes(needle) ||
+          (digits.length >= 3 && phone.replace(/\D/g, "").includes(digits))
+        );
+      })
+    : all;
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
@@ -41,10 +59,14 @@ export default async function CallsPage({
         </p>
       </div>
 
+      <div className="mb-4">
+        <RealtimeSearch placeholder="Buscar por nombre o teléfono…" />
+      </div>
+
       {calls.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
           <Phone className="size-10 text-muted-foreground mb-4" />
-          <p className="font-medium">Aún no hay llamadas</p>
+          <p className="font-medium">{q ? "Sin resultados para esa búsqueda" : "Aún no hay llamadas"}</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
             Cuando Sandra empiece a llamar a tus leads o un cliente llame a tu número,
             las llamadas aparecen acá con su grabación.

@@ -22,6 +22,7 @@ export type LeadFilters = {
   vertical?: string;
   country?: string;   // ISO alpha-2 (e.g. "US", "MX", "BO")
   state?: string;     // free-form, matched against metadata.{state,region}
+  search?: string;    // matches name OR phone OR email, case-insensitive partial
   limit?: number;
 };
 
@@ -44,6 +45,17 @@ export async function listLeads(
   if (opts.status) q = q.eq("status", opts.status);
   if (opts.intent) q = q.eq("intent", opts.intent);
   if (opts.source) q = q.eq("source", opts.source);
+  if (opts.search) {
+    // PostgREST .or() — commas separate conditions; escape them in input.
+    // Phone matches strip non-digits so "+1 (786)" finds "1786...".
+    const s = opts.search.replace(/[,()]/g, " ").trim();
+    if (s) {
+      const digits = s.replace(/\D/g, "");
+      const ors = [`name.ilike.%${s}%`, `email.ilike.%${s}%`];
+      if (digits.length >= 3) ors.push(`whatsapp_number.ilike.%${digits}%`);
+      q = q.or(ors.join(","));
+    }
+  }
   // City + vertical live in metadata (populated by AIMA's Google Maps run).
   // Postgres JSONB → contains operator. Single-key filter is fast even without index at our scale.
   if (opts.city) q = q.contains("metadata", { city: opts.city });
