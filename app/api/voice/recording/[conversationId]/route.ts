@@ -1,21 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 
+const BOLIVAI_TENANT_ID = "5e0a3c3a-3a64-4d51-a51d-9e233fb9da4f";
+
+/** Resolve a voice conversation's tenant from brain.episodes via REST. */
+async function tenantForConversation(conversationId: string): Promise<string | null> {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const params = new URLSearchParams({
+    select: "metadata",
+    source: "eq.elevenlabs",
+    "metadata->>conversation_id": `eq.${conversationId}`,
+    limit: "1",
+  });
+  const res = await fetch(`${url}/rest/v1/episodes?${params}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Accept-Profile": "brain",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const rows = (await res.json()) as Array<{ metadata?: Record<string, unknown> }>;
+  const meta = rows[0]?.metadata;
+  if (!meta) return null;
+  return typeof meta.tenant_id === "string" && meta.tenant_id
+    ? meta.tenant_id
+    : BOLIVAI_TENANT_ID;
+}
+
 /**
- * Proxy ElevenLabs's conversation audio endpoint so tenants can listen to
+ * Proxy ElevenLabs's conversation audio endpoint so operators can listen to
  * their own call recordings from our dashboard without ever seeing an
  * ElevenLabs URL or our API key.
  *
  * Auth flow:
  *   1. Require an authenticated user
- *   2. Look up the conversation_id in voice_conversations → resolves tenant_id
+ *   2. Resolve the conversation_id → tenant_id from brain.episodes (the
+ *      single source the Sandra/Rebecca tick writes). metadata.tenant_id is
+ *      set per call; older rows default to the BolivAI tenant since brain is
+ *      BolivAI-scoped today.
  *   3. requireTenantAccess against that tenant — only members can listen
- *   4. Fetch audio from ElevenLabs with our master xi-api-key
- *   5. Stream it back as audio/mpeg
+ *   4. Fetch audio from ElevenLabs with our master xi-api-key, stream it back
  *
- * If the conversation isn't in voice_conversations, we 404 — never proxy
- * for a conversation that doesn't belong to a known tenant.
+ * If the conversation isn't a known voice episode, we 404 — never proxy for a
+ * conversation that doesn't belong to a known tenant.
  */
 export async function GET(
   _req: NextRequest,
@@ -28,20 +58,11 @@ export async function GET(
 
   await requireUser();
 
-  const supabase = await createClient();
-  // voice_conversations is the table the tick workflows write to with one row
-  // per ElevenLabs conversation_id + the tenant it belongs to.
-  const { data } = await supabase
-    .from("voice_conversations" as never)
-    .select("tenant_id" as never)
-    .eq("elevenlabs_conversation_id" as never, conversationId)
-    .maybeSingle();
-
-  const row = data as { tenant_id?: string } | null;
-  if (!row?.tenant_id) {
+  const tenantId = await tenantForConversation(conversationId);
+  if (!tenantId) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
-  await requireTenantAccess(row.tenant_id);
+  await requireTenantAccess(tenantId);
 
   const elKey = process.env.ELEVENLABS_API_KEY;
   if (!elKey) {

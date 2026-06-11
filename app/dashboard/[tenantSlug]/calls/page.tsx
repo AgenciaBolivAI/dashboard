@@ -36,8 +36,8 @@ export default async function CallsPage({
   const digits = needle.replace(/\D/g, "");
   const calls = needle
     ? all.filter((c) => {
-        const name = (c.user_name ?? "").toLowerCase();
-        const phone = `${c.caller_phone ?? ""}${c.user_whatsapp ?? ""}`;
+        const name = (c.lead_name ?? "").toLowerCase();
+        const phone = `${c.caller_phone ?? ""}${c.lead_phone ?? ""}`;
         return (
           name.includes(needle) ||
           (digits.length >= 3 && phone.replace(/\D/g, "").includes(digits))
@@ -102,18 +102,18 @@ export default async function CallsPage({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {c.user_id && c.user_name ? (
+                      {c.lead_id && c.lead_name ? (
                         <Link
-                          href={`/dashboard/${tenantSlug}/customers/${c.user_id}`}
+                          href={`/dashboard/${tenantSlug}/leads/${c.lead_id}`}
                           className="hover:text-primary hover:underline font-medium"
                         >
-                          {c.user_name}
+                          {c.lead_name}
                         </Link>
                       ) : (
-                        <span className="font-medium">{c.user_name ?? "—"}</span>
+                        <span className="font-medium">{c.lead_name ?? "—"}</span>
                       )}
                       <div className="text-xs text-muted-foreground font-mono">
-                        {c.caller_phone ?? c.user_whatsapp ? `+${c.caller_phone ?? c.user_whatsapp}` : ""}
+                        {c.lead_phone ? `+${c.lead_phone}` : ""}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">

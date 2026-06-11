@@ -13,6 +13,7 @@ import { intentLabel, intentBadgeClass } from "@/lib/leads-intents";
 import { LeadNotesEditor } from "@/components/leads/lead-notes-editor";
 import { CallSandraButton } from "@/components/leads/call-sandra-button";
 import { LeadStatusSelect } from "@/components/leads/lead-status-select";
+import { RecordingPlayer } from "@/components/voice/recording-player";
 
 export const dynamic = "force-dynamic";
 
@@ -227,15 +228,21 @@ export default async function LeadDetailPage({
                   </p>
                 </div>
                 {c.conversation_id ? (
-                  <a
-                    href={`https://elevenlabs.io/app/conversational-ai/history/${c.conversation_id}`}
-                    target="_blank"
-                    rel="noopener"
-                    className="text-xs text-primary hover:underline inline-flex items-center gap-1 shrink-0"
-                  >
-                    {(() => { try { return t("call_history_listen"); } catch { return "Escuchar"; } })()}
-                    <ExternalLink className="size-3" />
-                  </a>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <RecordingPlayer
+                      conversationId={c.conversation_id}
+                      durationSeconds={c.duration_secs}
+                    />
+                    <a
+                      href={`https://elevenlabs.io/app/conversational-ai/history/${c.conversation_id}`}
+                      target="_blank"
+                      rel="noopener"
+                      title="ElevenLabs"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <ExternalLink className="size-3.5" />
+                    </a>
+                  </div>
                 ) : null}
               </li>
             ))}
