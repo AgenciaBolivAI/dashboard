@@ -3,7 +3,45 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme — default when next-themes attribute is absent or set to "light". */
   :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+
+    --primary: 159 100% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 130 14% 95%;
+    --secondary-foreground: 240 10% 10%;
+
+    --muted: 130 8% 94%;
+    --muted-foreground: 130 10% 35%;
+
+    --accent: 130 14% 92%;
+    --accent-foreground: 240 10% 4%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 130 10% 88%;
+    --input: 130 10% 88%;
+    --ring: 159 100% 35%;
+
+    --radius: 0.6rem;
+
+    /* tenant-themable */
+    --brand: #00b87d;
+    --brand-dim: #00e5a0;
+  }
+
+  /* Dark theme — applied when next-themes sets data-theme="dark" or .dark on <html>. */
+  .dark {
     --background: 240 8% 4%;
     --foreground: 130 12% 86%;
 
@@ -31,8 +69,6 @@
     --border: 130 14% 14%;
     --input: 130 14% 14%;
     --ring: 159 100% 45%;
-
-    --radius: 0.6rem;
 
     /* tenant-themable */
     --brand: #00e5a0;

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   BarChart3,
   CalendarDays,
@@ -22,37 +23,38 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "overview", label: "Resumen", icon: BarChart3 },
-  { href: "conversations", label: "Conversaciones", icon: MessagesSquare },
-  { href: "leads", label: "Leads", icon: UserPlus },
-  { href: "customers", label: "Clientes", icon: Contact },
-  { href: "calendar", label: "Calendario", icon: CalendarDays },
-  { href: "invoices", label: "Facturas", icon: Receipt },
-  { href: "services", label: "Servicios", icon: Sparkles },
-  { href: "staff", label: "Personal", icon: Users },
-  { href: "knowledge", label: "Conocimiento", icon: FileText },
-  { href: "marketing", label: "Marketing (AIMA)", icon: Megaphone },
-  { href: "content", label: "Contenido (CCAVAI)", icon: Wand2 },
-  { href: "shorts", label: "Shorts (VIRA)", icon: Video },
-  { href: "billing", label: "Facturación", icon: Coins },
-  { href: "settings", label: "Ajustes", icon: Settings },
-];
+  { href: "overview", key: "overview", icon: BarChart3 },
+  { href: "conversations", key: "conversations", icon: MessagesSquare },
+  { href: "leads", key: "leads", icon: UserPlus },
+  { href: "customers", key: "customers", icon: Contact },
+  { href: "calendar", key: "calendar", icon: CalendarDays },
+  { href: "invoices", key: "invoices", icon: Receipt },
+  { href: "services", key: "services", icon: Sparkles },
+  { href: "staff", key: "staff", icon: Users },
+  { href: "knowledge", key: "knowledge", icon: FileText },
+  { href: "marketing", key: "marketing", icon: Megaphone },
+  { href: "content", key: "content", icon: Wand2 },
+  { href: "shorts", key: "shorts", icon: Video },
+  { href: "billing", key: "billing", icon: Coins },
+  { href: "settings", key: "settings", icon: Settings },
+] as const;
 
 // Internal-only nav items kept for BolivAI's own tenant (single-tenant tables).
 // Will get multi-tenant when sandra_call_queue gets a tenant_id column.
 const BOLIVAI_ONLY_ITEMS = [
-  { href: "sandra", label: "Cola de Sandra", icon: PhoneCall },
-];
+  { href: "sandra", key: "sandra_queue", icon: PhoneCall },
+] as const;
 
 export function Sidebar({ tenantSlug }: { tenantSlug: string }) {
   const pathname = usePathname();
+  const t = useTranslations("nav");
   const base = `/dashboard/${tenantSlug}`;
 
   const items = tenantSlug === "bolivai" ? [...NAV_ITEMS, ...BOLIVAI_ONLY_ITEMS] : NAV_ITEMS;
 
   return (
     <nav className="flex flex-col gap-0.5 px-2 py-2">
-      {items.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, key, icon: Icon }) => {
         const fullHref = `${base}/${href}`;
         const active =
           pathname === fullHref || pathname.startsWith(`${fullHref}/`);
@@ -68,7 +70,7 @@ export function Sidebar({ tenantSlug }: { tenantSlug: string }) {
             )}
           >
             <Icon className="size-4" />
-            {label}
+            {t(key)}
           </Link>
         );
       })}

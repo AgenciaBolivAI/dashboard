@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PhoneCall, Clock, CheckCircle2, Voicemail, XCircle } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { getTenantBySlug } from "@/lib/tenant";
 import {
@@ -11,16 +12,6 @@ import { QueueTable } from "@/components/sandra-queue/queue-table";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_FILTERS: { id: SandraQueueItem["status"] | "all"; label: string }[] = [
-  { id: "pending", label: "Pendientes" },
-  { id: "calling", label: "Llamando" },
-  { id: "completed", label: "Completadas" },
-  { id: "no_answer", label: "Sin respuesta" },
-  { id: "failed", label: "Fallidas" },
-  { id: "skipped", label: "Saltadas" },
-  { id: "all", label: "Todas" },
-];
 
 const ALLOWED_TENANT_SLUG = "bolivai";
 
@@ -34,17 +25,32 @@ export default async function SandraQueuePage({
   const { tenantSlug } = await params;
   const { status: statusFilter = "pending" } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("sandra");
+
+  const STATUS_FILTERS: { id: SandraQueueItem["status"] | "all"; label: string }[] = [
+    { id: "pending", label: t("status_pending") },
+    { id: "calling", label: t("status_calling") },
+    { id: "completed", label: t("status_completed") },
+    { id: "no_answer", label: t("status_no_answer") },
+    { id: "failed", label: t("status_failed") },
+    { id: "skipped", label: t("status_skipped") },
+    { id: "all", label: t("status_all") },
+  ];
 
   if (tenant.slug !== ALLOWED_TENANT_SLUG) {
     return (
       <div className="p-6 md:p-8 max-w-3xl">
         <h1 className="text-3xl font-display font-extrabold tracking-tight">
-          Cola de Sandra
+          {t("page_title")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          La cola de llamadas salientes (Sandra) está activa solo para el tenant{" "}
-          <code className="px-1.5 py-0.5 rounded bg-secondary text-xs">bolivai</code>{" "}
-          por ahora.
+          {t.rich("restricted_tenant_notice", {
+            code: (chunks) => (
+              <code className="px-1.5 py-0.5 rounded bg-secondary text-xs">
+                {chunks}
+              </code>
+            ),
+          })}
         </p>
       </div>
     );
@@ -66,44 +72,41 @@ export default async function SandraQueuePage({
       <div className="mb-6">
         <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
           <PhoneCall className="size-7 text-cyan-500" />
-          Cola de Sandra
+          {t("page_title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Leads en cola para que Sandra llame saliente. Selecciona los que
-          quieres que Sandra contacte ahora, exporta el CSV y súbelo a
-          ElevenLabs Batch Calling. Cuando Sandra termine, marca el resultado
-          aquí para mantener el pipeline limpio.
+          {t("page_description")}
         </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <StatCard
           icon={Clock}
-          label="Pendientes"
+          label={t("stat_pending")}
           value={counts.pending}
           color="text-primary"
         />
         <StatCard
           icon={PhoneCall}
-          label="Llamando"
+          label={t("stat_calling")}
           value={counts.calling}
           color="text-amber-600"
         />
         <StatCard
           icon={CheckCircle2}
-          label="Completadas"
+          label={t("stat_completed")}
           value={counts.completed}
           color="text-green-600"
         />
         <StatCard
           icon={Voicemail}
-          label="Sin respuesta"
+          label={t("stat_no_answer")}
           value={counts.no_answer}
           color="text-blue-600"
         />
         <StatCard
           icon={XCircle}
-          label="Saltadas"
+          label={t("stat_skipped")}
           value={counts.skipped + counts.failed}
           color="text-muted-foreground"
         />
@@ -111,7 +114,7 @@ export default async function SandraQueuePage({
 
       <div className="mb-6 flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground uppercase tracking-wider mr-1">
-          Estado:
+          {t("filter_status_label")}
         </span>
         {STATUS_FILTERS.map((f) => {
           const active = (statusFilter ?? "pending") === f.id;

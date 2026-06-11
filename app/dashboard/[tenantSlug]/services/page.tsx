@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ServicesManager } from "@/components/services/services-manager";
 import type { ServiceRow, StaffOption } from "@/components/services/service-form";
 import { getServiceStaffMap } from "@/lib/queries/staff-services";
+import { getTranslations } from "next-intl/server";
 
 export default async function ServicesPage({
   params,
@@ -11,6 +12,7 @@ export default async function ServicesPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("services");
 
   const supabase = await createClient();
 
@@ -42,11 +44,10 @@ export default async function ServicesPage({
     <div className="p-6 md:p-8 max-w-5xl">
       <div className="mb-6">
         <h1 className="text-3xl font-display font-extrabold tracking-tight">
-          Servicios
+          {t("page_title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          El catálogo que tu agente ofrece. Cuando el cliente pregunta precios o
-          reserva una cita, el bot consulta esta lista.
+          {t("page_description")}
         </p>
       </div>
 

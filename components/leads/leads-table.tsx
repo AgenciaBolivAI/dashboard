@@ -19,7 +19,9 @@ import { addLeadsToSandraQueueAction } from "@/lib/actions/sandra-queue";
 import { updateLeadStatusAction, deleteLeadAction } from "@/lib/actions/leads";
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/leads-types";
 import { intentLabel, intentBadgeClass } from "@/lib/leads-intents";
+import { getCountryFromPhone, getStateFromMetadata } from "@/lib/leads-geo";
 import { formatDate, cn } from "@/lib/utils";
+import { CallSandraButton } from "./call-sandra-button";
 
 export type LeadFromQuery = {
   id: string;
@@ -198,8 +200,28 @@ export function LeadsTable({
                   </TableCell>
                   <TableCell className="font-medium">{l.name ?? "—"}</TableCell>
                   <TableCell className="text-sm">
-                    {l.whatsapp_number ? <div>+{l.whatsapp_number}</div> : null}
+                    {l.whatsapp_number ? (
+                      <div className="flex items-center gap-1.5">
+                        {(() => {
+                          const c = getCountryFromPhone(l.whatsapp_number);
+                          return c ? (
+                            <span title={c.name}>{c.flag}</span>
+                          ) : null;
+                        })()}
+                        <span>+{l.whatsapp_number}</span>
+                      </div>
+                    ) : null}
                     {l.email ? <div className="text-muted-foreground text-xs">{l.email}</div> : null}
+                    {(() => {
+                      const s = getStateFromMetadata(l.metadata);
+                      const city = l.metadata?.city;
+                      const parts = [city, s].filter(Boolean);
+                      return parts.length ? (
+                        <div className="text-muted-foreground text-xs mt-0.5">
+                          {parts.join(" · ")}
+                        </div>
+                      ) : null;
+                    })()}
                   </TableCell>
                   <TableCell>
                     {l.intent ? (
@@ -232,15 +254,28 @@ export function LeadsTable({
                     {formatDate(l.created_at)}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(l.id)}
-                      disabled={rowPending}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    <div className="flex items-center gap-1 justify-end">
+                      {l.whatsapp_number ? (
+                        <CallSandraButton
+                          tenantId={tenantId}
+                          phone={`+${l.whatsapp_number}`}
+                          leadName={l.name}
+                          leadCompany={l.metadata?.vertical ?? null}
+                          notes={l.notes ?? null}
+                          size="sm"
+                          variant="ghost"
+                        />
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(l.id)}
+                        disabled={rowPending}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Brain, FileText, Lightbulb, HelpCircle, Database, Network } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { UnknownsList } from "@/components/admin/unknowns-list";
 export const dynamic = "force-dynamic";
 
 export default async function AdminBrainPage() {
+  const t = await getTranslations("admin_brain");
   const [stats, unknowns] = await Promise.all([
     getBrainStats(),
     listOpenUnknowns(),
@@ -21,18 +23,16 @@ export default async function AdminBrainPage() {
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
             <Brain className="size-7 text-primary" />
-            Company Brain
+            {t("page_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-            Mapa vivo de cómo funciona BolivAI. Memoria, decisiones, esquemas, prompts
-            y conocimiento operacional indexado y buscable. Hacé una pregunta abajo y
-            el brain responde citando las fuentes.
+            {t("page_intro")}
           </p>
         </div>
         <Button asChild variant="outline" className="gap-1.5">
           <Link href="/admin/brain/graph">
             <Network className="size-4" />
-            Ver el mapa
+            {t("view_map")}
           </Link>
         </Button>
       </div>
@@ -41,25 +41,25 @@ export default async function AdminBrainPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatTile
           icon={FileText}
-          label="Documentos"
+          label={t("stat_docs")}
           value={stats?.total_docs ?? 0}
           color="text-primary"
         />
         <StatTile
           icon={Lightbulb}
-          label="Decisiones"
+          label={t("stat_decisions")}
           value={stats?.total_decisions ?? 0}
           color="text-amber-500"
         />
         <StatTile
           icon={HelpCircle}
-          label="Preguntas abiertas"
+          label={t("stat_open_questions")}
           value={stats?.open_unknowns ?? 0}
           color="text-rose-500"
         />
         <StatTile
           icon={Database}
-          label="Última ingesta"
+          label={t("stat_last_ingest")}
           value={
             stats?.last_indexed_at
               ? new Date(stats.last_indexed_at).toLocaleDateString("es-BO")
@@ -73,7 +73,7 @@ export default async function AdminBrainPage() {
       {stats?.docs_by_source && (
         <Card className="p-4 mb-6 bg-muted/30">
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            Documentos por origen
+            {t("docs_by_source")}
           </p>
           <div className="flex flex-wrap gap-2 text-sm">
             {Object.entries(stats.docs_by_source as Record<string, number>)
@@ -107,13 +107,12 @@ export default async function AdminBrainPage() {
       {/* Re-ingest instructions */}
       <Card className="p-4 mt-8 border-dashed bg-muted/20">
         <p className="text-xs text-muted-foreground">
-          <strong>Re-indexar</strong>: cuando edites memoria, docs, o agregues una
-          migración nueva, corré{" "}
+          <strong>{t("reindex_label")}</strong>: {t("reindex_intro")}{" "}
           <code className="bg-secondary px-1 py-0.5 rounded text-[11px]">
             npx tsx scripts/brain-ingest.ts
           </code>{" "}
-          desde <code className="bg-secondary px-1 py-0.5 rounded text-[11px]">platform/dashboard</code>.
-          Solo re-embebe archivos cuyo contenido cambió (dedup por hash sha256).
+          {t("reindex_from")} <code className="bg-secondary px-1 py-0.5 rounded text-[11px]">platform/dashboard</code>.
+          {" "}{t("reindex_dedup")}
         </p>
       </Card>
     </div>

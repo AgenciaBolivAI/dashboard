@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { getTenantBySlug } from "@/lib/tenant";
 import { loadTeam } from "@/lib/actions/team";
 import { TeamManager } from "./team-manager";
+import { getTranslations } from "next-intl/server";
 
 export default async function TeamPage({
   params,
@@ -11,14 +12,14 @@ export default async function TeamPage({
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
   const { members, invitations } = await loadTeam(tenant.id);
+  const t = await getTranslations("settings_team");
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Equipo</CardTitle>
+        <CardTitle>{t("title")}</CardTitle>
         <CardDescription>
-          Invita a colegas a gestionar este agente. Cada persona tiene un rol que
-          define qué puede hacer.
+          {t("description")}
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -9,6 +9,7 @@ import {
 } from "@/lib/queries/aima";
 import { AimaSettingsForm } from "@/components/aima/aima-settings-form";
 import { cn } from "@/lib/utils";
+import { getTranslations } from "next-intl/server";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function AimaMarketingPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("marketing");
 
   const [settings, runs, stats7d] = await Promise.all([
     getAimaSettings(tenant.id),
@@ -32,12 +34,10 @@ export default async function AimaMarketingPage({
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
             <Megaphone className="size-7 text-violet-500" />
-            Marketing IA
+            {t("page_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            AIMA busca dueños de negocios en la web, les manda cold email vía
-            Instantly, y pasa las respuestas calientes a la cola de Sandra para
-            que las llame.
+            {t("page_description")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -51,7 +51,7 @@ export default async function AimaMarketingPage({
             )}
           >
             <Activity className="size-3" />
-            Scraper {settings?.scraper_enabled ? "ON" : "OFF"}
+            {t("scraper_label")} {settings?.scraper_enabled ? t("on") : t("off")}
           </Badge>
           <Badge
             variant="outline"
@@ -63,7 +63,7 @@ export default async function AimaMarketingPage({
             )}
           >
             <Mail className="size-3" />
-            Cold email {settings?.cold_email_enabled ? "ON" : "OFF"}
+            {t("cold_email_label")} {settings?.cold_email_enabled ? t("on") : t("off")}
           </Badge>
         </div>
       </div>
@@ -72,31 +72,31 @@ export default async function AimaMarketingPage({
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <StatCard
           icon={Users}
-          label="Leads 7d"
+          label={t("stat_leads_7d")}
           value={stats7d?.leads_sourced ?? 0}
           color="text-violet-600"
         />
         <StatCard
           icon={Mail}
-          label="Emails enviados"
+          label={t("stat_emails_sent")}
           value={stats7d?.emails_sent ?? 0}
           color="text-emerald-600"
         />
         <StatCard
           icon={MessageSquare}
-          label="Respuestas"
+          label={t("stat_replies")}
           value={stats7d?.emails_replied ?? 0}
           color="text-amber-600"
         />
         <StatCard
           icon={Search}
-          label="En cola Sandra"
+          label={t("stat_sandra_queue")}
           value={stats7d?.in_sandra_queue ?? 0}
           color="text-cyan-600"
         />
         <StatCard
           icon={Activity}
-          label="Demos cerradas"
+          label={t("stat_demos_booked")}
           value={stats7d?.demos_booked ?? 0}
           color="text-green-600"
         />
@@ -108,8 +108,7 @@ export default async function AimaMarketingPage({
       ) : (
         <Card className="p-6">
           <p className="text-sm text-muted-foreground">
-            Configuración no encontrada — la migración no se aplicó. Avisar al
-            equipo de ops.
+            {t("settings_missing")}
           </p>
         </Card>
       )}
@@ -117,12 +116,11 @@ export default async function AimaMarketingPage({
       {/* Recent runs */}
       <div className="mt-12">
         <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-          Últimos runs del scraper
+          {t("recent_runs_title")}
         </h3>
         {runs.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Aún no hay runs. Cuando AIMA arranque, aparecerán aquí con el conteo
-            de leads nuevos.
+            {t("no_runs_yet")}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -137,7 +135,7 @@ export default async function AimaMarketingPage({
                   r.status === "running" && "border-amber-500/30 text-amber-600",
                   r.status === "aborted" && "border-muted-foreground/30 text-muted-foreground",
                 )}
-                title={r.error ?? `${r.leads_new} nuevos / ${r.leads_found} encontrados`}
+                title={r.error ?? t("run_tooltip", { newLeads: r.leads_new, foundLeads: r.leads_found })}
               >
                 {new Date(r.started_at).toLocaleString("es-BO", {
                   month: "short",
@@ -148,7 +146,7 @@ export default async function AimaMarketingPage({
                 {" · "}
                 {r.source}
                 {" · "}
-                {r.leads_new}n
+                {t("leads_new_short", { count: r.leads_new })}
               </Badge>
             ))}
           </div>

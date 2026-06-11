@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { UserSearch, Star } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ export default async function CustomersPage({
   const { tenantSlug } = await params;
   const { q, vip } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("customers");
 
   const customers = await listCustomers(tenant.id, {
     search: q?.trim() || undefined,
@@ -27,11 +29,10 @@ export default async function CustomersPage({
       <div className="mb-6 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight">
-            Clientes
+            {t("page_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Tu base de clientes — conversaciones, reservas, facturas y notas en
-            un solo lugar.
+            {t("page_subtitle")}
           </p>
         </div>
       </div>
@@ -42,7 +43,7 @@ export default async function CustomersPage({
           <Input
             name="q"
             defaultValue={q ?? ""}
-            placeholder="Buscar por nombre o WhatsApp…"
+            placeholder={t("search_placeholder")}
             className="pl-9"
           />
         </div>
@@ -56,17 +57,16 @@ export default async function CustomersPage({
           }
         >
           <Star className="size-4" />
-          Solo VIP
+          {t("vip_only")}
         </Link>
       </form>
 
       {customers.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
           <UserSearch className="size-10 text-muted-foreground mb-4" />
-          <p className="font-medium">No hay clientes en esta vista</p>
+          <p className="font-medium">{t("empty_title")}</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Cuando un cliente te escriba por WhatsApp o agendes una reserva
-            manualmente, aparecerá aquí.
+            {t("empty_description")}
           </p>
         </Card>
       ) : (
@@ -75,10 +75,10 @@ export default async function CustomersPage({
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-3">Nombre</th>
-                  <th className="text-left px-4 py-3">WhatsApp</th>
-                  <th className="text-right px-4 py-3">Reservas</th>
-                  <th className="text-left px-4 py-3">Última actividad</th>
+                  <th className="text-left px-4 py-3">{t("col_name")}</th>
+                  <th className="text-left px-4 py-3">{t("col_whatsapp")}</th>
+                  <th className="text-right px-4 py-3">{t("col_reservations")}</th>
+                  <th className="text-left px-4 py-3">{t("col_last_activity")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -92,7 +92,7 @@ export default async function CustomersPage({
                         href={`/dashboard/${tenantSlug}/customers/${c.id}`}
                         className="hover:underline font-medium inline-flex items-center gap-2"
                       >
-                        {c.name ?? <span className="text-muted-foreground">Sin nombre</span>}
+                        {c.name ?? <span className="text-muted-foreground">{t("no_name")}</span>}
                         {c.is_vip ? (
                           <Badge variant="success" className="text-[10px]">
                             <Star className="size-3 mr-0.5" />

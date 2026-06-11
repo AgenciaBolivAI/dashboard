@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { requireUser, requireBolivAIAdmin } from "@/lib/auth";
@@ -11,6 +12,7 @@ export default async function BrainGraphPage() {
   await requireUser();
   await requireBolivAIAdmin();
 
+  const t = await getTranslations("admin_brain");
   const data = await getGraph({ minMentions: 1 });
 
   return (
@@ -20,19 +22,15 @@ export default async function BrainGraphPage() {
           <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2">
             <Link href="/admin/brain">
               <ArrowLeft className="size-4" />
-              Volver al brain
+              {t("back_to_brain")}
             </Link>
           </Button>
           <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
             <Brain className="size-7 text-primary" />
-            Mapa del brain
+            {t("graph_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-            Cada nodo es una entidad — agente, tabla, vendor, workflow, decisión.
-            Cada conexión es una relación extraída del corpus (usa, depende_de,
-            escribe_en, etc.). Click en cualquier nodo para abrir su página de
-            detalle. Filtra por tipo en el panel izquierdo; busca por nombre para
-            saltar directo.
+            {t("graph_intro")}
           </p>
         </div>
       </div>

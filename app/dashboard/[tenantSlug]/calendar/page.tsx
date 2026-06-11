@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +15,6 @@ import { SlotGenerator } from "@/components/calendar/slot-generator";
 import { DaySlots } from "@/components/calendar/day-slots";
 import { ReservationCard } from "@/components/calendar/reservation-editor";
 import { cn } from "@/lib/utils";
-
-const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 function startOfWeek(d: Date): Date {
   const date = new Date(d);
@@ -50,6 +49,18 @@ export default async function CalendarPage({
   const { tenantSlug } = await params;
   const { start: startParam } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("calendar");
+  const locale = await getLocale();
+
+  const DAY_LABELS = [
+    t("day_mon"),
+    t("day_tue"),
+    t("day_wed"),
+    t("day_thu"),
+    t("day_fri"),
+    t("day_sat"),
+    t("day_sun"),
+  ];
 
   const baseDate = startParam ? new Date(startParam) : new Date();
   const weekStart = startOfWeek(baseDate);
@@ -86,10 +97,10 @@ export default async function CalendarPage({
   const nextWeek = new Date(weekStart);
   nextWeek.setUTCDate(nextWeek.getUTCDate() + 7);
 
-  const weekLabel = `${weekStart.toLocaleDateString("es", {
+  const weekLabel = `${weekStart.toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
-  })} – ${days[6].toLocaleDateString("es", {
+  })} – ${days[6].toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -100,7 +111,7 @@ export default async function CalendarPage({
       <div className="mb-6 flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight">
-            Calendario
+            {t("title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">{weekLabel}</p>
         </div>
@@ -115,7 +126,7 @@ export default async function CalendarPage({
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/dashboard/${tenantSlug}/calendar`}>Hoy</Link>
+            <Link href={`/dashboard/${tenantSlug}/calendar`}>{t("today")}</Link>
           </Button>
           <Button asChild variant="outline" size="icon">
             <Link href={`/dashboard/${tenantSlug}/calendar?start=${nextWeek.toISOString().slice(0, 10)}`}>
@@ -128,16 +139,16 @@ export default async function CalendarPage({
       {staff.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
           <CalendarDays className="size-10 text-muted-foreground mb-4" />
-          <p className="font-medium">Aún no hay personal configurado</p>
+          <p className="font-medium">{t("no_staff_title")}</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Agrega al menos una persona en{" "}
+            {t("no_staff_prefix")}{" "}
             <Link
               href={`/dashboard/${tenantSlug}/staff`}
               className="text-foreground hover:underline"
             >
-              Personal
+              {t("no_staff_link")}
             </Link>{" "}
-            para poder ver y reservar slots.
+            {t("no_staff_suffix")}
           </p>
         </Card>
       ) : (
@@ -196,7 +207,7 @@ export default async function CalendarPage({
 
                   {dayReservations.length === 0 && daySlots.length === 0 ? (
                     <p className="text-[10px] text-muted-foreground/60 text-center py-4">
-                      Sin disponibilidad
+                      {t("no_availability")}
                     </p>
                   ) : null}
                 </div>
@@ -208,7 +219,7 @@ export default async function CalendarPage({
 
       {staff.length > 0 ? (
         <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span className="font-medium">Personal:</span>
+          <span className="font-medium">{t("staff_label")}</span>
           {staff.map((s) => (
             <Badge key={s.id} variant="outline">
               {s.name}

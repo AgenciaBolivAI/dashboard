@@ -1,4 +1,5 @@
 import { Coins, TrendingDown, TrendingUp, CreditCard, History } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
@@ -7,46 +8,6 @@ import { TopupPicker } from "@/components/billing/topup-picker";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-const TX_TYPE_LABEL: Record<string, string> = {
-  top_up: "Recarga",
-  usage: "Uso",
-  reservation: "Reserva (en curso)",
-  release: "Cierre de llamada",
-  refund: "Reembolso",
-  bonus: "Bono",
-  reversal: "Reverso",
-  manual_adjust: "Ajuste manual",
-};
-
-const TX_TYPE_STYLE: Record<string, string> = {
-  top_up: "border-green-500/40 bg-green-500/10 text-green-600",
-  usage: "border-destructive/30 text-destructive",
-  reservation: "border-amber-500/30 text-amber-600",
-  release: "border-amber-500/30 text-amber-600",
-  refund: "border-blue-500/30 text-blue-600",
-  bonus: "border-primary/40 bg-primary/10 text-primary",
-  reversal: "border-muted-foreground/30 text-muted-foreground",
-  manual_adjust: "border-purple-500/30 text-purple-600",
-};
-
-const ACTION_KEY_LABEL: Record<string, string> = {
-  "whatsapp.agent_turn": "WhatsApp · turno",
-  "voice.inbound.minute": "Voz entrante · minuto",
-  "voice.inbound.reservation": "Voz entrante · reserva",
-  "voice.outbound.minute": "Voz saliente · minuto",
-  "voice.outbound.connected_call": "Llamada conectada",
-  "voice.outbound.no_answer": "Sin respuesta",
-  "content.draft_per_platform": "Contenido · draft",
-  "content.branded_image": "Contenido · imagen",
-  "marketing.lead_scraped_diy": "AIMA · lead DIY",
-  "marketing.lead_scraped_apollo": "AIMA · lead Apollo",
-  "marketing.cold_email_sent": "AIMA · cold email",
-  "calendar.appointment_booked": "Reserva agendada",
-  "invoice.sent": "Factura enviada",
-  "video.meeting_minute": "Reunión video · min",
-  "knowledge.kb_sync": "KB sync",
-};
 
 export default async function BillingPage({
   params,
@@ -58,6 +19,47 @@ export default async function BillingPage({
   const { tenantSlug } = await params;
   const { topup } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("billing");
+
+  const TX_TYPE_LABEL: Record<string, string> = {
+    top_up: t("tx_top_up"),
+    usage: t("tx_usage"),
+    reservation: t("tx_reservation"),
+    release: t("tx_release"),
+    refund: t("tx_refund"),
+    bonus: t("tx_bonus"),
+    reversal: t("tx_reversal"),
+    manual_adjust: t("tx_manual_adjust"),
+  };
+
+  const TX_TYPE_STYLE: Record<string, string> = {
+    top_up: "border-green-500/40 bg-green-500/10 text-green-600",
+    usage: "border-destructive/30 text-destructive",
+    reservation: "border-amber-500/30 text-amber-600",
+    release: "border-amber-500/30 text-amber-600",
+    refund: "border-blue-500/30 text-blue-600",
+    bonus: "border-primary/40 bg-primary/10 text-primary",
+    reversal: "border-muted-foreground/30 text-muted-foreground",
+    manual_adjust: "border-purple-500/30 text-purple-600",
+  };
+
+  const ACTION_KEY_LABEL: Record<string, string> = {
+    "whatsapp.agent_turn": t("action_whatsapp_agent_turn"),
+    "voice.inbound.minute": t("action_voice_inbound_minute"),
+    "voice.inbound.reservation": t("action_voice_inbound_reservation"),
+    "voice.outbound.minute": t("action_voice_outbound_minute"),
+    "voice.outbound.connected_call": t("action_voice_outbound_connected_call"),
+    "voice.outbound.no_answer": t("action_voice_outbound_no_answer"),
+    "content.draft_per_platform": t("action_content_draft"),
+    "content.branded_image": t("action_content_image"),
+    "marketing.lead_scraped_diy": t("action_marketing_lead_diy"),
+    "marketing.lead_scraped_apollo": t("action_marketing_lead_apollo"),
+    "marketing.cold_email_sent": t("action_marketing_cold_email"),
+    "calendar.appointment_booked": t("action_calendar_booked"),
+    "invoice.sent": t("action_invoice_sent"),
+    "video.meeting_minute": t("action_video_meeting_minute"),
+    "knowledge.kb_sync": t("action_knowledge_kb_sync"),
+  };
 
   const [balance, transactions] = await Promise.all([
     getBalance(tenant.id),
@@ -69,24 +71,21 @@ export default async function BillingPage({
       <div className="mb-6">
         <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
           <Coins className="size-7 text-primary" />
-          Facturación
+          {t("page_title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Tus agentes (WhatsApp, voz, contenido, marketing) gastan créditos
-          por uso. Recarga cuando quieras — los créditos no expiran.
+          {t("page_description")}
         </p>
       </div>
 
       {topup === "success" && (
         <div className="mb-4 rounded-md border border-green-500/40 bg-green-500/10 px-4 py-3 text-sm text-green-700 dark:text-green-400">
-          ✓ Pago confirmado. Tus créditos se acreditarán en segundos
-          (Stripe los procesa vía webhook). Refresca si no ves el balance
-          actualizado en un minuto.
+          {t("topup_success")}
         </div>
       )}
       {topup === "canceled" && (
         <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-          Recarga cancelada. No se cobró nada.
+          {t("topup_canceled")}
         </div>
       )}
 
@@ -94,16 +93,16 @@ export default async function BillingPage({
         <Card className="p-5 md:col-span-2">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-sm uppercase tracking-wider text-muted-foreground">
-              Balance disponible
+              {t("available_balance")}
             </h2>
             {balance?.is_zero && (
               <Badge variant="outline" className="text-xs border-destructive/40 text-destructive">
-                Sin créditos · agentes pausados
+                {t("badge_no_credits")}
               </Badge>
             )}
             {balance?.is_low && !balance.is_zero && (
               <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-600">
-                Balance bajo
+                {t("badge_low_balance")}
               </Badge>
             )}
           </div>
@@ -115,9 +114,9 @@ export default async function BillingPage({
             ${((balance?.available_credits ?? 0) / 100).toFixed(2)}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            {(balance?.available_credits ?? 0).toLocaleString()} créditos disponibles
+            {t("credits_available", { count: (balance?.available_credits ?? 0).toLocaleString() })}
             {(balance?.reserved_credits ?? 0) > 0 && (
-              <> · {balance?.reserved_credits.toLocaleString()} reservados en llamadas activas</>
+              <> · {t("credits_reserved", { count: balance?.reserved_credits.toLocaleString() ?? "0" })}</>
             )}
           </p>
         </Card>
@@ -125,14 +124,14 @@ export default async function BillingPage({
         <Card className="p-5 flex flex-col gap-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <TrendingDown className="size-3.5 text-destructive" />
-            <span>Total gastado</span>
+            <span>{t("total_spent")}</span>
           </div>
           <p className="text-2xl font-display font-bold">
             {(balance?.lifetime_spent_credits ?? 0).toLocaleString()}
           </p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
             <TrendingUp className="size-3.5 text-green-600" />
-            <span>Total recargado</span>
+            <span>{t("total_topped_up")}</span>
           </div>
           <p className="text-2xl font-display font-bold">
             ${((balance?.lifetime_topped_up_cents ?? 0) / 100).toFixed(2)}
@@ -147,13 +146,13 @@ export default async function BillingPage({
       <div>
         <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
           <History className="size-4" />
-          Historial reciente
+          {t("recent_history")}
         </h2>
         {transactions.length === 0 ? (
           <Card className="py-12 flex flex-col items-center text-center">
             <CreditCard className="size-10 text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">
-              No hay movimientos aún. Tu primera recarga aparecerá aquí.
+              {t("empty_history")}
             </p>
           </Card>
         ) : (
@@ -194,7 +193,7 @@ export default async function BillingPage({
                       {tx.credits_delta.toLocaleString()}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      balance {tx.balance_after.toLocaleString()}
+                      {t("balance_after", { balance: tx.balance_after.toLocaleString() })}
                     </p>
                   </div>
                 </div>

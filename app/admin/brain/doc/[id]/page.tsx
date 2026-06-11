@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ArrowLeft, FileText, Network, Calendar, Tag } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,8 @@ export default async function BrainDocPage({
   await requireUser();
   await requireBolivAIAdmin();
 
+  const t = await getTranslations("admin_brain");
+
   const { id } = await params;
   const data = await getDocFull(id);
   if (!data?.doc) notFound();
@@ -58,7 +61,7 @@ export default async function BrainDocPage({
       <Button asChild variant="ghost" size="sm" className="mb-3 -ml-2">
         <Link href="/admin/brain">
           <ArrowLeft className="size-4" />
-          Volver al brain
+          {t("back_to_brain")}
         </Link>
       </Button>
 
@@ -77,9 +80,9 @@ export default async function BrainDocPage({
           <span className="font-mono">{doc.source_path}</span>
           <span className="flex items-center gap-1">
             <Calendar className="size-3" />
-            Indexado {new Date(doc.indexed_at).toLocaleDateString("es-BO")}
+            {t("indexed_on", { date: new Date(doc.indexed_at).toLocaleDateString("es-BO") })}
           </span>
-          <span>{doc.content.length.toLocaleString()} chars</span>
+          <span>{t("chars_count", { count: doc.content.length })}</span>
         </div>
       </div>
 
@@ -88,7 +91,7 @@ export default async function BrainDocPage({
         {/* Content */}
         <Card>
           <div className="p-4 border-b">
-            <p className="text-sm font-semibold">Contenido</p>
+            <p className="text-sm font-semibold">{t("content_header")}</p>
           </div>
           {isCode ? (
             <pre className="p-4 text-xs overflow-x-auto bg-secondary/30 font-mono leading-relaxed whitespace-pre-wrap break-words">
@@ -107,15 +110,15 @@ export default async function BrainDocPage({
             <div className="p-4 border-b">
               <p className="text-sm font-semibold flex items-center gap-2">
                 <Network className="size-4 text-primary" />
-                Entidades ({entities.length})
+                {t("entities_header", { count: entities.length })}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Extraídas automáticamente. Click para ver detalle.
+                {t("entities_caption")}
               </p>
             </div>
             {entities.length === 0 ? (
               <p className="p-4 text-xs text-muted-foreground">
-                Sin entidades extraídas todavía.
+                {t("entities_empty")}
               </p>
             ) : (
               <ul className="divide-y divide-border">
@@ -150,7 +153,7 @@ export default async function BrainDocPage({
                             </p>
                           )}
                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {e.mention_count} {e.mention_count === 1 ? "mención" : "menciones"}
+                            {t("mentions_count", { count: e.mention_count })}
                           </p>
                         </div>
                       </Link>
@@ -165,7 +168,7 @@ export default async function BrainDocPage({
             <Card className="p-3">
               <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
                 <Tag className="size-3" />
-                Metadata
+                {t("metadata_header")}
               </p>
               <pre className="text-[10px] text-muted-foreground font-mono whitespace-pre-wrap break-all">
                 {JSON.stringify(doc.metadata, null, 2)}

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, ShieldCheck, AlertTriangle, Zap, Globe } from "lucide-react";
 import { getTenantBySlug } from "@/lib/tenant";
 import { isConnectExpressSupported } from "@/lib/stripe";
+import { getTranslations } from "next-intl/server";
 import { BusinessProfileForm } from "./business-profile-form";
 import { DisconnectStripeButton } from "./disconnect-stripe-button";
 
@@ -25,6 +26,7 @@ export default async function BillingSettingsPage({
   const { connected } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   const countrySupported = isConnectExpressSupported(tenant.address_country);
+  const t = await getTranslations("settings_billing");
 
   return (
     <div className="space-y-6">
@@ -33,7 +35,7 @@ export default async function BillingSettingsPage({
           <CardContent className="pt-6">
             <p className="text-sm flex items-center gap-2">
               <ShieldCheck className="size-4 text-primary" />
-              Stripe conectado correctamente. Ya puedes emitir facturas a tus clientes.
+              {t("stripe_connected_success")}
             </p>
           </CardContent>
         </Card>
@@ -42,21 +44,19 @@ export default async function BillingSettingsPage({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Cobros con Stripe
+            {t("stripe_payments_title")}
             {tenant.stripe_account_id ? (
               tenant.stripe_charges_enabled ? (
-                <Badge variant="success">Conectado</Badge>
+                <Badge variant="success">{t("badge_connected")}</Badge>
               ) : (
-                <Badge variant="outline">Pendiente verificación</Badge>
+                <Badge variant="outline">{t("badge_pending_verification")}</Badge>
               )
             ) : (
-              <Badge variant="outline">No conectado</Badge>
+              <Badge variant="outline">{t("badge_not_connected")}</Badge>
             )}
           </CardTitle>
           <CardDescription>
-            Conecta tu cuenta de Stripe para cobrar facturas con tarjeta, link
-            de pago, Apple/Google Pay, y suscripciones recurrentes. Los pagos
-            van directo a tu cuenta — BolivAI nunca custodia el dinero.
+            {t("stripe_payments_description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -67,22 +67,18 @@ export default async function BillingSettingsPage({
                   <Globe className="size-4 shrink-0 mt-0.5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">
-                      Stripe Connect aún no opera en{" "}
-                      {tenant.address_country ?? "tu país"}
+                      {t("country_not_supported_title", {
+                        country: tenant.address_country ?? t("your_country"),
+                      })}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Puedes seguir emitiendo facturas desde BolivAI y
-                      marcarlas como pagadas manualmente cuando recibas
-                      transferencias o efectivo. Cuando Stripe llegue a tu
-                      país, podrás conectarte y cobrar con tarjeta.
+                      {t("country_not_supported_description")}
                     </p>
                   </div>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Te llevamos a Stripe para un onboarding de ~5 minutos (datos del
-                  negocio, cuenta bancaria, verificación de identidad). Después
-                  volverás aquí automáticamente.
+                  {t("stripe_onboarding_intro")}
                 </p>
               )}
               <Button asChild disabled={!countrySupported}>
@@ -96,21 +92,21 @@ export default async function BillingSettingsPage({
                   className={!countrySupported ? "pointer-events-none opacity-50" : ""}
                 >
                   <Zap className="size-4" />
-                  Conectar Stripe
+                  {t("connect_stripe_button")}
                 </a>
               </Button>
             </div>
           ) : (
             <div className="space-y-3">
               <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                <DlField label="Cuenta Stripe" value={tenant.stripe_account_id} mono />
-                <DlField label="País" value={tenant.stripe_account_country ?? "—"} />
+                <DlField label={t("field_stripe_account")} value={tenant.stripe_account_id} mono />
+                <DlField label={t("field_country")} value={tenant.stripe_account_country ?? "—"} />
                 <DlField
-                  label="Estado"
+                  label={t("field_status")}
                   value={
                     tenant.stripe_charges_enabled && tenant.stripe_payouts_enabled
-                      ? "Listo para cobrar"
-                      : "Verificación pendiente"
+                      ? t("status_ready")
+                      : t("status_pending_verification")
                   }
                 />
               </dl>
@@ -119,9 +115,7 @@ export default async function BillingSettingsPage({
                 <div className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/40 border border-border rounded-md p-3">
                   <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                   <span>
-                    Stripe todavía necesita información adicional para activar
-                    los cobros. Abre tu cuenta de Stripe y completa los pasos
-                    pendientes.
+                    {t("stripe_needs_more_info")}
                   </span>
                 </div>
               ) : null}
@@ -134,7 +128,7 @@ export default async function BillingSettingsPage({
                     rel="noreferrer"
                   >
                     <ExternalLink className="size-4" />
-                    Abrir Stripe
+                    {t("open_stripe_button")}
                   </a>
                 </Button>
                 <DisconnectStripeButton tenantId={tenant.id} />
@@ -146,10 +140,9 @@ export default async function BillingSettingsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Datos del negocio en facturas</CardTitle>
+          <CardTitle>{t("business_data_title")}</CardTitle>
           <CardDescription>
-            Esta información aparece en cada factura que envías a tus clientes.
-            Mantenla consistente con tu registro fiscal.
+            {t("business_data_description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -172,16 +165,18 @@ export default async function BillingSettingsPage({
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        ¿Tienes preguntas sobre facturación o impuestos? Revisa la{" "}
-        <Link
-          href="https://stripe.com/docs/connect/express-accounts"
-          target="_blank"
-          rel="noreferrer"
-          className="underline hover:text-foreground"
-        >
-          documentación de Stripe Connect
-        </Link>
-        .
+        {t.rich("billing_help_text", {
+          link: (chunks) => (
+            <Link
+              href="https://stripe.com/docs/connect/express-accounts"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              {chunks}
+            </Link>
+          ),
+        })}
       </p>
     </div>
   );

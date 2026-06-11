@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { getTenantBySlug } from "@/lib/tenant";
 import {
@@ -11,11 +12,6 @@ import { KnowledgeManager } from "@/components/knowledge/knowledge-manager";
 import { VoiceSyncStatus } from "@/components/knowledge/voice-sync-status";
 import { cn } from "@/lib/utils";
 
-const TABS: { id: KnowledgeType; label: string; sub: string }[] = [
-  { id: "documents", label: "FAQ", sub: "Precios, horarios, políticas" },
-  { id: "pain", label: "Clínico", sub: "Síntomas, diagnósticos" },
-];
-
 export default async function KnowledgePage({
   params,
   searchParams,
@@ -26,6 +22,13 @@ export default async function KnowledgePage({
   const { tenantSlug } = await params;
   const { type: typeParam } = await searchParams;
   const type: KnowledgeType = typeParam === "pain" ? "pain" : "documents";
+
+  const t = await getTranslations("knowledge");
+
+  const TABS: { id: KnowledgeType; label: string; sub: string }[] = [
+    { id: "documents", label: t("tab_faq_label"), sub: t("tab_faq_sub") },
+    { id: "pain", label: t("tab_clinical_label"), sub: t("tab_clinical_sub") },
+  ];
 
   const tenant = await getTenantBySlug(tenantSlug);
   const [chunks, sources, stats] = await Promise.all([
@@ -38,19 +41,18 @@ export default async function KnowledgePage({
     <div className="p-6 md:p-8 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-3xl font-display font-extrabold tracking-tight">
-          Conocimiento
+          {t("page_title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Sube documentos o agrega chunks manualmente. El agente recupera
-          estos resultados por similitud para responder y diagnosticar.
+          {t("page_description")}
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <StatCard label="FAQ chunks" value={stats.documentsCount} />
-        <StatCard label="Clínicos chunks" value={stats.painCount} />
+        <StatCard label={t("stat_faq_chunks")} value={stats.documentsCount} />
+        <StatCard label={t("stat_clinical_chunks")} value={stats.painCount} />
         <StatCard
-          label="Fuentes únicas"
+          label={t("stat_unique_sources")}
           value={stats.sourcesCount}
           href="#sources"
         />
@@ -63,12 +65,12 @@ export default async function KnowledgePage({
       />
 
       <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto">
-        {TABS.map((t) => {
-          const active = t.id === type;
+        {TABS.map((tab) => {
+          const active = tab.id === type;
           return (
             <Link
-              key={t.id}
-              href={`/dashboard/${tenantSlug}/knowledge?type=${t.id}`}
+              key={tab.id}
+              href={`/dashboard/${tenantSlug}/knowledge?type=${tab.id}`}
               className={cn(
                 "px-4 py-2 text-sm font-medium whitespace-nowrap transition border-b-2 -mb-px",
                 active
@@ -76,9 +78,9 @@ export default async function KnowledgePage({
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
-              {t.label}
+              {tab.label}
               <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                {t.sub}
+                {tab.sub}
               </span>
             </Link>
           );

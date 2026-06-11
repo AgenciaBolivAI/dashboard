@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { createServiceClient } from "@/lib/supabase/service";
 import { SignUpForm } from "./signup-form";
 
-export const metadata = { title: "Crear cuenta — BolivAI" };
+export async function generateMetadata() {
+  const t = await getTranslations("auth");
+  return { title: t("signup_meta_title") };
+}
 
 export default async function SignUpPage({
   searchParams,
@@ -12,6 +15,7 @@ export default async function SignUpPage({
   searchParams: Promise<{ token?: string }>;
 }) {
   const { token } = await searchParams;
+  const t = await getTranslations("auth");
 
   // Invitation-only: without a valid token, show a dead-end "request invite" page.
   let invitation: { email: string; tenant_name: string } | null = null;
@@ -26,7 +30,7 @@ export default async function SignUpPage({
     if (data && !data.accepted_at && new Date(data.expires_at as string) > new Date()) {
       invitation = {
         email: data.email as string,
-        tenant_name: (data.tenants as { name: string } | null)?.name ?? "tu equipo",
+        tenant_name: (data.tenants as { name: string } | null)?.name ?? t("your_team_fallback"),
       };
     }
   }
@@ -36,11 +40,11 @@ export default async function SignUpPage({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Crear cuenta</CardTitle>
+        <CardTitle>{t("signup_title")}</CardTitle>
         <CardDescription>
           {invitation
-            ? `Te invitaron a unirte a ${invitation.tenant_name}.`
-            : "Crea tu cuenta y configura tu agente AI en menos de 5 minutos."}
+            ? t("signup_invited_description", { tenant: invitation.tenant_name })
+            : t("signup_open_description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -49,9 +53,9 @@ export default async function SignUpPage({
           prefilledEmail={invitation?.email}
         />
         <div className="mt-6 text-xs text-muted-foreground">
-          ¿Ya tienes cuenta?{" "}
+          {t("already_have_account")}{" "}
           <Link href="/login" className="text-foreground hover:underline">
-            Inicia sesión
+            {t("sign_in_link")}
           </Link>
         </div>
       </CardContent>

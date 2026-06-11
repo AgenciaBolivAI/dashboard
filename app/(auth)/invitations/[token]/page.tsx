@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getUser } from "@/lib/auth";
 import { acceptInvitationAction } from "@/lib/actions/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 
-export const metadata = { title: "Invitación — BolivAI" };
+export async function generateMetadata() {
+  const t = await getTranslations("auth");
+  return { title: t("invitation_meta_title") };
+}
 
 export default async function InvitationPage({
   params,
@@ -14,6 +18,7 @@ export default async function InvitationPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const t = await getTranslations("auth");
 
   const svc = createServiceClient();
   const { data: invitation } = await svc
@@ -26,14 +31,12 @@ export default async function InvitationPage({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Invitación no encontrada</CardTitle>
-          <CardDescription>
-            El enlace puede haber expirado o ya fue usado.
-          </CardDescription>
+          <CardTitle>{t("invitation_not_found_title")}</CardTitle>
+          <CardDescription>{t("invitation_not_found_description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild className="w-full">
-            <Link href="/login">Ir a iniciar sesión</Link>
+            <Link href="/login">{t("go_to_login")}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -48,11 +51,8 @@ export default async function InvitationPage({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Invitación inválida</CardTitle>
-          <CardDescription>
-            Esta invitación ya fue usada o expiró. Pide una nueva al
-            administrador de tu equipo.
-          </CardDescription>
+          <CardTitle>{t("invitation_invalid_title")}</CardTitle>
+          <CardDescription>{t("invitation_invalid_description")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -69,10 +69,14 @@ export default async function InvitationPage({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Aceptar invitación</CardTitle>
+        <CardTitle>{t("accept_invitation_title")}</CardTitle>
         <CardDescription>
-          Te invitaron a unirte a <strong>{tenant?.name}</strong> como{" "}
-          <em>{invitation.role as string}</em>.
+          {t.rich("accept_invitation_description", {
+            tenant: tenant?.name ?? "",
+            role: invitation.role as string,
+            strong: (chunks) => <strong>{chunks}</strong>,
+            em: (chunks) => <em>{chunks}</em>,
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -83,7 +87,7 @@ export default async function InvitationPage({
           }}
         >
           <Button type="submit" className="w-full">
-            Aceptar y entrar
+            {t("accept_and_enter")}
           </Button>
         </form>
       </CardContent>

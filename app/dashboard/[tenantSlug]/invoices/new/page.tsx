@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { getTenantBySlug } from "@/lib/tenant";
 import { createClient } from "@/lib/supabase/server";
 import { InvoiceEditor } from "@/components/invoices/invoice-editor";
@@ -9,6 +10,7 @@ export default async function NewInvoicePage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("invoices");
 
   const supabase = await createClient();
   const { data: services } = await supabase
@@ -21,7 +23,7 @@ export default async function NewInvoicePage({
   return (
     <div className="p-6 md:p-8 max-w-4xl">
       <h1 className="text-3xl font-display font-extrabold tracking-tight mb-6">
-        Nueva factura
+        {t("new_invoice")}
       </h1>
       <InvoiceEditor
         tenant={{

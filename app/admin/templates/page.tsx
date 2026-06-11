@@ -1,4 +1,5 @@
 import { Sparkles, Plug } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -6,6 +7,7 @@ import { TEMPLATES, GATEWAYS } from "@/lib/templates";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export default async function AdminTemplatesPage() {
+  const t = await getTranslations("admin_templates");
   // Count tenants per template + per gateway so admin sees usage
   const svc = createServiceClient();
   const { data: tenants } = await svc
@@ -14,55 +16,54 @@ export default async function AdminTemplatesPage() {
 
   const tplCounts = new Map<string, number>();
   const gwCounts = new Map<string, number>();
-  for (const t of (tenants ?? []) as Array<{
+  for (const row of (tenants ?? []) as Array<{
     workflow_template: string;
     gateway: string;
   }>) {
-    tplCounts.set(t.workflow_template, (tplCounts.get(t.workflow_template) ?? 0) + 1);
-    gwCounts.set(t.gateway, (gwCounts.get(t.gateway) ?? 0) + 1);
+    tplCounts.set(row.workflow_template, (tplCounts.get(row.workflow_template) ?? 0) + 1);
+    gwCounts.set(row.gateway, (gwCounts.get(row.gateway) ?? 0) + 1);
   }
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-display font-extrabold tracking-tight">
-          Plantillas y canales
+          {t("page_title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          El catálogo de agentes que BolivAI ofrece. Cada plantilla es un
-          workflow de n8n con un set específico de herramientas.
+          {t("page_subtitle")}
         </p>
       </div>
 
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="size-4 text-primary" />
-          <h2 className="font-display font-semibold">Plantillas de agente</h2>
+          <h2 className="font-display font-semibold">{t("agent_templates_heading")}</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {TEMPLATES.map((t) => {
-            const count = tplCounts.get(t.id) ?? 0;
+          {TEMPLATES.map((tpl) => {
+            const count = tplCounts.get(tpl.id) ?? 0;
             return (
-              <Card key={t.id} className="flex flex-col">
+              <Card key={tpl.id} className="flex flex-col">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <CardTitle className="text-lg">{t.name}</CardTitle>
+                      <CardTitle className="text-lg">{tpl.name}</CardTitle>
                       <CardDescription className="mt-0.5 capitalize">
-                        {t.vertical}
+                        {tpl.vertical}
                       </CardDescription>
                     </div>
-                    {t.status === "available" ? (
-                      <Badge variant="success">Disponible</Badge>
+                    {tpl.status === "available" ? (
+                      <Badge variant="success">{t("badge_available")}</Badge>
                     ) : (
-                      <Badge variant="muted">Próximamente</Badge>
+                      <Badge variant="muted">{t("badge_coming_soon")}</Badge>
                     )}
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 space-y-3">
-                  <p className="text-sm text-muted-foreground">{t.description}</p>
+                  <p className="text-sm text-muted-foreground">{tpl.description}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {t.features.map((f) => (
+                    {tpl.features.map((f) => (
                       <Badge key={f.id} variant="outline" className="text-[10px]">
                         {f.label}
                       </Badge>
@@ -71,13 +72,13 @@ export default async function AdminTemplatesPage() {
                   <Separator />
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">
-                      Canales soportados:{" "}
+                      {t("supported_channels_label")}{" "}
                       <span className="font-mono text-foreground">
-                        {t.supportedGateways.join(", ")}
+                        {tpl.supportedGateways.join(", ")}
                       </span>
                     </span>
                     <span className="text-muted-foreground">
-                      Tenants activos:{" "}
+                      {t("active_tenants_label")}{" "}
                       <span className="text-foreground font-medium">{count}</span>
                     </span>
                   </div>
@@ -91,7 +92,7 @@ export default async function AdminTemplatesPage() {
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Plug className="size-4 text-primary" />
-          <h2 className="font-display font-semibold">Canales de mensajería</h2>
+          <h2 className="font-display font-semibold">{t("messaging_channels_heading")}</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {GATEWAYS.map((g) => {
@@ -102,16 +103,16 @@ export default async function AdminTemplatesPage() {
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base">{g.name}</CardTitle>
                     {g.status === "available" ? (
-                      <Badge variant="success">Activo</Badge>
+                      <Badge variant="success">{t("badge_active")}</Badge>
                     ) : (
-                      <Badge variant="muted">Pronto</Badge>
+                      <Badge variant="muted">{t("badge_soon")}</Badge>
                     )}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <p className="text-sm text-muted-foreground">{g.description}</p>
                   <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                    Tenants usando:{" "}
+                    {t("tenants_using_label")}{" "}
                     <span className="text-foreground font-medium">{count}</span>
                   </p>
                 </CardContent>

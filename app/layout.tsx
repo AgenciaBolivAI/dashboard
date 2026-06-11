@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Instrument_Sans, Syne } from "next/font/google";
-import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+import { ThemeProvider } from "@/components/shell/theme-provider";
 import "./globals.css";
 
 const GA_ID = "G-FBZS5H9719";
@@ -37,20 +39,28 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Locale + messages come from i18n/request.ts via the next-intl plugin.
+  // Both helpers read the `locale` cookie under the hood.
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
     <html
-      lang="es"
-      className={`dark ${instrumentSans.variable} ${syne.variable}`}
+      lang={locale}
+      className={`${instrumentSans.variable} ${syne.variable}`}
       suppressHydrationWarning
     >
       <body>
-        {children}
-        <Toaster position="top-right" theme="dark" />
+        <ThemeProvider>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            {children}
+          </NextIntlClientProvider>
+        </ThemeProvider>
         <Analytics />
         <SpeedInsights />
         <Script

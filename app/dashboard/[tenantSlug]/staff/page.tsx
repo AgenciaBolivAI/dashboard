@@ -6,6 +6,7 @@ import {
   type ServiceOption,
 } from "@/components/staff/staff-manager";
 import { getStaffServiceMap } from "@/lib/queries/staff-services";
+import { getTranslations } from "next-intl/server";
 
 export default async function StaffPage({
   params,
@@ -14,6 +15,7 @@ export default async function StaffPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("staff");
 
   const supabase = await createClient();
 
@@ -41,11 +43,10 @@ export default async function StaffPage({
     <div className="p-6 md:p-8 max-w-5xl">
       <div className="mb-6">
         <h1 className="text-3xl font-display font-extrabold tracking-tight">
-          Personal
+          {t("page_title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Las personas que dan servicio. Marca qué servicios ofrece cada una
-          para que el agente solo asigne reservas a quien sabe hacerlas.
+          {t("page_description")}
         </p>
       </div>
 

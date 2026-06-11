@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles, Clock, CheckCircle2, Send, XCircle, Settings } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,14 +20,16 @@ import { cn } from "@/lib/utils";
 // deploy; force a fresh render on every request.
 export const dynamic = "force-dynamic";
 
-const STATUS_FILTERS: { id: string; label: string }[] = [
-  { id: "pending", label: "Pendientes" },
-  { id: "approved", label: "Aprobados" },
-  { id: "posted", label: "Publicados" },
-  { id: "rejected", label: "Rechazados" },
-  { id: "archived", label: "Archivados" },
-  { id: "all", label: "Todos" },
-];
+const STATUS_FILTER_IDS = [
+  "pending",
+  "approved",
+  "posted",
+  "rejected",
+  "archived",
+  "all",
+] as const;
+
+type StatusFilterId = (typeof STATUS_FILTER_IDS)[number];
 
 export default async function ContentPage({
   params,
@@ -38,6 +41,16 @@ export default async function ContentPage({
   const { tenantSlug } = await params;
   const { status: statusFilter = "pending" } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("content");
+
+  const STATUS_FILTERS: { id: StatusFilterId; label: string }[] = [
+    { id: "pending", label: t("status_pending") },
+    { id: "approved", label: t("status_approved") },
+    { id: "posted", label: t("status_posted") },
+    { id: "rejected", label: t("status_rejected") },
+    { id: "archived", label: t("status_archived") },
+    { id: "all", label: t("status_all") },
+  ];
 
   const [drafts, runs, statsToday, statsWeek] = await Promise.all([
     listCcavaiDrafts(tenant.id, {
@@ -84,24 +97,36 @@ export default async function ContentPage({
     };
   });
 
+  const emptyStatusKey: StatusFilterId = (STATUS_FILTER_IDS as readonly string[]).includes(
+    statusFilter,
+  )
+    ? (statusFilter as StatusFilterId)
+    : "pending";
+  const emptyMessage = t(`empty_${emptyStatusKey}` as
+    | "empty_pending"
+    | "empty_approved"
+    | "empty_posted"
+    | "empty_rejected"
+    | "empty_archived"
+    | "empty_all");
+
   return (
     <div className="p-6 md:p-8 max-w-7xl">
       <div className="mb-6 flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
             <Sparkles className="size-7 text-amber-500" />
-            Contenido IA
+            {t("title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Drafts generados por CCAVAI para LinkedIn, Instagram y Facebook.
-            Revisa, aprueba y copia para publicar.
+            {t("subtitle")}
           </p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href={`/dashboard/${tenantSlug}/content/settings`}>
               <Settings className="size-4" />
-              Ajustes
+              {t("settings_button")}
             </Link>
           </Button>
           <GenerateContentButton tenantId={tenant.id} />
@@ -112,31 +137,31 @@ export default async function ContentPage({
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <StatCard
           icon={Clock}
-          label="Pendientes hoy"
+          label={t("stat_pending_today")}
           value={statsToday?.pending_review ?? 0}
           color="text-amber-600"
         />
         <StatCard
           icon={CheckCircle2}
-          label="Aprobados hoy"
+          label={t("stat_approved_today")}
           value={statsToday?.approved ?? 0}
           color="text-green-600"
         />
         <StatCard
           icon={Send}
-          label="Publicados hoy"
+          label={t("stat_posted_today")}
           value={statsToday?.posted ?? 0}
           color="text-purple-600"
         />
         <StatCard
           icon={Sparkles}
-          label="Generados (7d)"
+          label={t("stat_generated_7d")}
           value={statsWeek?.drafts_generated ?? 0}
           color="text-primary"
         />
         <StatCard
           icon={XCircle}
-          label="Rechazados (7d)"
+          label={t("stat_rejected_7d")}
           value={statsWeek?.rejected ?? 0}
           color="text-muted-foreground"
         />
@@ -145,7 +170,7 @@ export default async function ContentPage({
       {/* Status filter */}
       <div className="mb-6 flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground uppercase tracking-wider mr-1">
-          Estado:
+          {t("status_filter_label")}
         </span>
         {STATUS_FILTERS.map((f) => {
           const active = (statusFilter ?? "pending") === f.id;
@@ -172,57 +197,66 @@ export default async function ContentPage({
       {groupsByRun.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
           <Sparkles className="size-10 text-muted-foreground mb-4" />
-          <p className="font-medium">No hay drafts {statusFilter !== "all" && statusFilter !== "pending" ? STATUS_FILTERS.find((f) => f.id === statusFilter)?.label.toLowerCase() : "pendientes"}</p>
+          <p className="font-medium">{emptyMessage}</p>
           <p className="text-sm text-muted-foreground mt-1 mb-4">
-            Toca <strong>Generar contenido</strong> arriba para que CCAVAI cree drafts a partir de las noticias de hoy.
+            {t.rich("empty_hint", {
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })}
           </p>
         </Card>
       ) : (
         <div className="space-y-10">
-          {groupsByRun.map(({ runId, generatedAt, stories }) => (
-            <div key={runId}>
-              <div className="mb-4 flex items-end justify-between flex-wrap gap-2">
-                <h2 className="text-lg font-display font-semibold">
-                  Generación del{" "}
-                  {generatedAt
-                    ? new Date(generatedAt).toLocaleString("es-BO", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })
-                    : ""}
-                </h2>
-                <Badge variant="outline" className="text-xs">
-                  {stories.length} historia{stories.length !== 1 ? "s" : ""} · {stories.reduce((n, s) => n + s.length, 0)} drafts
-                </Badge>
-              </div>
+          {groupsByRun.map(({ runId, generatedAt, stories }) => {
+            const draftsCount = stories.reduce((n, s) => n + s.length, 0);
+            return (
+              <div key={runId}>
+                <div className="mb-4 flex items-end justify-between flex-wrap gap-2">
+                  <h2 className="text-lg font-display font-semibold">
+                    {t("generation_heading", {
+                      date: generatedAt
+                        ? new Date(generatedAt).toLocaleString("es-BO", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
+                        : "",
+                    })}
+                  </h2>
+                  <Badge variant="outline" className="text-xs">
+                    {t("run_badge", {
+                      stories: stories.length,
+                      drafts: draftsCount,
+                    })}
+                  </Badge>
+                </div>
 
-              <div className="space-y-8">
-                {stories.map((variants) => {
-                  const head = variants[0];
-                  if (!head) return null;
-                  return (
-                    <div key={head.story_title}>
-                      <div className="mb-3">
-                        <h3 className="font-display font-semibold text-base">
-                          {head.story_title}
-                        </h3>
-                        {head.story_summary && (
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            {head.story_summary}
-                          </p>
-                        )}
+                <div className="space-y-8">
+                  {stories.map((variants) => {
+                    const head = variants[0];
+                    if (!head) return null;
+                    return (
+                      <div key={head.story_title}>
+                        <div className="mb-3">
+                          <h3 className="font-display font-semibold text-base">
+                            {head.story_title}
+                          </h3>
+                          {head.story_summary && (
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                              {head.story_summary}
+                            </p>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                          {variants.map((d) => (
+                            <DraftCard key={d.id} tenantId={tenant.id} draft={d} />
+                          ))}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        {variants.map((d) => (
-                          <DraftCard key={d.id} tenantId={tenant.id} draft={d} />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -230,7 +264,7 @@ export default async function ContentPage({
       {runs.length > 0 && (
         <div className="mt-12 pt-6 border-t border-border">
           <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            Historial de generaciones
+            {t("history_heading")}
           </h3>
           <div className="flex flex-wrap gap-2">
             {runs.map((r) => (
@@ -243,7 +277,10 @@ export default async function ContentPage({
                   r.status === "failed" && "border-destructive/30 text-destructive",
                   r.status === "running" && "border-amber-500/30 text-amber-600",
                 )}
-                title={`${r.drafts_created} drafts, ${r.stories_picked} historias`}
+                title={t("run_tooltip", {
+                  drafts: r.drafts_created,
+                  stories: r.stories_picked,
+                })}
               >
                 {new Date(r.started_at).toLocaleString("es-BO", {
                   month: "short",

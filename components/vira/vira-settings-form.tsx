@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, Sparkles } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,6 @@ export function ViraSettingsForm({
   const router = useRouter();
   const [saving, startSave] = useTransition();
 
-  const [enabled, setEnabled] = useState(settings.enabled);
   const [minClip, setMinClip] = useState(settings.min_clip_seconds);
   const [maxClip, setMaxClip] = useState(settings.max_clip_seconds);
   const [perVideo, setPerVideo] = useState(settings.clips_per_video);
@@ -58,7 +57,10 @@ export function ViraSettingsForm({
   function handleSave() {
     startSave(async () => {
       const res = await updateViraSettingsAction(tenantId, {
-        enabled,
+        // enabled is always true — credit-based billing makes the toggle
+        // meaningless. If the user doesn't want to use VIRA, they just
+        // don't submit videos.
+        enabled: true,
         min_clip_seconds: minClip,
         max_clip_seconds: maxClip,
         clips_per_video: perVideo,
@@ -89,22 +91,6 @@ export function ViraSettingsForm({
 
   return (
     <div className="space-y-6">
-      <Card className="p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h2 className="text-lg font-display font-semibold flex items-center gap-2">
-              <Sparkles className="size-5 text-rose-500" />
-              VIRA — Video Shorts
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
-              Pegas el link de un video, VIRA lo escucha, identifica los mejores momentos
-              y los corta en shorts listos para Reels, TikTok, LinkedIn o YouTube.
-            </p>
-          </div>
-          <ToggleButton on={enabled} onChange={setEnabled} label={enabled ? "ON" : "OFF"} />
-        </div>
-      </Card>
-
       {/* Clip length + count */}
       <Card className="p-6 space-y-4">
         <h3 className="text-sm uppercase tracking-wider text-muted-foreground">

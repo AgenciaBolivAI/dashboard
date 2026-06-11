@@ -13,6 +13,7 @@ import { getInstanceStatus } from "@/lib/evolution";
 import { listWorkflows } from "@/lib/n8n";
 import { getGateway, getTemplate } from "@/lib/templates";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getTranslations } from "next-intl/server";
 import { CopyField } from "./copy-field";
 import { GatewayConfigForm } from "@/components/integrations/gateway-config-form";
 import { GoogleConnection, type GoogleIntegration } from "@/components/integrations/google-connection";
@@ -28,6 +29,7 @@ export default async function IntegrationsPage({
   const tenant = await getTenantBySlug(tenantSlug);
   const gateway = getGateway(tenant.gateway);
   const template = getTemplate(tenant.workflow_template);
+  const t = await getTranslations("settings_integrations");
 
   // Probe gateway-specific status (only Evolution implemented today)
   let gatewayStatus: { state: string; ok: boolean; error?: string } = {
@@ -103,10 +105,9 @@ export default async function IntegrationsPage({
       {/* Template + gateway summary */}
       <Card>
         <CardHeader>
-          <CardTitle>Tipo de agente</CardTitle>
+          <CardTitle>{t("agent_type_title")}</CardTitle>
           <CardDescription>
-            La plantilla determina qué herramientas tiene tu agente y qué puede
-            hacer. Si quieres cambiar a otra plantilla, contacta a BolivAI.
+            {t("agent_type_description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -128,10 +129,9 @@ export default async function IntegrationsPage({
       {/* Gateway config form */}
       <Card>
         <CardHeader>
-          <CardTitle>Canal de mensajería</CardTitle>
+          <CardTitle>{t("gateway_title")}</CardTitle>
           <CardDescription>
-            La capa que conecta tu WhatsApp con el agente. Cambia de canal o
-            actualiza credenciales aquí.
+            {t("gateway_description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -147,23 +147,23 @@ export default async function IntegrationsPage({
       {tenant.gateway === "evolution" ? (
         <Card>
           <CardHeader>
-            <CardTitle>Estado de Evolution</CardTitle>
+            <CardTitle>{t("evolution_status_title")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Row
-              label="Estado"
+              label={t("status_label")}
               value={
                 gatewayStatus.state === "open"
-                  ? "Conectado"
+                  ? t("status_connected")
                   : gatewayStatus.state === "no_instance"
-                    ? "Sin instancia"
+                    ? t("status_no_instance")
                     : gatewayStatus.state
               }
               badge={
                 gatewayStatus.ok ? (
                   <Badge variant="success">
                     <CheckCircle2 className="size-3" />
-                    OK
+                    {t("badge_ok")}
                   </Badge>
                 ) : gatewayStatus.state === "no_instance" ? (
                   <Badge variant="muted">—</Badge>
@@ -182,7 +182,7 @@ export default async function IntegrationsPage({
                 rel="noopener"
                 className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
               >
-                Abrir Evolution Manager
+                {t("open_evolution_manager")}
                 <ExternalLink className="size-3.5" />
               </a>
             ) : null}
@@ -193,34 +193,33 @@ export default async function IntegrationsPage({
       {/* n8n */}
       <Card>
         <CardHeader>
-          <CardTitle>n8n</CardTitle>
+          <CardTitle>{t("n8n_title")}</CardTitle>
           <CardDescription>
-            El motor de ejecución del agente. Cada conversación entra por un
-            webhook y se procesa aquí.
+            {t("n8n_description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Row
-            label="Servidor"
+            label={t("server_label")}
             value={n8nBaseUrl ?? "—"}
             badge={
               n8n.ok ? (
                 <Badge variant="success">
                   <CheckCircle2 className="size-3" />
-                  Conectado
+                  {t("status_connected")}
                 </Badge>
               ) : (
                 <Badge variant="destructive">
                   <XCircle className="size-3" />
-                  Sin conexión
+                  {t("status_disconnected")}
                 </Badge>
               )
             }
           />
           {n8n.ok ? (
             <Row
-              label="Workflows"
-              value={`${n8n.activeCount} activos · ${n8n.count} totales`}
+              label={t("workflows_label")}
+              value={t("workflows_value", { active: n8n.activeCount, total: n8n.count })}
             />
           ) : null}
           {n8n.error ? (
@@ -234,13 +233,13 @@ export default async function IntegrationsPage({
             <>
               <Separator />
               <div className="space-y-2">
-                <p className="text-sm font-medium">Webhook URL</p>
+                <p className="text-sm font-medium">{t("webhook_url_label")}</p>
                 <p className="text-xs text-muted-foreground">
                   {tenant.gateway === "evolution"
-                    ? "Pega esto en Evolution Manager → Instance Settings → Webhooks. Activa el evento messages.upsert."
+                    ? t("webhook_hint_evolution")
                     : tenant.gateway === "meta_whatsapp"
-                      ? "Pega esto como Callback URL en Meta Business Manager → WhatsApp → Configuration → Webhook."
-                      : "Webhook URL para tu gateway."}
+                      ? t("webhook_hint_meta")
+                      : t("webhook_hint_generic")}
                 </p>
                 <CopyField value={webhookUrl} />
               </div>
@@ -252,11 +251,9 @@ export default async function IntegrationsPage({
       {needsGoogle ? (
         <Card>
           <CardHeader>
-            <CardTitle>Google Workspace</CardTitle>
+            <CardTitle>{t("google_title")}</CardTitle>
             <CardDescription>
-              Esta plantilla requiere acceso a tu Google Calendar, Sheets y
-              Gmail. Conecta tu cuenta para que el agente cree eventos, guarde
-              leads y envíe confirmaciones por email.
+              {t("google_description")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -271,13 +268,13 @@ export default async function IntegrationsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Resumen de conexiones</CardTitle>
+          <CardTitle>{t("summary_title")}</CardTitle>
         </CardHeader>
         <CardContent className="text-sm space-y-2">
           <p className="flex items-center gap-2">
             <PlugZap className="size-4 text-muted-foreground" />
-            WhatsApp → {gateway.short} → n8n → Supabase → este panel
-            {needsGoogle ? <> · Google APIs</> : null}
+            {t("summary_chain", { gateway: gateway.short })}
+            {needsGoogle ? <> {t("summary_chain_google_suffix")}</> : null}
           </p>
         </CardContent>
       </Card>

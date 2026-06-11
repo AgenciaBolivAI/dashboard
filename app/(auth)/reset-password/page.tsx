@@ -1,14 +1,19 @@
+import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResetPasswordForm } from "./reset-form";
 
-export const metadata = { title: "Nueva contraseña — BolivAI" };
+export async function generateMetadata() {
+  const t = await getTranslations("auth");
+  return { title: t("reset_meta_title") };
+}
 
-export default function ResetPasswordPage() {
+export default async function ResetPasswordPage() {
+  const t = await getTranslations("auth");
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Nueva contraseña</CardTitle>
-        <CardDescription>Elige una contraseña segura.</CardDescription>
+        <CardTitle>{t("reset_title")}</CardTitle>
+        <CardDescription>{t("reset_description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <ResetPasswordForm />

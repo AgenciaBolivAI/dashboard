@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTenantBySlug } from "@/lib/tenant";
+import { getTranslations } from "next-intl/server";
 import { BrandingForm } from "./branding-form";
 
 export default async function BrandingPage({
@@ -9,15 +10,15 @@ export default async function BrandingPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("settings_branding");
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Marca</CardTitle>
+          <CardTitle>{t("title")}</CardTitle>
           <CardDescription>
-            Personaliza el aspecto del panel de tu agente. Los colores se aplican en
-            todos los acentos del dashboard.
+            {t("description")}
           </CardDescription>
         </CardHeader>
         <CardContent>

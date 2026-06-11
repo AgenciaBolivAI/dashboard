@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// next-intl reads i18n/request.ts at build + runtime. The plugin wires up
+// auto-discovery so we don't have to import it manually anywhere.
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 // Silence the harmless "unrecognized HMR message" uncaughtException Turbopack
 // emits in 15.3.x when the browser sends `browser-logs` events the server-side
@@ -51,4 +56,4 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withNextIntl(config);

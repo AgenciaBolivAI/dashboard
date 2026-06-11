@@ -430,3 +430,134 @@ export async function updateVoiceSettingsAction(
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }
+
+// ────────────────────────────────────────────────────────────────────
+// "Call now" — trigger Sandra (via ElevenLabs Twilio integration) to
+// dial an external phone number, optionally with lead context as
+// dynamic variables for the conversation.
+// ────────────────────────────────────────────────────────────────────
+
+export type VoiceCallState = {
+  error: string | null;
+  success?: boolean;
+  conversation_id?: string;
+};
+
+const callSchema = z.object({
+  tenant_id: z.string().uuid(),
+  to_number: z
+    .string()
+    .trim()
+    .regex(/^\+[1-9]\d{1,14}$/, "Phone must be E.164 format (e.g. +5491134567890)"),
+  context: z
+    .object({
+      lead_name: z.string().trim().max(120).optional(),
+      lead_company: z.string().trim().max(160).optional(),
+      lead_role: z.string().trim().max(120).optional(),
+      notes: z.string().trim().max(500).optional(),
+    })
+    .optional(),
+});
+
+export async function initiateSandraCallAction(
+  input: z.infer<typeof callSchema>,
+): Promise<VoiceCallState> {
+  const parsed = callSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await requireUser();
+  await requireTenantAccess(parsed.data.tenant_id, { minRole: "operator" });
+
+  const elKey = process.env.ELEVENLABS_API_KEY;
+  if (!elKey) return { error: "ELEVENLABS_API_KEY not configured" };
+
+  const supabase = await createClient();
+  // The generated db types may not include the new voice_* columns yet
+  // (run npm run db:types after schema-step23 applies). Use unknown cast
+  // so we don't block on a stale type file.
+  const { data: row, error: tErr } = await supabase
+    .from("tenants")
+    .select(
+      "voice_phone_number, voice_elevenlabs_outbound_phone_id, voice_elevenlabs_sandra_agent_id" as never,
+    )
+    .eq("id", parsed.data.tenant_id)
+    .single();
+
+  if (tErr || !row) return { error: tErr?.message ?? "Tenant not found" };
+  const tenant = row as unknown as {
+    voice_phone_number: string | null;
+    voice_elevenlabs_outbound_phone_id: string | null;
+    voice_elevenlabs_sandra_agent_id: string | null;
+  };
+
+  if (!tenant.voice_phone_number || !tenant.voice_elevenlabs_outbound_phone_id) {
+    return { error: "Voice number not configured for this tenant." };
+  }
+  if (!tenant.voice_elevenlabs_sandra_agent_id) {
+    return { error: "Sandra agent ID not configured for this tenant." };
+  }
+
+  const body: Record<string, unknown> = {
+    agent_id: tenant.voice_elevenlabs_sandra_agent_id,
+    agent_phone_number_id: tenant.voice_elevenlabs_outbound_phone_id,
+    to_number: parsed.data.to_number,
+  };
+  if (parsed.data.context) {
+    body.conversation_initiation_client_data = {
+      dynamic_variables: {
+        lead_name: parsed.data.context.lead_name ?? "",
+        lead_company: parsed.data.context.lead_company ?? "",
+        lead_role: parsed.data.context.lead_role ?? "",
+        notes: parsed.data.context.notes ?? "",
+      },
+    };
+  }
+
+  let conversationId: string | null = null;
+  try {
+    const res = await fetch(
+      "https://api.elevenlabs.io/v1/convai/twilio/outbound-call",
+      {
+        method: "POST",
+        headers: { "xi-api-key": elKey, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(20_000),
+      },
+    );
+    if (!res.ok) {
+      const errBody = await res.text();
+      return { error: `ElevenLabs ${res.status}: ${errBody.slice(0, 300)}` };
+    }
+    const json = (await res.json()) as {
+      conversation_id?: string;
+      callSid?: string;
+      success?: boolean;
+    };
+    conversationId = json.conversation_id ?? null;
+  } catch (e) {
+    return {
+      error: `Call failed: ${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+
+  // Audit log — best-effort, non-fatal if table doesn't accept all columns
+  try {
+    await supabase.from("sandra_call_queue" as never).insert({
+      tenant_id: parsed.data.tenant_id,
+      to_number: parsed.data.to_number,
+      status: "initiated",
+      elevenlabs_conversation_id: conversationId,
+      context: parsed.data.context ?? {},
+    } as never);
+  } catch {
+    /* non-fatal */
+  }
+
+  return {
+    error: null,
+    success: true,
+    conversation_id: conversationId ?? undefined,
+  };
+}

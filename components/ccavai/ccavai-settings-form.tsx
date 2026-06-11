@@ -60,7 +60,6 @@ export function CcavaiSettingsForm({
   const [saving, startSave] = useTransition();
   const [acting, startAct] = useTransition();
 
-  const [enabled, setEnabled] = useState(settings.enabled);
   const [platforms, setPlatforms] = useState<string[]>(settings.platforms);
   const [tone, setTone] = useState(settings.tone);
   const [rssSources, setRssSources] = useState(settings.rss_sources);
@@ -107,7 +106,9 @@ export function CcavaiSettingsForm({
     }
     startSave(async () => {
       const res = await updateCcavaiSettingsAction(tenantId, {
-        enabled,
+        // enabled is always true — credit-based billing makes the toggle
+        // meaningless. If the user doesn't want CCAVAI, they just don't trigger it.
+        enabled: true,
         platforms: platforms as ("linkedin" | "instagram" | "facebook" | "x")[],
         tone,
         rss_sources: rssSources,
@@ -128,10 +129,6 @@ export function CcavaiSettingsForm({
   }
 
   function handleTrigger() {
-    if (!enabled) {
-      toast.error("Activa CCAVAI antes de generar");
-      return;
-    }
     if (rssSources.length === 0) {
       toast.error("Agrega al menos un feed RSS para que CCAVAI tenga material");
       return;
@@ -149,9 +146,9 @@ export function CcavaiSettingsForm({
 
   return (
     <div className="space-y-6">
-      {/* On/off + manual trigger */}
+      {/* Manual trigger */}
       <Card className="p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <h2 className="text-lg font-display font-semibold flex items-center gap-2">
               <Wand2 className="size-5 text-purple-500" />
@@ -163,11 +160,7 @@ export function CcavaiSettingsForm({
               y X — con imágenes brandeadas si lo activás.
             </p>
           </div>
-          <ToggleButton on={enabled} onChange={setEnabled} label={enabled ? "ON" : "OFF"} />
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <Button size="sm" onClick={handleTrigger} disabled={acting || !enabled} className="gap-1.5">
+          <Button size="sm" onClick={handleTrigger} disabled={acting} className="gap-1.5">
             {acting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
             Generar ahora
           </Button>

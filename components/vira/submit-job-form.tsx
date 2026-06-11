@@ -12,20 +12,14 @@ import { submitViraJobAction } from "@/lib/actions/vira";
 
 export function SubmitJobForm({
   tenantId,
-  enabled,
 }: {
   tenantId: string;
-  enabled: boolean;
 }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [submitting, startSubmit] = useTransition();
 
   function handleSubmit() {
-    if (!enabled) {
-      toast.error("VIRA está deshabilitado. Actívalo en Ajustes arriba.");
-      return;
-    }
     const trimmed = url.trim();
     if (!trimmed) {
       toast.error("Pega un link de video");
@@ -69,7 +63,7 @@ export function SubmitJobForm({
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://www.youtube.com/watch?v=…"
-            disabled={submitting || !enabled}
+            disabled={submitting}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -79,7 +73,7 @@ export function SubmitJobForm({
           />
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !enabled || !url.trim()}
+            disabled={submitting || !url.trim()}
             className="gap-1.5"
           >
             {submitting ? (
@@ -90,12 +84,6 @@ export function SubmitJobForm({
             Procesar
           </Button>
         </div>
-        {!enabled && (
-          <p className="text-xs text-amber-600">
-            VIRA está apagado. Actívalo en los ajustes arriba antes de procesar
-            videos.
-          </p>
-        )}
       </div>
     </Card>
   );

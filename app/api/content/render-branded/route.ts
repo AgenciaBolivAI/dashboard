@@ -18,7 +18,10 @@ import { renderBrandedPng, type BrandRenderInput } from "@/lib/content/brand-ren
 import { checkBearer } from "@/lib/security/bearer";
 
 export const runtime = "nodejs";   // needs node:fs for font loading
-export const maxDuration = 30;
+// Cold-start of Satori + resvg-js + font loading consistently lands at 25-35s
+// on Vercel. 30s wasn't enough headroom — n8n's CCAVAI workflow would
+// silently fall back to the unbranded subject image. 90s is the new floor.
+export const maxDuration = 90;
 
 function unauthorized() {
   return new NextResponse("Unauthorized", { status: 401 });

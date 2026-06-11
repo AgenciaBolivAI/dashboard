@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { requireUser } from "@/lib/auth";
 import { getMyTenants } from "@/lib/tenant";
 import { OnboardingWizard } from "@/components/onboarding/wizard";
 
-export const metadata = { title: "Configura tu agente — BolivAI" };
+export async function generateMetadata() {
+  const t = await getTranslations("onboarding");
+  return { title: t("page_title") };
+}
 export const dynamic = "force-dynamic";
 
 export default async function OnboardingPage() {

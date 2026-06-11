@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getTenantBySlug } from "@/lib/tenant";
+import { getTranslations } from "next-intl/server";
 import { GeneralForm } from "./general-form";
 
 export default async function GeneralSettingsPage({
@@ -9,13 +10,14 @@ export default async function GeneralSettingsPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("settings_general");
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>General</CardTitle>
+        <CardTitle>{t("title")}</CardTitle>
         <CardDescription>
-          Datos básicos del agente: nombre del negocio, idioma, zona horaria, contacto.
+          {t("description")}
         </CardDescription>
       </CardHeader>
       <CardContent>

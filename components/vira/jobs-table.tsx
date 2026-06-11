@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { Clock, Check, AlertCircle, Loader2, X } from "lucide-react";
+import { Clock, Check, AlertCircle, Loader2, X, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -75,15 +77,26 @@ export function JobsTable({
           {jobs.map((j) => {
             const meta = STATUS_META[j.status];
             const Icon = meta.icon;
+            const detailHref = `/dashboard/${tenantSlug}/shorts/${j.id}`;
             return (
-              <TableRow key={j.id}>
+              <TableRow
+                key={j.id}
+                className="cursor-pointer hover:bg-secondary/50 transition group"
+                onClick={(e) => {
+                  // Don't navigate when the user clicked the source URL anchor
+                  if ((e.target as HTMLElement).closest('a[data-source-link]')) return;
+                  window.location.href = detailHref;
+                }}
+              >
                 <TableCell>
                   <a
                     href={j.source_url}
                     target="_blank"
                     rel="noopener"
+                    data-source-link="true"
                     className="text-sm hover:underline"
                     title={j.source_url}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {shortenUrl(j.source_url)}
                   </a>
@@ -119,16 +132,14 @@ export function JobsTable({
                   })}
                 </TableCell>
                 <TableCell className="text-right">
-                  {j.status === "done" ? (
-                    <Link
-                      href={`/dashboard/${tenantSlug}/shorts/${j.id}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Ver clips →
-                    </Link>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
+                  <Link
+                    href={detailHref}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    {j.status === "done" ? "Ver clips" : "Ver detalle"}
+                    <ArrowRight className="size-3 opacity-0 group-hover:opacity-100 transition" />
+                  </Link>
                 </TableCell>
               </TableRow>
             );

@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,16 +34,16 @@ function fmtClipRange(start: number, end: number): string {
 
 const STATUS_META: Record<
   ViraJob["status"],
-  { label: string; cls: string; icon: typeof Clock; spinning?: boolean }
+  { labelKey: string; cls: string; icon: typeof Clock; spinning?: boolean }
 > = {
-  pending:      { label: "En cola",        cls: "bg-muted text-muted-foreground", icon: Clock },
-  downloading:  { label: "Descargando",    cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400",     icon: Loader2, spinning: true },
-  transcribing: { label: "Transcribiendo", cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400",     icon: Loader2, spinning: true },
-  analyzing:    { label: "Analizando",     cls: "bg-purple-500/15 text-purple-600 dark:text-purple-400", icon: Loader2, spinning: true },
-  clipping:     { label: "Cortando",       cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",   icon: Loader2, spinning: true },
-  done:         { label: "Listo",          cls: "bg-primary/15 text-primary",     icon: Check },
-  failed:       { label: "Falló",          cls: "bg-destructive/15 text-destructive", icon: AlertCircle },
-  cancelled:    { label: "Cancelado",      cls: "bg-muted text-muted-foreground", icon: AlertCircle },
+  pending:      { labelKey: "status_pending",      cls: "bg-muted text-muted-foreground", icon: Clock },
+  downloading:  { labelKey: "status_downloading",  cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400",     icon: Loader2, spinning: true },
+  transcribing: { labelKey: "status_transcribing", cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400",     icon: Loader2, spinning: true },
+  analyzing:    { labelKey: "status_analyzing",    cls: "bg-purple-500/15 text-purple-600 dark:text-purple-400", icon: Loader2, spinning: true },
+  clipping:     { labelKey: "status_clipping",     cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400",   icon: Loader2, spinning: true },
+  done:         { labelKey: "status_done",         cls: "bg-primary/15 text-primary",     icon: Check },
+  failed:       { labelKey: "status_failed",       cls: "bg-destructive/15 text-destructive", icon: AlertCircle },
+  cancelled:    { labelKey: "status_cancelled",    cls: "bg-muted text-muted-foreground", icon: AlertCircle },
 };
 
 export default async function JobClipsPage({
@@ -54,6 +55,7 @@ export default async function JobClipsPage({
   const tenant = await getTenantBySlug(tenantSlug);
   await requireUser();
   await requireTenantAccess(tenant.id);
+  const t = await getTranslations("shorts");
 
   // Service client because the page is admin/dashboard, RLS already validated
   // by requireTenantAccess. Need to load the job + verify it belongs to tenant.
@@ -76,13 +78,14 @@ export default async function JobClipsPage({
   const totalClipSeconds = clips.reduce((s, c) => s + (Number(c.end_seconds) - Number(c.start_seconds)), 0);
   const meta = STATUS_META[job.status];
   const Icon = meta.icon;
+  const statusLabel = t(meta.labelKey);
 
   return (
     <div className="p-6 md:p-8 max-w-5xl">
       <Button asChild variant="ghost" size="sm" className="mb-4">
         <Link href={`/dashboard/${tenantSlug}/shorts`}>
           <ArrowLeft className="size-4" />
-          Volver a Shorts
+          {t("back_to_shorts")}
         </Link>
       </Button>
 
@@ -91,10 +94,10 @@ export default async function JobClipsPage({
         <div className="min-w-0">
           <h1 className="text-2xl font-display font-extrabold tracking-tight flex items-center gap-2">
             <Video className="size-6 text-rose-500" />
-            Video procesado
+            {t("processed_video")}
             <Badge variant="outline" className={cn("gap-1 text-xs", meta.cls)}>
               <Icon className={cn("size-3", meta.spinning && "animate-spin")} />
-              {meta.label}
+              {statusLabel}
             </Badge>
           </h1>
           <p className="text-sm text-muted-foreground mt-1 truncate">
@@ -113,18 +116,18 @@ export default async function JobClipsPage({
         <div className="text-sm text-right space-y-0.5">
           {job.duration_seconds && (
             <p className="text-muted-foreground">
-              Duración fuente: <span className="font-mono">{fmtSeconds(job.duration_seconds)}</span>
+              {t("source_duration_label")} <span className="font-mono">{fmtSeconds(job.duration_seconds)}</span>
             </p>
           )}
           {job.language && (
             <p className="text-muted-foreground uppercase text-xs">
-              Idioma: <span className="font-mono">{job.language}</span>
+              {t("language_label")} <span className="font-mono">{job.language}</span>
             </p>
           )}
           {clips.length > 0 && (
             <p className="text-muted-foreground">
-              <span className="font-bold text-foreground">{clips.length}</span> clips ·{" "}
-              <span className="font-mono">{fmtSeconds(totalClipSeconds)}</span> total
+              <span className="font-bold text-foreground">{clips.length}</span> {t("clips_word")} ·{" "}
+              <span className="font-mono">{fmtSeconds(totalClipSeconds)}</span> {t("total_word")}
             </p>
           )}
         </div>
@@ -136,7 +139,7 @@ export default async function JobClipsPage({
           <div className="flex gap-3">
             <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium">El procesamiento falló</p>
+              <p className="font-medium">{t("processing_failed")}</p>
               <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{job.error}</p>
             </div>
           </div>
@@ -147,9 +150,9 @@ export default async function JobClipsPage({
       {!["done", "failed", "cancelled"].includes(job.status) && (
         <Card className="p-6 mb-6 text-center">
           <Loader2 className="size-10 mx-auto mb-3 text-rose-500 animate-spin" />
-          <p className="font-medium">VIRA está trabajando…</p>
+          <p className="font-medium">{t("vira_working")}</p>
           <p className="text-sm text-muted-foreground mt-1">
-            {meta.label}. Refresca la página en un minuto.
+            {t("status_refresh_hint", { status: statusLabel })}
           </p>
         </Card>
       )}
@@ -158,7 +161,7 @@ export default async function JobClipsPage({
       {job.reasoning_summary && (
         <Card className="p-5 mb-6 border-rose-500/20 bg-rose-500/5">
           <p className="text-xs uppercase tracking-wider text-rose-600 dark:text-rose-400 font-semibold mb-2">
-            Cómo VIRA eligió los clips
+            {t("how_vira_chose_clips")}
           </p>
           <p className="text-sm whitespace-pre-wrap leading-relaxed">{job.reasoning_summary}</p>
         </Card>
@@ -168,14 +171,12 @@ export default async function JobClipsPage({
       {clips.length > 0 ? (
         <div className="space-y-4">
           {clips.map((clip) => (
-            <ClipCard key={clip.id} clip={clip} />
+            <ClipCard key={clip.id} clip={clip} viewLabel={t("view")} downloadLabel={t("download")} fileUnavailableLabel={t("file_unavailable")} clipPrefix={t("clip_prefix")} />
           ))}
         </div>
       ) : job.status === "done" ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">
-          El trabajo terminó pero no se generaron clips. Esto puede pasar si el
-          video era muy corto o si VIRA no encontró momentos que cumplieran tu
-          criterio. Probá con un video más largo o ajustá el estilo de clip.
+          {t("no_clips_generated")}
         </Card>
       ) : null}
 
@@ -183,7 +184,7 @@ export default async function JobClipsPage({
       {job.transcript && (
         <details className="mt-8">
           <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
-            Ver transcripción completa
+            {t("view_full_transcript")}
           </summary>
           <Card className="p-4 mt-2">
             <p className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-xs text-muted-foreground">
@@ -196,14 +197,26 @@ export default async function JobClipsPage({
   );
 }
 
-function ClipCard({ clip }: { clip: ViraClip }) {
+function ClipCard({
+  clip,
+  viewLabel,
+  downloadLabel,
+  fileUnavailableLabel,
+  clipPrefix,
+}: {
+  clip: ViraClip;
+  viewLabel: string;
+  downloadLabel: string;
+  fileUnavailableLabel: string;
+  clipPrefix: string;
+}) {
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-secondary">
-              Clip #{clip.clip_index}
+              {clipPrefix} #{clip.clip_index}
             </span>
             <span className="text-xs text-muted-foreground font-mono">
               {fmtClipRange(Number(clip.start_seconds), Number(clip.end_seconds))}
@@ -236,19 +249,19 @@ function ClipCard({ clip }: { clip: ViraClip }) {
               <Button asChild size="sm" variant="outline" className="gap-1.5">
                 <a href={clip.output_url} target="_blank" rel="noopener">
                   <ExternalLink className="size-3.5" />
-                  Ver
+                  {viewLabel}
                 </a>
               </Button>
               <Button asChild size="sm" className="gap-1.5">
                 <a href={clip.output_url} download>
                   <Download className="size-3.5" />
-                  Descargar
+                  {downloadLabel}
                 </a>
               </Button>
             </>
           ) : (
             <p className="text-xs text-muted-foreground text-center">
-              Archivo no disponible aún
+              {fileUnavailableLabel}
             </p>
           )}
         </div>

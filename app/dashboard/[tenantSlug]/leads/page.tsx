@@ -1,39 +1,14 @@
 import Link from "next/link";
 import { UserPlus, Download } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listLeads, getLeadIntents, getLeadFacets } from "@/lib/queries/leads";
+import { COUNTRY_BY_CODE } from "@/lib/leads-geo";
 import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
 import { intentLabel } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
-
-const STATUS_FILTERS = [
-  { id: "all", label: "Todos" },
-  { id: "new", label: "Nuevos" },
-  { id: "contacted", label: "Contactados" },
-  { id: "converted", label: "Convertidos" },
-  { id: "lost", label: "Perdidos" },
-];
-
-const SOURCE_LABELS: Record<string, string> = {
-  aima: "AIMA",
-  whatsapp: "WhatsApp",
-  manual: "Manual",
-  voice: "Voz",
-  webform: "Formulario",
-};
-
-const VERTICAL_LABELS: Record<string, string> = {
-  dental_clinic: "Dental",
-  physiotherapy_clinic: "Fisio",
-  real_estate: "Inmobiliaria",
-  fitness_studio: "Fitness",
-  aesthetic_clinic: "Estética",
-  chiropractor: "Quiropráctico",
-  veterinary_clinic: "Veterinaria",
-  restaurant: "Restaurante",
-};
 
 type LeadsSearchParams = {
   status?: string;
@@ -41,6 +16,8 @@ type LeadsSearchParams = {
   source?: string;
   city?: string;
   vertical?: string;
+  country?: string;   // ISO alpha-2 (e.g. "US")
+  state?: string;     // e.g. "Florida"
 };
 
 export default async function LeadsPage({
@@ -53,6 +30,34 @@ export default async function LeadsPage({
   const { tenantSlug } = await params;
   const filters = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("leads");
+
+  const STATUS_FILTERS = [
+    { id: "all", label: t("status_all") },
+    { id: "new", label: t("status_new") },
+    { id: "contacted", label: t("status_contacted") },
+    { id: "converted", label: t("status_converted") },
+    { id: "lost", label: t("status_lost") },
+  ];
+
+  const SOURCE_LABELS: Record<string, string> = {
+    aima: "AIMA",
+    whatsapp: "WhatsApp",
+    manual: t("source_manual"),
+    voice: t("source_voice"),
+    webform: t("source_webform"),
+  };
+
+  const VERTICAL_LABELS: Record<string, string> = {
+    dental_clinic: t("vertical_dental"),
+    physiotherapy_clinic: t("vertical_physio"),
+    real_estate: t("vertical_real_estate"),
+    fitness_studio: t("vertical_fitness"),
+    aesthetic_clinic: t("vertical_aesthetic"),
+    chiropractor: t("vertical_chiropractor"),
+    veterinary_clinic: t("vertical_veterinary"),
+    restaurant: t("vertical_restaurant"),
+  };
 
   const [leads, intents, facets] = await Promise.all([
     listLeads(tenant.id, {
@@ -61,6 +66,8 @@ export default async function LeadsPage({
       source: filters.source && filters.source !== "all" ? filters.source : undefined,
       city: filters.city && filters.city !== "all" ? filters.city : undefined,
       vertical: filters.vertical && filters.vertical !== "all" ? filters.vertical : undefined,
+      country: filters.country && filters.country !== "all" ? filters.country : undefined,
+      state: filters.state && filters.state !== "all" ? filters.state : undefined,
     }),
     getLeadIntents(tenant.id),
     getLeadFacets(tenant.id),
@@ -68,7 +75,7 @@ export default async function LeadsPage({
 
   // Reflect ALL active filters in the export URL so the CSV matches the visible table
   const exportQs = new URLSearchParams();
-  for (const key of ["status", "intent", "source", "city", "vertical"] as const) {
+  for (const key of ["status", "intent", "source", "city", "vertical", "country", "state"] as const) {
     const v = filters[key];
     if (v && v !== "all") exportQs.set(key, v);
   }
@@ -76,7 +83,9 @@ export default async function LeadsPage({
   function hrefFor(swap: Partial<LeadsSearchParams>): string {
     const params = new URLSearchParams();
     const next = { ...filters, ...swap } as LeadsSearchParams;
-    for (const k of ["status", "intent", "source", "city", "vertical"] as const) {
+    // Changing country clears the state filter — they don't mix.
+    if ("country" in swap) delete next.state;
+    for (const k of ["status", "intent", "source", "city", "vertical", "country", "state"] as const) {
       const v = next[k];
       if (v && v !== "all") params.set(k, v);
     }
@@ -84,14 +93,25 @@ export default async function LeadsPage({
     return `/dashboard/${tenantSlug}/leads${qs ? "?" + qs : ""}`;
   }
 
+  const filtered = Boolean(
+    filters.city || filters.vertical || filters.source || filters.country || filters.state,
+  );
+
+  // Available states for the currently-selected country (or all if no country selected)
+  const statesForCountry: string[] =
+    filters.country && filters.country !== "all"
+      ? (facets.states[filters.country] ?? [])
+      : Object.values(facets.states).flat().slice(0, 200);
+  const countText = leads.length === 1 ? t("count_one", { count: leads.length }) : t("count_other", { count: leads.length });
+
   return (
     <div className="p-6 md:p-8 max-w-6xl">
       <div className="mb-6 flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-display font-extrabold tracking-tight">Leads</h1>
+          <h1 className="text-3xl font-display font-extrabold tracking-tight">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {leads.length} {leads.length === 1 ? "lead" : "leads"}
-            {(filters.city || filters.vertical || filters.source) && " (filtrado)"}
+            {countText}
+            {filtered && " " + t("filtered_suffix")}
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -100,23 +120,23 @@ export default async function LeadsPage({
             download
           >
             <Download className="size-4" />
-            Exportar CSV
+            {t("export_csv")}
           </a>
         </Button>
       </div>
 
       <div className="mb-4 space-y-3">
         <FilterRow
-          label="Estado"
+          label={t("filter_status")}
           options={STATUS_FILTERS}
           current={filters.status ?? "all"}
           hrefFor={(id) => hrefFor({ status: id })}
         />
         {facets.sources.length > 1 ? (
           <FilterRow
-            label="Origen"
+            label={t("filter_source")}
             options={[
-              { id: "all", label: "Todos" },
+              { id: "all", label: t("status_all") },
               ...facets.sources.map((s) => ({ id: s, label: SOURCE_LABELS[s] ?? s })),
             ]}
             current={filters.source ?? "all"}
@@ -125,9 +145,9 @@ export default async function LeadsPage({
         ) : null}
         {facets.verticals.length > 0 ? (
           <FilterRow
-            label="Vertical"
+            label={t("filter_vertical")}
             options={[
-              { id: "all", label: "Todas" },
+              { id: "all", label: t("all_feminine") },
               ...facets.verticals.map((v) => ({
                 id: v,
                 label: VERTICAL_LABELS[v] ?? v.replace(/_/g, " "),
@@ -137,11 +157,39 @@ export default async function LeadsPage({
             hrefFor={(id) => hrefFor({ vertical: id })}
           />
         ) : null}
+        {facets.countries.length > 1 ? (
+          <FilterRow
+            label={t("filter_country")}
+            options={[
+              { id: "all", label: t("all_masculine_plural") },
+              ...facets.countries.map((code) => {
+                const c = COUNTRY_BY_CODE[code];
+                return {
+                  id: code,
+                  label: c ? `${c.flag} ${c.name}` : code,
+                };
+              }),
+            ]}
+            current={filters.country ?? "all"}
+            hrefFor={(id) => hrefFor({ country: id })}
+          />
+        ) : null}
+        {statesForCountry.length > 0 ? (
+          <FilterRow
+            label={t("filter_state")}
+            options={[
+              { id: "all", label: t("all_masculine_plural") },
+              ...statesForCountry.map((s) => ({ id: s, label: s })),
+            ]}
+            current={filters.state ?? "all"}
+            hrefFor={(id) => hrefFor({ state: id })}
+          />
+        ) : null}
         {facets.cities.length > 0 ? (
           <FilterRow
-            label="Ciudad"
+            label={t("filter_city")}
             options={[
-              { id: "all", label: "Todas" },
+              { id: "all", label: t("all_feminine") },
               ...facets.cities.map((c) => ({ id: c, label: c })),
             ]}
             current={filters.city ?? "all"}
@@ -150,9 +198,9 @@ export default async function LeadsPage({
         ) : null}
         {intents.length > 0 ? (
           <FilterRow
-            label="Intención"
+            label={t("filter_intent")}
             options={[
-              { id: "all", label: "Todas" },
+              { id: "all", label: t("all_feminine") },
               ...intents.map((i) => ({ id: i, label: intentLabel(i) })),
             ]}
             current={filters.intent ?? "all"}
@@ -164,10 +212,9 @@ export default async function LeadsPage({
       {leads.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
           <UserPlus className="size-10 text-muted-foreground mb-4" />
-          <p className="font-medium">Sin leads que coincidan</p>
+          <p className="font-medium">{t("empty_title")}</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Cuando AIMA encuentre nuevos negocios o el agente capture datos de un cliente,
-            aparecerán aquí.
+            {t("empty_description")}
           </p>
         </Card>
       ) : (

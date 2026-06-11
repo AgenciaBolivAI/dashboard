@@ -1,4 +1,5 @@
 import { Coins, Info } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { listCreditPricing } from "@/lib/queries/admin-pricing";
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminPricingPage() {
   const rows = await listCreditPricing();
+  const t = await getTranslations("admin_pricing");
 
   const totalActions = rows.length;
   const profitable = rows.filter((r) => r.margin_micros > 0).length;
@@ -19,27 +21,23 @@ export default async function AdminPricingPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
           <Coins className="size-7 text-primary" />
-          Precios por acción
+          {t("page_title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-          Edita lo que cobramos por cada acción del agente (credits_per_unit) y
-          lo que nos cuesta a nosotros (cost_per_unit_micros + breakdown por
-          proveedor). Los cambios se reflejan inmediatamente en /admin/overview,
-          /admin/usage, en el briefing matutino, y en el cálculo de margen de
-          cada tenant.
+          {t("page_description")}
         </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Acciones registradas
+            {t("stat_registered_actions")}
           </p>
           <p className="mt-1 font-display text-2xl font-extrabold">{totalActions}</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Con margen positivo
+            {t("stat_positive_margin")}
           </p>
           <p className="mt-1 font-display text-2xl font-extrabold text-primary">
             {profitable}
@@ -47,7 +45,7 @@ export default async function AdminPricingPage() {
         </Card>
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Con margen negativo
+            {t("stat_negative_margin")}
           </p>
           <p
             className={`mt-1 font-display text-2xl font-extrabold ${unprofitable > 0 ? "text-destructive" : "text-muted-foreground"}`}
@@ -57,7 +55,7 @@ export default async function AdminPricingPage() {
         </Card>
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Vendor sum ≠ cost
+            {t("stat_vendor_mismatch")}
           </p>
           <p
             className={`mt-1 font-display text-2xl font-extrabold ${vendorMismatches > 0 ? "text-amber-600" : "text-muted-foreground"}`}
@@ -71,22 +69,16 @@ export default async function AdminPricingPage() {
         <div className="flex gap-3">
           <Info className="size-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-medium">Unidades</p>
+            <p className="font-medium">{t("units_title")}</p>
             <ul className="mt-1 text-muted-foreground space-y-0.5 list-disc ml-5 text-xs">
               <li>
-                <code>credits_per_unit</code> — lo que cobramos al tenant en
-                créditos. 1 crédito = $0.01 USD. Una respuesta WhatsApp a 5 cr =
-                $0.05.
+                <code>credits_per_unit</code> — {t("units_credits_per_unit")}
               </li>
               <li>
-                <code>cost_per_unit_micros</code> — nuestro costo real con
-                vendors. 1,000,000 micros = $1.00 USD. Una llamada inbound a
-                200,000 micros = $0.20.
+                <code>cost_per_unit_micros</code> — {t("units_cost_per_unit_micros")}
               </li>
               <li>
-                <code>vendor_cost_micros</code> — desglose por vendor en JSON. La
-                suma debería igualar <code>cost_per_unit_micros</code>; si no, te
-                avisamos.
+                <code>vendor_cost_micros</code> — {t("units_vendor_cost_micros")}
               </li>
             </ul>
           </div>
@@ -98,19 +90,19 @@ export default async function AdminPricingPage() {
           <thead>
             <tr className="bg-muted/50 border-b border-border text-xs">
               <th className="p-2 w-8" />
-              <th className="p-2 text-left">Action key</th>
-              <th className="p-2 text-right">Cobramos</th>
-              <th className="p-2 text-right">USD</th>
-              <th className="p-2 text-right">Costo</th>
-              <th className="p-2 text-right">Margen</th>
-              <th className="p-2 text-right w-32">Alerta</th>
+              <th className="p-2 text-left">{t("col_action_key")}</th>
+              <th className="p-2 text-right">{t("col_we_charge")}</th>
+              <th className="p-2 text-right">{t("col_usd")}</th>
+              <th className="p-2 text-right">{t("col_cost")}</th>
+              <th className="p-2 text-right">{t("col_margin")}</th>
+              <th className="p-2 text-right w-32">{t("col_alert")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center text-sm text-muted-foreground py-8">
-                  Sin precios configurados (esto no debería pasar)
+                  {t("empty_state")}
                 </td>
               </tr>
             ) : (
@@ -121,9 +113,7 @@ export default async function AdminPricingPage() {
       </Card>
 
       <p className="text-xs text-muted-foreground mt-4 text-center">
-        Tip: expande una fila para editar. Los cambios se guardan
-        independientemente y se reflejan en tiempo real en todas las vistas
-        admin.
+        {t("footer_tip")}
       </p>
     </div>
   );

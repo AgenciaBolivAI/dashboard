@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,23 +22,26 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const WINDOWS: { id: PnlWindow; label: string }[] = [
-  { id: "today", label: "Hoy" },
-  { id: "7d", label: "7 días" },
-  { id: "month", label: "Mes" },
-  { id: "30d", label: "30 días" },
-  { id: "90d", label: "90 días" },
-  { id: "all", label: "Total" },
-];
+const WINDOW_IDS: PnlWindow[] = ["today", "7d", "month", "30d", "90d", "all"];
 
 export default async function AdminUsagePage({
   searchParams,
 }: {
   searchParams: Promise<{ window?: string }>;
 }) {
+  const t = await getTranslations("admin_usage");
+  const windows: { id: PnlWindow; label: string }[] = [
+    { id: "today", label: t("window_today") },
+    { id: "7d", label: t("window_7d") },
+    { id: "month", label: t("window_month") },
+    { id: "30d", label: t("window_30d") },
+    { id: "90d", label: t("window_90d") },
+    { id: "all", label: t("window_all") },
+  ];
+
   const { window: windowParam } = await searchParams;
   const windowKey: PnlWindow =
-    (WINDOWS.find((w) => w.id === windowParam)?.id ?? "month");
+    (WINDOW_IDS.find((id) => id === windowParam) ?? "month");
 
   const [actions, tenants] = await Promise.all([
     getActionBreakdown(windowKey),
@@ -52,15 +56,14 @@ export default async function AdminUsagePage({
       <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight">
-            Uso & Costos
+            {t("page_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Análisis detallado de qué acciones generan ingreso, qué nos cuestan,
-            y qué tenants consumen más.
+            {t("page_subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {WINDOWS.map((w) => {
+          {windows.map((w) => {
             const active = w.id === windowKey;
             return (
               <Link
@@ -83,29 +86,29 @@ export default async function AdminUsagePage({
       {/* Action breakdown — sortable, share-of-margin bar */}
       <Card className="mb-6">
         <div className="p-4 border-b">
-          <h2 className="font-semibold">Acciones por margen</h2>
+          <h2 className="font-semibold">{t("actions_card_title")}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Ordenado por margen descendente. La barra visualiza el aporte al margen total.
+            {t("actions_card_subtitle")}
           </p>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Acción</TableHead>
-              <TableHead className="text-right">Unidades</TableHead>
-              <TableHead className="text-right">Ingreso</TableHead>
-              <TableHead className="text-right">Costo API</TableHead>
-              <TableHead className="text-right">Margen</TableHead>
-              <TableHead className="text-right">Margen %</TableHead>
-              <TableHead className="w-32">% del total</TableHead>
-              <TableHead className="text-right">Tenants</TableHead>
+              <TableHead>{t("col_action")}</TableHead>
+              <TableHead className="text-right">{t("col_units")}</TableHead>
+              <TableHead className="text-right">{t("col_revenue")}</TableHead>
+              <TableHead className="text-right">{t("col_api_cost")}</TableHead>
+              <TableHead className="text-right">{t("col_margin")}</TableHead>
+              <TableHead className="text-right">{t("col_margin_pct")}</TableHead>
+              <TableHead className="w-32">{t("col_share_of_total")}</TableHead>
+              <TableHead className="text-right">{t("col_tenants")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {actions.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
-                  Sin uso registrado en esta ventana
+                  {t("actions_empty")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -164,76 +167,76 @@ export default async function AdminUsagePage({
       {/* Tenants — sorted by margin */}
       <Card>
         <div className="p-4 border-b">
-          <h2 className="font-semibold">Tenants por margen</h2>
+          <h2 className="font-semibold">{t("tenants_card_title")}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Click en un tenant para ver detalle, ledger de transacciones e historial de recargas.
+            {t("tenants_card_subtitle")}
           </p>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tenant</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead className="text-right">Ingreso</TableHead>
-              <TableHead className="text-right">Uso</TableHead>
-              <TableHead className="text-right">Costo API</TableHead>
-              <TableHead className="text-right">Margen</TableHead>
-              <TableHead className="text-right">%</TableHead>
-              <TableHead className="text-right">Última actividad</TableHead>
+              <TableHead>{t("col_tenant")}</TableHead>
+              <TableHead>{t("col_status")}</TableHead>
+              <TableHead className="text-right">{t("col_balance")}</TableHead>
+              <TableHead className="text-right">{t("col_revenue")}</TableHead>
+              <TableHead className="text-right">{t("col_usage")}</TableHead>
+              <TableHead className="text-right">{t("col_api_cost")}</TableHead>
+              <TableHead className="text-right">{t("col_margin")}</TableHead>
+              <TableHead className="text-right">{t("col_pct")}</TableHead>
+              <TableHead className="text-right">{t("col_last_activity")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {tenants.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
-                  Sin tenants todavía
+                  {t("tenants_empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              tenants.map((t) => (
-                <TableRow key={t.tenant_id}>
+              tenants.map((tn) => (
+                <TableRow key={tn.tenant_id}>
                   <TableCell>
                     <Link
-                      href={`/admin/tenants/${t.tenant_id}`}
+                      href={`/admin/tenants/${tn.tenant_id}`}
                       className="font-medium hover:underline"
                     >
-                      {t.name}
+                      {tn.name}
                     </Link>
-                    <div className="text-xs text-muted-foreground font-mono">/{t.slug}</div>
+                    <div className="text-xs text-muted-foreground font-mono">/{tn.slug}</div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">
-                      {t.status}
+                      {tn.status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">
-                    {fmtCents(t.balance_credits)}
+                    {fmtCents(tn.balance_credits)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-green-600">
-                    {t.revenue_cents > 0 ? fmtCents(t.revenue_cents) : "—"}
+                    {tn.revenue_cents > 0 ? fmtCents(tn.revenue_cents) : "—"}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">
-                    {t.usage_credits > 0 ? fmtCredits(t.usage_credits) : "—"}
+                    {tn.usage_credits > 0 ? fmtCredits(tn.usage_credits) : "—"}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-amber-600">
-                    {t.cost_micros > 0 ? fmtUsd(t.cost_micros) : "—"}
+                    {tn.cost_micros > 0 ? fmtUsd(tn.cost_micros) : "—"}
                   </TableCell>
                   <TableCell
                     className={cn(
                       "text-right font-mono text-sm font-semibold",
-                      t.margin_micros > 0 && "text-primary",
-                      t.margin_micros < 0 && "text-destructive",
+                      tn.margin_micros > 0 && "text-primary",
+                      tn.margin_micros < 0 && "text-destructive",
                     )}
                   >
-                    {t.margin_micros !== 0 ? fmtUsd(t.margin_micros) : "—"}
+                    {tn.margin_micros !== 0 ? fmtUsd(tn.margin_micros) : "—"}
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
-                    {t.margin_pct != null ? `${t.margin_pct}%` : "—"}
+                    {tn.margin_pct != null ? `${tn.margin_pct}%` : "—"}
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
-                    {t.last_activity_at
-                      ? new Date(t.last_activity_at).toLocaleString("es-BO", {
+                    {tn.last_activity_at
+                      ? new Date(tn.last_activity_at).toLocaleString("es-BO", {
                           dateStyle: "short",
                           timeStyle: "short",
                         })

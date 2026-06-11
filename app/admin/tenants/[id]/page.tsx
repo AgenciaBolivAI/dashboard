@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ArrowLeft, ExternalLink, Coins, DollarSign, TrendingDown, PiggyBank } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ export default async function AdminTenantDetail({
 }) {
   const { id } = await params;
   const svc = createServiceClient();
+  const tr = await getTranslations("admin_tenant_detail");
 
   const { data: tenant } = await svc
     .from("tenants")
@@ -112,7 +114,7 @@ export default async function AdminTenantDetail({
       <Button asChild variant="ghost" size="sm" className="mb-4">
         <Link href="/admin">
           <ArrowLeft className="size-4" />
-          Volver
+          {tr("back")}
         </Link>
       </Button>
 
@@ -123,9 +125,9 @@ export default async function AdminTenantDetail({
               {t.name}
             </h1>
             {t.status === "active" ? (
-              <Badge variant="success">Activo</Badge>
+              <Badge variant="success">{tr("status_active")}</Badge>
             ) : t.status === "paused" ? (
-              <Badge variant="warning">Pausado</Badge>
+              <Badge variant="warning">{tr("status_paused")}</Badge>
             ) : (
               <Badge variant="muted">{t.status}</Badge>
             )}
@@ -136,16 +138,16 @@ export default async function AdminTenantDetail({
         <Button asChild variant="outline">
           <Link href={`/dashboard/${t.slug}/overview`}>
             <ExternalLink className="size-4" />
-            Ver como tenant
+            {tr("view_as_tenant")}
           </Link>
         </Button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Miembros" value={members.count ?? 0} />
-        <StatCard label="Conversaciones" value={conversations.count ?? 0} />
-        <StatCard label="Leads" value={leads.count ?? 0} />
-        <StatCard label="Servicios" value={services.count ?? 0} />
+        <StatCard label={tr("stat_members")} value={members.count ?? 0} />
+        <StatCard label={tr("stat_conversations")} value={conversations.count ?? 0} />
+        <StatCard label={tr("stat_leads")} value={leads.count ?? 0} />
+        <StatCard label={tr("stat_services")} value={services.count ?? 0} />
       </div>
 
       {/* ── P&L SECTION ──────────────────────────────────────────────── */}
@@ -153,26 +155,26 @@ export default async function AdminTenantDetail({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PiggyBank className="size-5 text-primary" />
-            Económicos del tenant
+            {tr("pnl_title")}
           </CardTitle>
           <CardDescription>
-            Balance actual, recargas, uso de créditos, costo API y margen — últimos 30 días.
+            {tr("pnl_desc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <MoneyKpi
               icon={Coins}
-              label="Balance"
+              label={tr("kpi_balance")}
               value={fmtCents(acct?.balance_credits ?? 0)}
               subtitle={
                 acct
-                  ? `${(acct.balance_credits ?? 0).toLocaleString()} créditos${
+                  ? `${(acct.balance_credits ?? 0).toLocaleString()} ${tr("credits_word")}${
                       acct.reserved_credits > 0
-                        ? ` · ${acct.reserved_credits} reservados`
+                        ? ` · ${tr("reserved_n", { count: acct.reserved_credits })}`
                         : ""
                     }`
-                  : "Sin cuenta de créditos"
+                  : tr("no_credit_account")
               }
               color={
                 acct && acct.balance_credits - acct.reserved_credits <= 0
@@ -184,32 +186,32 @@ export default async function AdminTenantDetail({
             />
             <MoneyKpi
               icon={DollarSign}
-              label="Ingreso 30d"
+              label={tr("kpi_revenue_30d")}
               value={fmtCents(revenueDailyCents.reduce((a, b) => a + b, 0))}
-              subtitle={`Total acumulado: ${fmtCents(acct?.lifetime_topped_up_cents ?? 0)}`}
+              subtitle={tr("lifetime_total", { value: fmtCents(acct?.lifetime_topped_up_cents ?? 0) })}
               color="text-green-600"
             />
             <MoneyKpi
               icon={TrendingDown}
-              label="Costo API 30d"
+              label={tr("kpi_api_cost_30d")}
               value={fmtUsd(totalCostMicros30d)}
-              subtitle={`${actionBreakdown.length} acciones distintas`}
+              subtitle={tr("distinct_actions", { count: actionBreakdown.length })}
               color="text-amber-600"
             />
             <MoneyKpi
               icon={PiggyBank}
-              label="Margen 30d"
+              label={tr("kpi_margin_30d")}
               value={fmtUsd(totalMarginMicros30d)}
-              subtitle={marginPct30d != null ? `${marginPct30d}% margen` : "—"}
+              subtitle={marginPct30d != null ? tr("margin_pct", { pct: marginPct30d }) : "—"}
               color={totalMarginMicros30d >= 0 ? "text-primary" : "text-destructive"}
             />
           </div>
 
           {/* Sparklines */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-3 border-t">
-            <SparkBlock label="Ingreso diario" points={revenueDailyCents} color="text-green-600" />
-            <SparkBlock label="Costo diario" points={usageDailyMicros.map(microsToDollars)} color="text-amber-600" />
-            <SparkBlock label="Margen diario" points={marginDailyMicros.map(microsToDollars)} color="text-primary" />
+            <SparkBlock label={tr("spark_revenue_daily")} points={revenueDailyCents} color="text-green-600" />
+            <SparkBlock label={tr("spark_cost_daily")} points={usageDailyMicros.map(microsToDollars)} color="text-amber-600" />
+            <SparkBlock label={tr("spark_margin_daily")} points={marginDailyMicros.map(microsToDollars)} color="text-primary" />
           </div>
         </CardContent>
       </Card>
@@ -217,27 +219,27 @@ export default async function AdminTenantDetail({
       {/* ── ACTION BREAKDOWN ──────────────────────────────────────── */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Acciones (últimos 30 días)</CardTitle>
+          <CardTitle>{tr("actions_title")}</CardTitle>
           <CardDescription>
-            En qué gasta este tenant sus créditos y cuánto nos cuesta.
+            {tr("actions_desc")}
           </CardDescription>
         </CardHeader>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Acción</TableHead>
-              <TableHead className="text-right">Unidades</TableHead>
-              <TableHead className="text-right">Ingreso</TableHead>
-              <TableHead className="text-right">Costo</TableHead>
-              <TableHead className="text-right">Margen</TableHead>
-              <TableHead className="text-right">%</TableHead>
+              <TableHead>{tr("col_action")}</TableHead>
+              <TableHead className="text-right">{tr("col_units")}</TableHead>
+              <TableHead className="text-right">{tr("col_revenue")}</TableHead>
+              <TableHead className="text-right">{tr("col_cost")}</TableHead>
+              <TableHead className="text-right">{tr("col_margin")}</TableHead>
+              <TableHead className="text-right">{tr("col_pct")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {actionBreakdown.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
-                  Sin uso en los últimos 30 días
+                  {tr("no_usage_30d")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -276,18 +278,18 @@ export default async function AdminTenantDetail({
       {topups.length > 0 && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Recargas</CardTitle>
-            <CardDescription>Historial de top-ups vía Stripe.</CardDescription>
+            <CardTitle>{tr("topups_title")}</CardTitle>
+            <CardDescription>{tr("topups_desc")}</CardDescription>
           </CardHeader>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Pagado</TableHead>
-                <TableHead className="text-right">Base</TableHead>
-                <TableHead className="text-right">Bonus</TableHead>
-                <TableHead className="text-right">Balance después</TableHead>
-                <TableHead>Stripe PI</TableHead>
+                <TableHead>{tr("col_date")}</TableHead>
+                <TableHead className="text-right">{tr("col_paid")}</TableHead>
+                <TableHead className="text-right">{tr("col_base")}</TableHead>
+                <TableHead className="text-right">{tr("col_bonus")}</TableHead>
+                <TableHead className="text-right">{tr("col_balance_after")}</TableHead>
+                <TableHead>{tr("col_stripe_pi")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -317,25 +319,25 @@ export default async function AdminTenantDetail({
       {/* ── RECENT TRANSACTIONS ──────────────────────────────────── */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Movimientos recientes</CardTitle>
-          <CardDescription>Últimas 25 transacciones del ledger.</CardDescription>
+          <CardTitle>{tr("recent_tx_title")}</CardTitle>
+          <CardDescription>{tr("recent_tx_desc")}</CardDescription>
         </CardHeader>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Acción</TableHead>
-              <TableHead className="text-right">Δ créditos</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead>Ref.</TableHead>
+              <TableHead>{tr("col_date")}</TableHead>
+              <TableHead>{tr("col_type")}</TableHead>
+              <TableHead>{tr("col_action")}</TableHead>
+              <TableHead className="text-right">{tr("col_delta_credits")}</TableHead>
+              <TableHead className="text-right">{tr("col_balance")}</TableHead>
+              <TableHead>{tr("col_ref")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {recentTx.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
-                  Sin movimientos
+                  {tr("no_transactions")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -390,9 +392,9 @@ export default async function AdminTenantDetail({
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Configuración</CardTitle>
+          <CardTitle>{tr("config_title")}</CardTitle>
           <CardDescription>
-            Edita cualquier campo. Cambios se aplican inmediatamente.
+            {tr("config_desc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -402,10 +404,9 @@ export default async function AdminTenantDetail({
 
       <Card className="border-destructive/30">
         <CardHeader>
-          <CardTitle className="text-destructive">Zona de peligro</CardTitle>
+          <CardTitle className="text-destructive">{tr("danger_title")}</CardTitle>
           <CardDescription>
-            Eliminar el tenant borra TODAS sus conversaciones, leads, servicios,
-            personal, calendario, conocimiento y miembros. Es irreversible.
+            {tr("danger_desc")}
           </CardDescription>
         </CardHeader>
         <CardContent>

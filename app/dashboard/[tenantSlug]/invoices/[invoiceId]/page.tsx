@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations, getLocale } from "next-intl/server";
 import { ExternalLink, CheckCircle2, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,15 +12,6 @@ import { InvoiceEditor } from "@/components/invoices/invoice-editor";
 import { InvoiceActions } from "@/components/invoices/invoice-actions";
 import { formatMoney } from "@/lib/format";
 
-const STATUS: Record<string, { label: string; variant: "default" | "outline" | "success" | "destructive" }> = {
-  draft: { label: "Borrador", variant: "outline" },
-  open: { label: "Enviada", variant: "default" },
-  paid: { label: "Pagada", variant: "success" },
-  past_due: { label: "Vencida", variant: "destructive" },
-  void: { label: "Anulada", variant: "outline" },
-  uncollectible: { label: "Incobrable", variant: "destructive" },
-};
-
 export default async function InvoiceDetailPage({
   params,
 }: {
@@ -29,6 +21,18 @@ export default async function InvoiceDetailPage({
   const tenant = await getTenantBySlug(tenantSlug);
   const result = await getInvoice(tenant.id, invoiceId);
   if (!result) notFound();
+
+  const t = await getTranslations("invoices");
+  const locale = await getLocale();
+
+  const STATUS: Record<string, { label: string; variant: "default" | "outline" | "success" | "destructive" }> = {
+    draft: { label: t("status_draft"), variant: "outline" },
+    open: { label: t("status_open"), variant: "default" },
+    paid: { label: t("status_paid"), variant: "success" },
+    past_due: { label: t("status_past_due"), variant: "destructive" },
+    void: { label: t("status_void"), variant: "outline" },
+    uncollectible: { label: t("status_uncollectible"), variant: "destructive" },
+  };
 
   const { invoice, items } = result;
   const isDraft = invoice.status === "draft";
@@ -48,10 +52,10 @@ export default async function InvoiceDetailPage({
         <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-display font-extrabold tracking-tight">
-              Editar borrador
+              {t("edit_draft_title")}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Cuando esté listo, pulsa "Enviar". Después no podrás editar.
+              {t("edit_draft_subtitle")}
             </p>
           </div>
           <Badge variant={s.variant}>{s.label}</Badge>
@@ -84,11 +88,11 @@ export default async function InvoiceDetailPage({
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight">
-            Factura {invoice.number ?? "(sin número)"}
+            {t("invoice_heading", { number: invoice.number ?? t("no_number") })}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {invoice.customer_name ?? "Cliente"} ·{" "}
-            {invoice.sent_at ? `Enviada ${new Date(invoice.sent_at).toLocaleDateString("es")}` : ""}
+            {invoice.customer_name ?? t("customer_fallback")} ·{" "}
+            {invoice.sent_at ? t("sent_on", { date: new Date(invoice.sent_at).toLocaleDateString(locale) }) : ""}
           </p>
         </div>
         <Badge variant={s.variant}>{s.label}</Badge>
@@ -97,19 +101,19 @@ export default async function InvoiceDetailPage({
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <Field label="Cliente" value={invoice.customer_name ?? "—"} />
-            <Field label="Email" value={invoice.customer_email ?? "—"} />
-            <Field label="Teléfono" value={invoice.customer_phone ?? "—"} />
-            <Field label="Vence" value={invoice.due_date ?? "—"} />
+            <Field label={t("field_customer")} value={invoice.customer_name ?? "—"} />
+            <Field label={t("field_email")} value={invoice.customer_email ?? "—"} />
+            <Field label={t("field_phone")} value={invoice.customer_phone ?? "—"} />
+            <Field label={t("field_due")} value={invoice.due_date ?? "—"} />
           </div>
 
           <table className="w-full text-sm border-t border-border pt-4">
             <thead className="text-xs text-muted-foreground">
               <tr>
-                <th className="text-left py-2">Descripción</th>
-                <th className="text-right py-2">Cant.</th>
-                <th className="text-right py-2">Precio</th>
-                <th className="text-right py-2">Importe</th>
+                <th className="text-left py-2">{t("col_description")}</th>
+                <th className="text-right py-2">{t("col_quantity")}</th>
+                <th className="text-right py-2">{t("col_price")}</th>
+                <th className="text-right py-2">{t("col_amount")}</th>
               </tr>
             </thead>
             <tbody>
@@ -128,21 +132,21 @@ export default async function InvoiceDetailPage({
             </tbody>
             <tfoot className="border-t border-border">
               <tr>
-                <td colSpan={3} className="text-right py-2 text-muted-foreground">Subtotal</td>
+                <td colSpan={3} className="text-right py-2 text-muted-foreground">{t("subtotal")}</td>
                 <td className="text-right py-2 tabular-nums">{formatMoney(invoice.subtotal_cents, invoice.currency)}</td>
               </tr>
               <tr>
-                <td colSpan={3} className="text-right py-1 text-muted-foreground">Impuestos</td>
+                <td colSpan={3} className="text-right py-1 text-muted-foreground">{t("taxes")}</td>
                 <td className="text-right py-1 tabular-nums">{formatMoney(invoice.tax_cents, invoice.currency)}</td>
               </tr>
               <tr>
-                <td colSpan={3} className="text-right py-2 font-medium">Total</td>
+                <td colSpan={3} className="text-right py-2 font-medium">{t("total")}</td>
                 <td className="text-right py-2 font-medium tabular-nums">{formatMoney(invoice.total_cents, invoice.currency)}</td>
               </tr>
               {invoice.amount_paid_cents > 0 ? (
                 <tr>
                   <td colSpan={3} className="text-right py-1 text-muted-foreground flex justify-end items-center gap-1">
-                    <CheckCircle2 className="size-3 text-primary" /> Pagado
+                    <CheckCircle2 className="size-3 text-primary" /> {t("paid")}
                   </td>
                   <td className="text-right py-1 tabular-nums text-primary">{formatMoney(invoice.amount_paid_cents, invoice.currency)}</td>
                 </tr>
@@ -163,7 +167,7 @@ export default async function InvoiceDetailPage({
           <Button asChild variant="outline">
             <a href={invoice.stripe_payment_link} target="_blank" rel="noreferrer">
               <ExternalLink className="size-4" />
-              Ver página de pago
+              {t("view_payment_page")}
             </a>
           </Button>
         ) : null}
@@ -171,7 +175,7 @@ export default async function InvoiceDetailPage({
           <Button asChild variant="outline">
             <a href={invoice.stripe_invoice_pdf} target="_blank" rel="noreferrer">
               <Download className="size-4" />
-              Descargar PDF
+              {t("download_pdf")}
             </a>
           </Button>
         ) : null}
@@ -180,7 +184,7 @@ export default async function InvoiceDetailPage({
 
       <p className="text-xs text-muted-foreground">
         <Link href={`/dashboard/${tenantSlug}/invoices`} className="hover:underline">
-          ← Volver a la lista
+          {t("back_to_list")}
         </Link>
       </p>
     </div>

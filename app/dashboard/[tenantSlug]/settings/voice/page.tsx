@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mic, Phone, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { getTenantBySlug } from "@/lib/tenant";
 import { CURATED_VOICES, DEFAULT_VOICE_ID, getVoiceById } from "@/lib/voices";
 import { VoiceToggle } from "./voice-toggle";
@@ -20,6 +21,7 @@ export default async function VoiceSettingsPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
+  const t = await getTranslations("settings_voice");
 
   const hasAgent = !!tenant.elevenlabs_agent_id;
   const currentVoiceId = tenant.voice_id ?? DEFAULT_VOICE_ID;
@@ -31,40 +33,36 @@ export default async function VoiceSettingsPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Mic className="size-5" />
-            Agente de voz
+            {t("voice_agent_title")}
             {tenant.voice_enabled ? (
-              <Badge variant="success">Activo</Badge>
+              <Badge variant="success">{t("badge_active")}</Badge>
             ) : hasAgent ? (
-              <Badge variant="outline">Pausado</Badge>
+              <Badge variant="outline">{t("badge_paused")}</Badge>
             ) : (
-              <Badge variant="outline">No configurado</Badge>
+              <Badge variant="outline">{t("badge_not_configured")}</Badge>
             )}
           </CardTitle>
           <CardDescription>
-            Cuando activas la voz, BolivAI crea un agente conversacional en
-            ElevenLabs usando el prompt de tu agente actual. Tus clientes podrán
-            llamar y hablar con él para agendar, cancelar o resolver dudas
-            como si fuera un asistente humano.
+            {t("voice_agent_description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!hasAgent ? (
             <p className="text-sm text-muted-foreground">
-              Al activar, creamos automáticamente tu agente de voz. El prompt
-              que ya configuraste en{" "}
-              <strong>Ajustes → Agente</strong> se reutiliza tal cual — no
-              tienes que volver a escribirlo.
+              {t.rich("activate_prompt_hint", {
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
           ) : (
             <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <DlField
-                label="ID del agente"
+                label={t("field_agent_id")}
                 value={tenant.elevenlabs_agent_id ?? "—"}
                 mono
               />
-              <DlField label="Voz" value={currentVoice?.name ?? "—"} />
+              <DlField label={t("field_voice")} value={currentVoice?.name ?? "—"} />
               <DlField
-                label="Idioma del prompt"
+                label={t("field_prompt_language")}
                 value={(tenant.language || "en").toUpperCase()}
               />
             </dl>
@@ -84,7 +82,7 @@ export default async function VoiceSettingsPage({
               className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
               <ExternalLink className="size-3" />
-              Abrir el agente en ElevenLabs
+              {t("open_in_elevenlabs")}
             </a>
           ) : null}
         </CardContent>
@@ -95,17 +93,15 @@ export default async function VoiceSettingsPage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Phone className="size-5" />
-              Número de teléfono
+              {t("phone_title")}
               {tenant.voice_phone_number ? (
-                <Badge variant="success">Conectado</Badge>
+                <Badge variant="success">{t("badge_connected")}</Badge>
               ) : (
-                <Badge variant="outline">Sin número</Badge>
+                <Badge variant="outline">{t("badge_no_number")}</Badge>
               )}
             </CardTitle>
             <CardDescription>
-              Conecta un número de Twilio que ya tengas, y BolivAI lo conectará
-              al agente de voz. Los clientes que llamen a ese número hablarán
-              directamente con tu agente.
+              {t("phone_description")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -115,13 +111,13 @@ export default async function VoiceSettingsPage({
                   <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium">
-                      Tu agente está conectado a{" "}
-                      <span className="font-mono">{tenant.voice_phone_number}</span>
+                      {t.rich("agent_connected_to", {
+                        number: tenant.voice_phone_number,
+                        mono: (chunks) => <span className="font-mono">{chunks}</span>,
+                      })}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Pruébalo: llama a ese número desde otro teléfono y
-                      pregúntale al agente por tus servicios. Las llamadas se
-                      cobran a tu cuenta de Twilio al precio estándar.
+                      {t("call_test_hint")}
                     </p>
                   </div>
                 </div>
@@ -140,10 +136,9 @@ export default async function VoiceSettingsPage({
       {hasAgent ? (
         <Card>
           <CardHeader>
-            <CardTitle>Voz y saludo</CardTitle>
+            <CardTitle>{t("voice_and_greeting_title")}</CardTitle>
             <CardDescription>
-              Cambia la voz del agente o personaliza el saludo inicial. Los
-              cambios se aplican en ElevenLabs al instante.
+              {t("voice_and_greeting_description")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -160,10 +155,7 @@ export default async function VoiceSettingsPage({
       <div className="flex items-start gap-2 text-xs text-muted-foreground">
         <AlertTriangle className="size-4 shrink-0 mt-0.5" />
         <p>
-          Tu agente puede consultar disponibilidad, reservar, reagendar,
-          cancelar y capturar leads usando las mismas herramientas que el
-          agente de WhatsApp. La sincronización del conocimiento (servicios +
-          FAQs) y la facturación por minuto llegan en las siguientes fases.
+          {t("footer_capabilities_note")}
         </p>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,7 @@ type AdminTenantRow = {
 };
 
 export default async function AdminIndex() {
+  const t = await getTranslations("admin_tenants");
   const svc = createServiceClient();
   const { data: tenants } = await svc
     .from("tenants")
@@ -35,31 +37,32 @@ export default async function AdminIndex() {
       <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight">
-            Tenants
+            {t("page_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {rows.length} {rows.length === 1 ? "tenant" : "tenants"} en total
+            {rows.length === 1
+              ? t("total_count_one", { count: rows.length })
+              : t("total_count_other", { count: rows.length })}
           </p>
         </div>
         <Button asChild>
           <Link href="/admin/tenants/new">
             <Plus className="size-4" />
-            Nuevo tenant
+            {t("new_tenant")}
           </Link>
         </Button>
       </div>
 
       {rows.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
-          <p className="font-medium">Aún no hay tenants</p>
+          <p className="font-medium">{t("empty_title")}</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Crea el primero para empezar a vender el servicio. Cada tenant es
-            un cliente con su propio agente, prompt y datos.
+            {t("empty_description")}
           </p>
           <Button asChild className="mt-4">
             <Link href="/admin/tenants/new">
               <Plus className="size-4" />
-              Crear primero
+              {t("create_first")}
             </Link>
           </Button>
         </Card>
@@ -68,51 +71,51 @@ export default async function AdminIndex() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tenant</TableHead>
-                <TableHead>Plantilla</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Canal</TableHead>
+                <TableHead>{t("col_tenant")}</TableHead>
+                <TableHead>{t("col_template")}</TableHead>
+                <TableHead>{t("col_plan")}</TableHead>
+                <TableHead>{t("col_status")}</TableHead>
+                <TableHead>{t("col_channel")}</TableHead>
                 <TableHead className="w-32" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((t) => (
-                <TableRow key={t.id}>
+              {rows.map((row) => (
+                <TableRow key={row.id}>
                   <TableCell>
-                    <div className="font-medium">{t.name}</div>
+                    <div className="font-medium">{row.name}</div>
                     <div className="text-xs text-muted-foreground font-mono">
-                      {t.slug}
+                      {row.slug}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{t.workflow_template}</Badge>
+                    <Badge variant="outline">{row.workflow_template}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{t.plan}</Badge>
+                    <Badge variant="outline">{row.plan}</Badge>
                   </TableCell>
                   <TableCell>
-                    {t.status === "active" ? (
-                      <Badge variant="success">Activo</Badge>
-                    ) : t.status === "paused" ? (
-                      <Badge variant="warning">Pausado</Badge>
+                    {row.status === "active" ? (
+                      <Badge variant="success">{t("status_active")}</Badge>
+                    ) : row.status === "paused" ? (
+                      <Badge variant="warning">{t("status_paused")}</Badge>
                     ) : (
-                      <Badge variant="muted">{t.status}</Badge>
+                      <Badge variant="muted">{row.status}</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-xs">
-                    <span className="font-medium">{t.gateway}</span>
-                    {t.gateway_config?.instance ? (
+                    <span className="font-medium">{row.gateway}</span>
+                    {row.gateway_config?.instance ? (
                       <span className="text-muted-foreground ml-1 font-mono">
-                        · {String(t.gateway_config.instance)}
+                        · {String(row.gateway_config.instance)}
                       </span>
                     ) : null}
                   </TableCell>
                   <TableCell>
                     <TenantRowActions
-                      tenantId={t.id}
-                      tenantSlug={t.slug}
-                      status={t.status}
+                      tenantId={row.id}
+                      tenantSlug={row.slug}
+                      status={row.status}
                     />
                   </TableCell>
                 </TableRow>

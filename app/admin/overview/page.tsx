@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Activity,
 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,20 +34,22 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const WINDOWS: { id: PnlWindow; label: string }[] = [
-  { id: "today", label: "Hoy" },
-  { id: "week", label: "Semana" },
-  { id: "month", label: "Mes" },
-  { id: "30d", label: "30 días" },
-  { id: "90d", label: "90 días" },
-  { id: "all", label: "Total" },
-];
-
 export default async function AdminOverviewPage({
   searchParams,
 }: {
   searchParams: Promise<{ window?: string }>;
 }) {
+  const tr = await getTranslations("admin_overview");
+
+  const WINDOWS: { id: PnlWindow; label: string }[] = [
+    { id: "today", label: tr("window_today") },
+    { id: "week", label: tr("window_week") },
+    { id: "month", label: tr("window_month") },
+    { id: "30d", label: tr("window_30d") },
+    { id: "90d", label: tr("window_90d") },
+    { id: "all", label: tr("window_all") },
+  ];
+
   const { window: windowParam } = await searchParams;
   const windowKey: PnlWindow =
     (WINDOWS.find((w) => w.id === windowParam)?.id ?? "month");
@@ -67,10 +70,10 @@ export default async function AdminOverviewPage({
       <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight">
-            Resumen de plataforma
+            {tr("page_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Ingresos, uso, costos de API y margen de toda la plataforma.
+            {tr("page_subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -98,30 +101,30 @@ export default async function AdminOverviewPage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <KpiCard
           icon={DollarSign}
-          label="Ingresos"
+          label={tr("kpi_revenue")}
           value={fmtCents(pnl?.topup_cents ?? 0)}
-          subtitle="Recargas de tenants"
+          subtitle={tr("kpi_revenue_sub")}
           color="text-green-600"
         />
         <KpiCard
           icon={TrendingDown}
-          label="Costos API"
+          label={tr("kpi_api_cost")}
           value={fmtUsd(pnl?.cost_micros ?? 0)}
           subtitle="OpenAI · ElevenLabs · Twilio · Apollo · Instantly"
           color="text-amber-600"
         />
         <KpiCard
           icon={PiggyBank}
-          label="Margen bruto"
+          label={tr("kpi_gross_margin")}
           value={fmtUsd(pnl?.margin_micros ?? 0)}
-          subtitle={pnl?.margin_pct != null ? `${pnl.margin_pct}% margen` : "—"}
+          subtitle={pnl?.margin_pct != null ? tr("kpi_margin_pct_sub", { pct: pnl.margin_pct }) : "—"}
           color="text-primary"
         />
         <KpiCard
           icon={TrendingUp}
-          label="Uso (créditos)"
+          label={tr("kpi_usage_credits")}
           value={fmtCredits(pnl?.usage_credits ?? 0)}
-          subtitle={`Valor = ${fmtCents((pnl?.usage_credits ?? 0))}`}
+          subtitle={tr("kpi_usage_value_sub", { value: fmtCents((pnl?.usage_credits ?? 0)) })}
           color="text-purple-600"
         />
       </div>
@@ -129,34 +132,34 @@ export default async function AdminOverviewPage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <KpiCard
           icon={Users}
-          label="Tenants activos"
+          label={tr("kpi_active_tenants")}
           value={String(pnl?.active_tenants ?? 0)}
-          subtitle={`${pnl?.total_tenants ?? 0} en total`}
+          subtitle={tr("kpi_total_tenants_sub", { total: pnl?.total_tenants ?? 0 })}
           color="text-cyan-600"
         />
         <KpiCard
           icon={Activity}
-          label="Con saldo bajo"
+          label={tr("kpi_low_balance")}
           value={String(pnl?.tenants_low_balance ?? 0)}
-          subtitle="Riesgo de pausa pronto"
+          subtitle={tr("kpi_low_balance_sub")}
           color="text-amber-600"
         />
         <KpiCard
           icon={AlertTriangle}
-          label="Sin créditos"
+          label={tr("kpi_no_credits")}
           value={String(pnl?.tenants_at_zero ?? 0)}
-          subtitle="Agentes pausados"
+          subtitle={tr("kpi_no_credits_sub")}
           color="text-destructive"
         />
         <KpiCard
           icon={DollarSign}
-          label="ARPU (mes)"
+          label={tr("kpi_arpu")}
           value={
             (pnl?.active_tenants ?? 0) > 0
               ? fmtCents((pnl!.topup_cents ?? 0) / (pnl!.active_tenants || 1))
               : "—"
           }
-          subtitle="Promedio por tenant activo"
+          subtitle={tr("kpi_arpu_sub")}
           color="text-foreground"
         />
       </div>
@@ -164,23 +167,23 @@ export default async function AdminOverviewPage({
       {/* Sparklines for last 30 days */}
       <Card className="p-5 mb-6">
         <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-3">
-          Últimos 30 días
+          {tr("last_30_days")}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <SparkBlock
-            label="Ingresos diarios"
+            label={tr("spark_daily_revenue")}
             value={fmtCents(timeseries.reduce((a, d) => a + d.revenue_cents, 0))}
             points={dailyRevenue}
             color="text-green-600"
           />
           <SparkBlock
-            label="Costo diario"
+            label={tr("spark_daily_cost")}
             value={fmtUsd(timeseries.reduce((a, d) => a + d.cost_micros, 0))}
             points={dailyCost}
             color="text-amber-600"
           />
           <SparkBlock
-            label="Margen diario"
+            label={tr("spark_daily_margin")}
             value={fmtUsd(timeseries.reduce((a, d) => a + d.margin_micros, 0))}
             points={dailyMargin}
             color="text-primary"
@@ -192,28 +195,28 @@ export default async function AdminOverviewPage({
       <Card className="mb-6">
         <div className="p-4 border-b flex items-center justify-between">
           <div>
-            <h2 className="font-semibold">Tenants por margen</h2>
+            <h2 className="font-semibold">{tr("tenants_by_margin_title")}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Ordenados por margen bruto (ingresos − costos API)
+              {tr("tenants_by_margin_sub")}
             </p>
           </div>
           <Link
             href="/admin"
             className="text-xs text-muted-foreground hover:text-foreground"
           >
-            Ver todos →
+            {tr("see_all")}
           </Link>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tenant</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead className="text-right">Ingreso</TableHead>
-              <TableHead className="text-right">Uso</TableHead>
-              <TableHead className="text-right">Costo</TableHead>
-              <TableHead className="text-right">Margen</TableHead>
-              <TableHead className="text-right">%</TableHead>
+              <TableHead>{tr("col_tenant")}</TableHead>
+              <TableHead className="text-right">{tr("col_balance")}</TableHead>
+              <TableHead className="text-right">{tr("col_revenue")}</TableHead>
+              <TableHead className="text-right">{tr("col_usage")}</TableHead>
+              <TableHead className="text-right">{tr("col_cost")}</TableHead>
+              <TableHead className="text-right">{tr("col_margin")}</TableHead>
+              <TableHead className="text-right">{tr("col_pct")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -263,7 +266,7 @@ export default async function AdminOverviewPage({
             {topTenants.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
-                  Sin actividad en esta ventana
+                  {tr("empty_window")}
                 </TableCell>
               </TableRow>
             )}
@@ -275,28 +278,28 @@ export default async function AdminOverviewPage({
       <Card>
         <div className="p-4 border-b flex items-center justify-between">
           <div>
-            <h2 className="font-semibold">Por tipo de acción</h2>
+            <h2 className="font-semibold">{tr("actions_title")}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Dónde gana / pierde la plataforma por cada tipo de operación
+              {tr("actions_sub")}
             </p>
           </div>
           <Link
             href="/admin/usage"
             className="text-xs text-muted-foreground hover:text-foreground"
           >
-            Ver detalles →
+            {tr("see_details")}
           </Link>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Acción</TableHead>
-              <TableHead className="text-right">Unidades</TableHead>
-              <TableHead className="text-right">Ingreso</TableHead>
-              <TableHead className="text-right">Costo</TableHead>
-              <TableHead className="text-right">Margen</TableHead>
-              <TableHead className="text-right">%</TableHead>
-              <TableHead className="text-right">Tenants</TableHead>
+              <TableHead>{tr("col_action")}</TableHead>
+              <TableHead className="text-right">{tr("col_units")}</TableHead>
+              <TableHead className="text-right">{tr("col_revenue")}</TableHead>
+              <TableHead className="text-right">{tr("col_cost")}</TableHead>
+              <TableHead className="text-right">{tr("col_margin")}</TableHead>
+              <TableHead className="text-right">{tr("col_pct")}</TableHead>
+              <TableHead className="text-right">{tr("col_tenants")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -332,7 +335,7 @@ export default async function AdminOverviewPage({
             {actions.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
-                  Sin uso en esta ventana
+                  {tr("empty_usage")}
                 </TableCell>
               </TableRow>
             )}
