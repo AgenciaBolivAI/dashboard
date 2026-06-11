@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getTenantBySlug } from "@/lib/tenant";
 import { getInvoice } from "@/lib/queries/invoices";
+import { lookupUserIdByPhone } from "@/lib/queries/user-lookup";
 import { createClient } from "@/lib/supabase/server";
 import { InvoiceEditor } from "@/components/invoices/invoice-editor";
 import { InvoiceActions } from "@/components/invoices/invoice-actions";
@@ -37,6 +38,9 @@ export default async function InvoiceDetailPage({
   const { invoice, items } = result;
   const isDraft = invoice.status === "draft";
   const s = STATUS[invoice.status] ?? { label: invoice.status, variant: "outline" as const };
+  // Look up customer user_id by phone so we can link the customer name back
+  // to the customer profile page. null if no matching user found.
+  const customerUserId = await lookupUserIdByPhone(tenant.id, invoice.customer_phone);
 
   if (isDraft) {
     const supabase = await createClient();
@@ -91,7 +95,21 @@ export default async function InvoiceDetailPage({
             {t("invoice_heading", { number: invoice.number ?? t("no_number") })}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {invoice.customer_name ?? t("customer_fallback")} ·{" "}
+            {invoice.customer_name ? (
+              customerUserId ? (
+                <Link
+                  href={`/dashboard/${tenantSlug}/customers/${customerUserId}`}
+                  className="hover:text-foreground hover:underline"
+                >
+                  {invoice.customer_name}
+                </Link>
+              ) : (
+                invoice.customer_name
+              )
+            ) : (
+              t("customer_fallback")
+            )}{" "}
+            ·{" "}
             {invoice.sent_at ? t("sent_on", { date: new Date(invoice.sent_at).toLocaleDateString(locale) }) : ""}
           </p>
         </div>
@@ -101,7 +119,25 @@ export default async function InvoiceDetailPage({
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <Field label={t("field_customer")} value={invoice.customer_name ?? "—"} />
+            <Field
+              label={t("field_customer")}
+              value={
+                invoice.customer_name ? (
+                  customerUserId ? (
+                    <Link
+                      href={`/dashboard/${tenantSlug}/customers/${customerUserId}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {invoice.customer_name}
+                    </Link>
+                  ) : (
+                    invoice.customer_name
+                  )
+                ) : (
+                  "—"
+                )
+              }
+            />
             <Field label={t("field_email")} value={invoice.customer_email ?? "—"} />
             <Field label={t("field_phone")} value={invoice.customer_phone ?? "—"} />
             <Field label={t("field_due")} value={invoice.due_date ?? "—"} />
@@ -191,7 +227,7 @@ export default async function InvoiceDetailPage({
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>

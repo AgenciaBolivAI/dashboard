@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ConversationRow } from "@/components/conversations/conversation-row";
 import { getTranslations } from "next-intl/server";
 import { MessagesSquare } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -90,58 +91,12 @@ export default async function ConversationsPage({
             </TableHeader>
             <TableBody>
               {items.map((c) => (
-                <TableRow key={c.id} className="cursor-pointer">
-                  <TableCell>
-                    <Link
-                      href={`/dashboard/${tenantSlug}/conversations/${c.id}`}
-                      className="block"
-                    >
-                      <div className="font-medium">
-                        {c.user.name ?? t("no_name")}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        +{c.user.whatsapp_number}
-                      </div>
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/dashboard/${tenantSlug}/conversations/${c.id}`}
-                      className="block max-w-md"
-                    >
-                      {c.last_message ? (
-                        <p className="truncate text-sm">
-                          <span
-                            className={cn(
-                              "mr-1 text-[10px] uppercase tracking-wider font-bold",
-                              c.last_message.role === "user"
-                                ? "text-muted-foreground"
-                                : "text-primary",
-                            )}
-                          >
-                            {c.last_message.role === "user"
-                              ? t("role_customer")
-                              : t("role_bot")}
-                          </span>
-                          {c.last_message.content}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">
-                          {t("no_messages")}
-                        </p>
-                      )}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <ConversationStatusBadge
-                      status={c.status}
-                      hitl={c.hitl_taken_over}
-                    />
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {formatRelative(c.last_message_at)}
-                  </TableCell>
-                </TableRow>
+                <ConversationRow
+                  key={c.id}
+                  tenantSlug={tenantSlug}
+                  item={c}
+                  formatRelative={formatRelative}
+                />
               ))}
             </TableBody>
           </Table>

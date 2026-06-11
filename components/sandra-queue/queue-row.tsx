@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useParams } from "next/navigation";
 import { Trash2, PhoneCall, Check, X, AlertCircle, Voicemail } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,8 @@ export function QueueRow({
   onToggle: (id: string) => void;
 }) {
   const router = useRouter();
+  const params = useParams<{ tenantSlug?: string }>();
+  const tenantSlug = params?.tenantSlug ?? "";
   const [pending, startTransition] = useTransition();
   const [optimisticStatus, setOptimisticStatus] = useState(item.status);
 
@@ -90,7 +93,18 @@ export function QueueRow({
           className="size-4 rounded border cursor-pointer disabled:opacity-30"
         />
       </TableCell>
-      <TableCell className="font-medium">{item.lead_name ?? "—"}</TableCell>
+      <TableCell className="font-medium">
+        {item.lead_id ? (
+          <Link
+            href={`/dashboard/${tenantSlug}/leads/${item.lead_id}`}
+            className="hover:text-primary hover:underline"
+          >
+            {item.lead_name ?? "—"}
+          </Link>
+        ) : (
+          item.lead_name ?? "—"
+        )}
+      </TableCell>
       <TableCell className="text-sm">
         {item.lead_phone ? <div>+{item.lead_phone}</div> : null}
         {item.lead_email ? (

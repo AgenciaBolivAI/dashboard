@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { lookupUserIdsByPhones } from "@/lib/queries/user-lookup";
 
 export type Slot = {
   id: string;
@@ -18,6 +19,8 @@ export type Reservation = {
   customer_name: string | null;
   customer_email: string | null;
   customer_phone: string | null;
+  /** Resolved at query time by matching customer_phone to users.whatsapp_number. */
+  customer_user_id: string | null;
   service_id: string | null;
   service_name: string | null;
   notes: string | null;
@@ -85,9 +88,16 @@ export async function getWeekCalendar(
       .order("name"),
   ]);
 
-  const reservations: Reservation[] = (
-    (reservationsRes.data ?? []) as RawReservationJoin[]
-  ).map((r) => ({
+  // Resolve user_id for each reservation's customer_phone in a single batch
+  // query, so the calendar can link customer names to /customers/[user_id]
+  // without N+1 round-trips.
+  const rawReservations = (reservationsRes.data ?? []) as RawReservationJoin[];
+  const userIdByPhone = await lookupUserIdsByPhones(
+    tenantId,
+    rawReservations.map((r) => r.customer_phone),
+  );
+
+  const reservations: Reservation[] = rawReservations.map((r) => ({
     id: r.id,
     staff_id: r.staff_id,
     start_at: r.start_at,
@@ -97,6 +107,9 @@ export async function getWeekCalendar(
     customer_name: r.customer_name,
     customer_email: r.customer_email,
     customer_phone: r.customer_phone,
+    customer_user_id: r.customer_phone
+      ? userIdByPhone[r.customer_phone.replace(/\D/g, "")] ?? null
+      : null,
     service_id: r.service_id,
     service_name: r.services?.name ?? null,
     notes: r.notes,

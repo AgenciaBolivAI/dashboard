@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listInvoices, getInvoiceSummary } from "@/lib/queries/invoices";
+import { lookupUserIdsByPhones } from "@/lib/queries/user-lookup";
 import { formatMoney } from "@/lib/format";
 
 export default async function InvoicesPage({
@@ -34,6 +35,13 @@ export default async function InvoicesPage({
     listInvoices(tenant.id, { status }),
     getInvoiceSummary(tenant.id, tenant.invoice_default_currency),
   ]);
+
+  // Resolve user IDs for the customer_phone of each invoice so the customer
+  // name in the table can link directly to /customers/[user_id].
+  const userIdByPhone = await lookupUserIdsByPhones(
+    tenant.id,
+    invoices.map((inv) => inv.customer_phone),
+  );
 
   return (
     <div className="p-6 md:p-8 max-w-7xl">
@@ -155,6 +163,8 @@ export default async function InvoicesPage({
               <tbody>
                 {invoices.map((inv) => {
                   const s = STATUS_LABEL[inv.status] ?? { label: inv.status, variant: "outline" as const };
+                  const phoneKey = inv.customer_phone?.replace(/\D/g, "") ?? "";
+                  const userId = userIdByPhone[phoneKey];
                   return (
                     <tr key={inv.id} className="border-t border-border hover:bg-secondary/30">
                       <td className="px-4 py-3 font-mono text-xs">
@@ -166,7 +176,20 @@ export default async function InvoicesPage({
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        {inv.customer_name ?? <span className="text-muted-foreground">—</span>}
+                        {inv.customer_name ? (
+                          userId ? (
+                            <Link
+                              href={`/dashboard/${tenantSlug}/customers/${userId}`}
+                              className="hover:text-primary hover:underline"
+                            >
+                              {inv.customer_name}
+                            </Link>
+                          ) : (
+                            inv.customer_name
+                          )
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                         {inv.is_recurring ? (
                           <span className="ml-2 text-[10px] text-muted-foreground uppercase">
                             {t("recurring_badge")}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { CalendarClock, Mail, Phone, Trash2, User, Briefcase, UserCircle2, Video, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -282,7 +283,18 @@ function ViewMode({
 
       <div className="space-y-2 text-sm">
         <Row icon={<User className="size-4" />}>
-          {reservation.customer_name ?? (
+          {reservation.customer_name ? (
+            reservation.customer_user_id ? (
+              <Link
+                href={`/dashboard/${tenantSlug}/customers/${reservation.customer_user_id}`}
+                className="hover:text-primary hover:underline"
+              >
+                {reservation.customer_name}
+              </Link>
+            ) : (
+              reservation.customer_name
+            )
+          ) : (
             <span className="text-muted-foreground">Sin nombre</span>
           )}
         </Row>
