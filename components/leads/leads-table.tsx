@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { PhoneCall, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -69,6 +70,7 @@ export function LeadsTable({
 }) {
   const params = useParams<{ tenantSlug?: string }>();
   const tenantSlugParam = params?.tenantSlug ?? "";
+  const t = useTranslations("leads");
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [adding, startAdd] = useTransition();
@@ -94,7 +96,7 @@ export function LeadsTable({
 
   function addToSandra() {
     if (selected.size === 0) {
-      toast.error("Selecciona al menos un lead con teléfono");
+      toast.error(t("select_at_least_one"));
       return;
     }
     startAdd(async () => {
@@ -107,10 +109,10 @@ export function LeadsTable({
       const skipped = selected.size - added;
       toast.success(
         added === 0
-          ? "Todos ya estaban en la cola"
+          ? t("queue_all_already_present")
           : skipped > 0
-            ? `${added} agregados, ${skipped} ya estaban en cola`
-            : `${added} agregados a la cola de Sandra`,
+            ? t("queue_partial", { added, skipped })
+            : t("queue_added", { added }),
       );
       setSelected(new Set());
       router.refresh();
@@ -119,27 +121,27 @@ export function LeadsTable({
 
   function callSelectedBatch() {
     if (selected.size === 0) {
-      toast.error("Selecciona al menos un lead con teléfono");
+      toast.error(t("select_at_least_one"));
       return;
     }
-    if (selected.size > 100 && !confirm(`Llamar a ${selected.size} leads en lote. Sandra los llamará a todos en paralelo (controlado por ElevenLabs). ¿Confirmar?`)) return;
+    if (selected.size > 100 && !confirm(t("batch_call_confirm", { count: selected.size }))) return;
     startAdd(async () => {
       const res = await initiateBatchSandraCallAction({
         tenant_id: tenantId,
         lead_ids: [...selected],
-        batch_name: `Lote ${selected.size} leads — ${new Date().toLocaleString()}`,
+        batch_name: `${t("batch_name_prefix")} ${selected.size} — ${new Date().toLocaleString()}`,
       });
       if (res.error) {
         toast.error(res.error);
         return;
       }
-      const parts: string[] = [`${res.queued} llamadas iniciadas`];
-      if (res.skipped_dnc > 0) parts.push(`${res.skipped_dnc} bloqueadas (DNC)`);
-      if (res.skipped_no_phone > 0) parts.push(`${res.skipped_no_phone} sin teléfono`);
+      const parts: string[] = [t("batch_started", { count: res.queued })];
+      if (res.skipped_dnc > 0) parts.push(t("batch_blocked_dnc", { count: res.skipped_dnc }));
+      if (res.skipped_no_phone > 0) parts.push(t("batch_no_phone", { count: res.skipped_no_phone }));
       toast.success(parts.join(" · "), {
         action: res.batch_id
           ? {
-              label: "Ver lote",
+              label: t("batch_view_in_eleven"),
               onClick: () =>
                 window.open(
                   `https://elevenlabs.io/app/conversational-ai/batch-calling/${res.batch_id}`,
@@ -158,19 +160,19 @@ export function LeadsTable({
       const res = await updateLeadStatusAction(tenantId, leadId, next);
       if (res.error) toast.error(res.error);
       else {
-        toast.success(`Marcado como ${STATUS_LABEL[next as LeadStatus] ?? next}`);
+        toast.success(t("status_marked_as", { status: STATUS_LABEL[next as LeadStatus] ?? next }));
         router.refresh();
       }
     });
   }
 
   function handleDelete(leadId: string) {
-    if (!confirm("¿Eliminar este lead?")) return;
+    if (!confirm(t("confirm_delete"))) return;
     startRowPending(async () => {
       const res = await deleteLeadAction(tenantId, leadId);
       if (res.error) toast.error(res.error);
       else {
-        toast.success("Lead eliminado");
+        toast.success(t("deleted"));
         router.refresh();
       }
     });
@@ -183,13 +185,13 @@ export function LeadsTable({
       <div className="mb-3 flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm text-muted-foreground">
           {selected.size > 0
-            ? `${selected.size} seleccionado${selected.size === 1 ? "" : "s"} · ${callableIds.length} con teléfono`
-            : `${leads.length} lead${leads.length === 1 ? "" : "s"} · ${callableIds.length} con teléfono`}
+            ? t("counter_selected", { selected: selected.size, callable: callableIds.length })
+            : t("counter_total", { total: leads.length, callable: callableIds.length })}
         </p>
         <div className="flex gap-2 flex-wrap">
           {selected.size > 0 ? (
             <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-              Limpiar
+              {t("clear")}
             </Button>
           ) : null}
           <Button
@@ -199,8 +201,8 @@ export function LeadsTable({
             disabled={callableIds.length === 0}
           >
             {selected.size === callableIds.length && callableIds.length > 0
-              ? "Deseleccionar todos"
-              : `Seleccionar todos (${callableIds.length})`}
+              ? t("deselect_all")
+              : t("select_all", { count: callableIds.length })}
           </Button>
           <Button
             size="sm"
@@ -208,10 +210,10 @@ export function LeadsTable({
             onClick={callSelectedBatch}
             disabled={adding || selected.size === 0}
             className="gap-1.5"
-            title="Sandra llama a todos los leads seleccionados en lote (ElevenLabs gestiona el ritmo)"
+            title={t("batch_call_tooltip")}
           >
             {adding ? <Loader2 className="size-4 animate-spin" /> : <PhoneCall className="size-4 text-emerald-500" />}
-            Llamar en lote
+            {t("batch_call_button")}
           </Button>
           <Button
             size="sm"
@@ -220,7 +222,7 @@ export function LeadsTable({
             className="gap-1.5"
           >
             {adding ? <Loader2 className="size-4 animate-spin" /> : <PhoneCall className="size-4" />}
-            Agregar a la cola de Sandra
+            {t("add_to_sandra_queue")}
           </Button>
         </div>
       </div>

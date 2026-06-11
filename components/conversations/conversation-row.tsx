@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { ConversationStatusBadge } from "@/components/conversations/status-badge";
-import { cn } from "@/lib/utils";
+import { cn, formatRelative } from "@/lib/utils";
 
 export type ConversationRowItem = {
   id: string;
@@ -23,15 +23,16 @@ export type ConversationRowItem = {
  * the customer name which goes to that customer's profile page. We use
  * onClick on <tr> + stopPropagation on the name Link to achieve this
  * cleanly (nested anchor tags would be invalid HTML).
+ *
+ * formatRelative is imported here (not passed as a prop) because server
+ * components can't pass functions across the server/client boundary.
  */
 export function ConversationRow({
   tenantSlug,
   item,
-  formatRelative,
 }: {
   tenantSlug: string;
   item: ConversationRowItem;
-  formatRelative: (iso: string) => string;
 }) {
   const router = useRouter();
   const t = useTranslations("conversations");

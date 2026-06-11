@@ -112,7 +112,10 @@ export function AimaSettingsForm({
   const [scraperMax, setScraperMax] = useState(settings.scraper_max_per_run);
   const [scraperProxy, setScraperProxy] = useState(settings.scraper_proxy_url ?? "");
   const [scraperProxyToken, setScraperProxyToken] = useState(settings.scraper_proxy_token ?? "");
-  const [googleMapsKey, setGoogleMapsKey] = useState(settings.google_maps_api_key ?? "");
+  // google_maps_api_key intentionally not surfaced to tenants. AIMA uses
+  // BolivAI's master key by default and we eat the Google Places cost out
+  // of the 5cr/lead charge. The column still exists in aima_settings as a
+  // hidden override knob for support — but the tenant UI never asks for it.
 
   const [apolloEnabled, setApolloEnabled] = useState(settings.apollo_enabled);
   const [apolloKey, setApolloKey] = useState(settings.apollo_api_key ?? "");
@@ -142,7 +145,8 @@ export function AimaSettingsForm({
         scraper_max_per_run: scraperMax,
         scraper_proxy_url: scraperProxy.trim() || null,
         scraper_proxy_token: scraperProxyToken.trim() || null,
-        google_maps_api_key: googleMapsKey.trim() || null,
+        // Preserve any existing override; never let the tenant UI clear or set it.
+        google_maps_api_key: settings.google_maps_api_key ?? null,
         apollo_enabled: apolloEnabled,
         apollo_api_key: apolloKey.trim() || null,
         cold_email_enabled: coldEmailEnabled,
@@ -187,7 +191,6 @@ export function AimaSettingsForm({
     });
   }
 
-  const hasKey = googleMapsKey.trim().length > 10;
 
   return (
     <div className="space-y-6">
@@ -212,37 +215,9 @@ export function AimaSettingsForm({
           />
         </div>
 
-        {/* Google Maps API key — required for AIMA to do anything */}
-        <div className="space-y-1 pt-2">
-          <Label className="text-xs flex items-center gap-1.5">
-            Google Maps Places API key
-            {hasKey ? (
-              <Badge variant="success" className="text-[10px] py-0">configurada</Badge>
-            ) : scraperEnabled ? (
-              <Badge variant="warning" className="text-[10px] py-0">requerida</Badge>
-            ) : null}
-          </Label>
-          <Input
-            type="password"
-            value={googleMapsKey}
-            onChange={(e) => setGoogleMapsKey(e.target.value)}
-            placeholder="AIza••••••••••••••"
-            autoComplete="off"
-          />
-          <p className="text-xs text-muted-foreground">
-            Crea una en{" "}
-            <a
-              href="https://console.cloud.google.com/apis/credentials"
-              target="_blank"
-              rel="noopener"
-              className="underline hover:text-foreground"
-            >
-              Google Cloud Console
-            </a>{" "}
-            → New API key → habilita <strong>Places API (New)</strong>. Cobramos 5
-            créditos por lead encontrado (~$0.05); tu costo real de Maps es ~$0.017.
-          </p>
-        </div>
+        {/* The Google Maps Places API key field is intentionally NOT shown
+            to tenants — they pay us per lead, we handle every external API
+            for them. AIMA uses BolivAI's master key on the n8n VPS. */}
         <div className="flex flex-wrap gap-2 pt-2">
           {SOURCE_OPTIONS.map((s) => {
             const active = scraperSources.includes(s.id);

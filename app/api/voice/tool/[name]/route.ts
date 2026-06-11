@@ -1,18 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TOOLS } from "@/lib/voice-tools";
 import { debitCredits } from "@/lib/billing/credits";
+import {
+  computeTenantBearer,
+  timingSafeEqualStr,
+} from "@/lib/security/voice-bearer";
 
 /**
  * Server Tool dispatcher for voice agents.
  *
  * URL: /api/voice/tool/{tool_name}?tenant={tenant_uuid}
- * Header: Authorization: Bearer ${VOICE_TOOL_SECRET}
+ * Header: Authorization: Bearer <per-tenant HMAC bearer>
  * Body: tool-specific JSON (validated against the tool's Zod schema)
  *
  * Per-tenant agents bake the URL + bearer into their tools config at
  * creation time, so every inbound request already carries the tenant
- * scope. The route validates the bearer (constant-time comparison),
- * resolves the tool, validates the body, and runs the handler.
+ * scope. The route:
+ *
+ *  1. Resolves the tool from URL segment
+ *  2. Extracts + validates the tenant query param (UUID shape)
+ *  3. Verifies the bearer == HMAC-SHA256(tenant_id, VOICE_TOOL_SECRET).
+ *     This makes each tenant's bearer uniquely derivable from the root
+ *     secret. Compromise of one tenant's bearer ≠ compromise of others.
+ *  4. (Legacy fallback) If the bearer matches the raw VOICE_TOOL_SECRET,
+ *     also accepted — to allow rolling out without breaking existing
+ *     ElevenLabs agents that haven't been re-synced yet. Logged as a
+ *     deprecation so we can track + remove.
  *
  * Failures are returned as 200 + ok:false so the agent can speak the
  * user_facing_error naturally instead of receiving an opaque 4xx.
@@ -30,17 +43,34 @@ export async function POST(
     );
   }
 
-  const expected = process.env.VOICE_TOOL_SECRET;
-  const got = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  if (!expected || !timingSafeEqual(got, expected)) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
-
+  // Tenant first — its value gates the bearer verification
   const tenantId = req.nextUrl.searchParams.get("tenant");
   if (!tenantId || !/^[0-9a-f-]{36}$/i.test(tenantId)) {
     return NextResponse.json(
       { ok: false, error: "missing or invalid tenant query param" },
       { status: 400 },
+    );
+  }
+
+  const rootSecret = process.env.VOICE_TOOL_SECRET;
+  const got = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!rootSecret) {
+    return NextResponse.json({ ok: false, error: "server misconfigured" }, { status: 500 });
+  }
+
+  // Primary check — per-tenant HMAC bearer
+  const expectedTenantBearer = computeTenantBearer(tenantId, rootSecret);
+  const isPerTenantBearer = timingSafeEqualStr(got, expectedTenantBearer);
+
+  // Legacy fallback — raw VOICE_TOOL_SECRET (deprecated, log on use)
+  const isLegacyBearer = !isPerTenantBearer && timingSafeEqualStr(got, rootSecret);
+
+  if (!isPerTenantBearer && !isLegacyBearer) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+  if (isLegacyBearer) {
+    console.warn(
+      `[voice tool ${name}] DEPRECATED: tenant=${tenantId} using legacy global bearer. Re-sync agent in ElevenLabs to use per-tenant HMAC bearer.`,
     );
   }
 
@@ -108,9 +138,3 @@ export async function POST(
   }
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}

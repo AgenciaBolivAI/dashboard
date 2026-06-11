@@ -24,8 +24,10 @@ function getVoiceTools(tenantId: string) {
     process.env.NEXT_PUBLIC_APP_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
   ).replace(/\/$/, "");
-  const bearer = process.env.VOICE_TOOL_SECRET ?? "";
-  return buildToolsConfig({ baseUrl, tenantId, bearerToken: bearer });
+  const rootSecret = process.env.VOICE_TOOL_SECRET ?? "";
+  // buildToolsConfig derives a per-tenant HMAC bearer from this root secret;
+  // only the derived bearer reaches ElevenLabs.
+  return buildToolsConfig({ baseUrl, tenantId, rootSecret });
 }
 
 export type VoiceActionState = {

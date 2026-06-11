@@ -522,16 +522,32 @@ function CreateInvoiceButton({
   reservationId: string;
   disabled: boolean;
 }) {
+  // Programmatic call instead of <form> wrap — the parent ViewMode is
+  // already a <form>, and HTML disallows nested forms. Calling the action
+  // directly with a manually-built FormData works the same and avoids the
+  // hydration error.
+  const [pending, startTransition] = useTransition();
+  function fire(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("tenant_id", tenantId);
+      fd.set("tenant_slug", tenantSlug);
+      fd.set("reservation_id", reservationId);
+      await createInvoiceFromReservationAction(fd);
+    });
+  }
   return (
-    <form action={createInvoiceFromReservationAction}>
-      <input type="hidden" name="tenant_id" value={tenantId} />
-      <input type="hidden" name="tenant_slug" value={tenantSlug} />
-      <input type="hidden" name="reservation_id" value={reservationId} />
-      <Button type="submit" variant="outline" disabled={disabled}>
-        <FileText className="size-4" />
-        Crear factura
-      </Button>
-    </form>
+    <Button
+      type="button"
+      variant="outline"
+      onClick={fire}
+      disabled={disabled || pending}
+    >
+      <FileText className="size-4" />
+      Crear factura
+    </Button>
   );
 }
 

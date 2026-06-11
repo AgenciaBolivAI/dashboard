@@ -63,14 +63,31 @@ export const TOOLS: Record<string, ToolDef<any>> = {
 
 /**
  * Build the `tools` array for the ElevenLabs agent's conversation_config.
- * Bakes the tenant_id into the URL of every tool so the route dispatcher
- * knows which tenant the call is for, and adds the shared bearer token.
+ *
+ * Each tool URL has the tenant_id baked in, AND each tool carries a
+ * per-tenant bearer derived via HMAC-SHA256(tenant_id, VOICE_TOOL_SECRET).
+ * The root secret never reaches ElevenLabs — only the derived bearer does.
+ *
+ * Compromise model:
+ *  - Stolen per-tenant bearer → impersonate only that tenant
+ *  - Stolen root secret (server env breach) → mint bearers for any tenant
+ *  - Stolen agent config / log line → only the per-tenant bearer is visible
+ *
+ * Caller responsibility: pass the root secret (process.env.VOICE_TOOL_SECRET).
+ * Build is server-only — `computeTenantBearer` uses node:crypto.
  */
+import { computeTenantBearer } from "@/lib/security/voice-bearer";
+
 export function buildToolsConfig(opts: {
   baseUrl: string;     // e.g. https://bolivai.cloud
   tenantId: string;
-  bearerToken: string;
+  /**
+   * Root secret used to derive the per-tenant bearer. NEVER leaves the
+   * dashboard server — we hand ElevenLabs only the derived bearer.
+   */
+  rootSecret: string;
 }) {
+  const tenantBearer = computeTenantBearer(opts.tenantId, opts.rootSecret);
   return Object.values(TOOLS).map((t) => ({
     type: "webhook" as const,
     name: t.name,
@@ -79,7 +96,7 @@ export function buildToolsConfig(opts: {
       url: `${opts.baseUrl}/api/voice/tool/${t.name}?tenant=${opts.tenantId}`,
       method: "POST" as const,
       request_headers: {
-        Authorization: `Bearer ${opts.bearerToken}`,
+        Authorization: `Bearer ${tenantBearer}`,
         "Content-Type": "application/json",
       },
       request_body_schema: t.parametersJsonSchema,

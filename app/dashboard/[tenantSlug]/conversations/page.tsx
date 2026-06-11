@@ -95,7 +95,6 @@ export default async function ConversationsPage({
                   key={c.id}
                   tenantSlug={tenantSlug}
                   item={c}
-                  formatRelative={formatRelative}
                 />
               ))}
             </TableBody>
