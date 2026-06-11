@@ -54,7 +54,8 @@ export type Tenant = {
   voice_phone_number: string | null;
   voice_agent_created_at: string | null;
   voice_agent_updated_at: string | null;
-  voice_phone_elevenlabs_id: string | null;
+  voice_elevenlabs_outbound_phone_id: string | null;
+  voice_persona: Record<string, unknown> | null;
   voice_kb_doc_id: string | null;
   voice_kb_synced_at: string | null;
 };
@@ -64,7 +65,7 @@ export async function getTenantBySlug(slug: string): Promise<Tenant> {
   const { data, error } = await supabase
     .from("tenants")
     .select(
-      "id, slug, name, industry, plan, status, prompt_template, prompt_variables, whatsapp_number, timezone, language, logo_url, primary_color, accent_color, custom_domain, support_email, support_whatsapp, notification_email, notification_whatsapp_e164, notify_on_new_reservation, notify_on_reschedule, notify_on_cancel, workflow_template, gateway, gateway_config, legal_name, tax_id, address_line1, address_line2, address_city, address_state, address_postal_code, address_country, invoice_footer, invoice_default_currency, stripe_account_id, stripe_account_country, stripe_charges_enabled, stripe_payouts_enabled, stripe_account_updated_at, elevenlabs_agent_id, voice_enabled, voice_id, voice_greeting, voice_languages, voice_phone_provider, voice_phone_number, voice_agent_created_at, voice_agent_updated_at, voice_phone_elevenlabs_id, voice_kb_doc_id, voice_kb_synced_at",
+      "id, slug, name, industry, plan, status, prompt_template, prompt_variables, whatsapp_number, timezone, language, logo_url, primary_color, accent_color, custom_domain, support_email, support_whatsapp, notification_email, notification_whatsapp_e164, notify_on_new_reservation, notify_on_reschedule, notify_on_cancel, workflow_template, gateway, gateway_config, legal_name, tax_id, address_line1, address_line2, address_city, address_state, address_postal_code, address_country, invoice_footer, invoice_default_currency, stripe_account_id, stripe_account_country, stripe_charges_enabled, stripe_payouts_enabled, stripe_account_updated_at, elevenlabs_agent_id, voice_enabled, voice_id, voice_greeting, voice_languages, voice_phone_provider, voice_phone_number, voice_agent_created_at, voice_agent_updated_at, voice_elevenlabs_outbound_phone_id, voice_persona, voice_kb_doc_id, voice_kb_synced_at" as never,
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -77,7 +78,7 @@ export async function getTenantBySlug(slug: string): Promise<Tenant> {
     console.error("[getTenantBySlug] no row visible (RLS or wrong slug)", { slug });
     notFound();
   }
-  return data as Tenant;
+  return data as unknown as Tenant;
 }
 
 export type TenantSummary = {

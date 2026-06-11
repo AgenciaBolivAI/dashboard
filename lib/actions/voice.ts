@@ -18,6 +18,11 @@ import { CURATED_VOICES, DEFAULT_VOICE_ID, getVoiceById } from "@/lib/voices";
 import { buildToolsConfig } from "@/lib/voice-tools";
 import { validateTwilioCreds, verifyOwnsNumber } from "@/lib/twilio";
 import { performVoiceKbSync } from "@/lib/voice-kb";
+import {
+  buildSandraOverride,
+  buildRebeccaOverride,
+  type VoicePersona,
+} from "@/lib/voice/persona";
 
 function getVoiceTools(tenantId: string) {
   const baseUrl = (
@@ -236,23 +241,28 @@ export async function attachTwilioNumberAction(
   await requireUser();
   await requireTenantAccess(tenant_id, { minRole: "admin" });
 
+  // Master Rebecca handles inbound for every tenant. Assigning the
+  // tenant's Twilio number to her means when a customer dials in,
+  // ElevenLabs routes the call to Rebecca, who reads the tenant's
+  // persona from our conversation_initiation_data_webhook (TODO).
+  const rebeccaAgentId = process.env.MASTER_REBECCA_AGENT_ID;
+  if (!rebeccaAgentId) {
+    return { error: "MASTER_REBECCA_AGENT_ID not configured" };
+  }
+
   const supabase = await createClient();
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("name, elevenlabs_agent_id, voice_phone_elevenlabs_id, voice_phone_number")
+    .select("name, voice_elevenlabs_outbound_phone_id, voice_phone_number" as never)
     .eq("id", tenant_id)
     .maybeSingle();
   if (!tenant) return { error: "Tenant no encontrado" };
-  const t = tenant as {
+  const t = tenant as unknown as {
     name: string;
-    elevenlabs_agent_id: string | null;
-    voice_phone_elevenlabs_id: string | null;
+    voice_elevenlabs_outbound_phone_id: string | null;
     voice_phone_number: string | null;
   };
-  if (!t.elevenlabs_agent_id) {
-    return { error: "Activa la voz primero — el agente no existe todavía." };
-  }
-  if (t.voice_phone_elevenlabs_id) {
+  if (t.voice_elevenlabs_outbound_phone_id) {
     return { error: "Ya tienes un número conectado. Desconéctalo antes de cambiar." };
   }
 
@@ -270,7 +280,8 @@ export async function attachTwilioNumberAction(
     return { error: e instanceof Error ? e.message : "No pudimos confirmar la propiedad del número" };
   }
 
-  // Step 3 + 4: import + assign
+  // Step 3 + 4: import the number into ElevenLabs, assign to master Rebecca
+  // so inbound calls route to her with the tenant's persona override.
   let phoneNumberId: string;
   try {
     const imported = await importTwilioNumber({
@@ -280,7 +291,7 @@ export async function attachTwilioNumberAction(
       token: auth_token,
     });
     phoneNumberId = imported.phone_number_id;
-    await assignPhoneNumberToAgent(phoneNumberId, t.elevenlabs_agent_id);
+    await assignPhoneNumberToAgent(phoneNumberId, rebeccaAgentId);
   } catch (e) {
     const msg = e instanceof ElevenLabsError ? e.detail : e instanceof Error ? e.message : String(e);
     return { error: `ElevenLabs rechazó el número: ${msg.slice(0, 200)}` };
@@ -294,8 +305,8 @@ export async function attachTwilioNumberAction(
       voice_phone_number: phone_number,
       voice_phone_account_sid: account_sid,
       voice_phone_auth_token: auth_token,
-      voice_phone_elevenlabs_id: phoneNumberId,
-    })
+      voice_elevenlabs_outbound_phone_id: phoneNumberId,
+    } as never)
     .eq("id", tenant_id);
   if (dbErr) {
     // Roll back the ElevenLabs side so we don't leak the number
@@ -332,11 +343,11 @@ export async function detachPhoneNumberAction(
   const supabase = await createClient();
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("voice_phone_elevenlabs_id")
+    .select("voice_elevenlabs_outbound_phone_id" as never)
     .eq("id", tenantId)
     .maybeSingle();
-  const phoneNumberId = (tenant as { voice_phone_elevenlabs_id?: string } | null)
-    ?.voice_phone_elevenlabs_id;
+  const phoneNumberId = (tenant as { voice_elevenlabs_outbound_phone_id?: string } | null)
+    ?.voice_elevenlabs_outbound_phone_id;
 
   if (phoneNumberId) {
     try {
@@ -355,8 +366,8 @@ export async function detachPhoneNumberAction(
       voice_phone_number: null,
       voice_phone_account_sid: null,
       voice_phone_auth_token: null,
-      voice_phone_elevenlabs_id: null,
-    })
+      voice_elevenlabs_outbound_phone_id: null,
+    } as never)
     .eq("id", tenantId);
   if (error) return { error: error.message };
 
@@ -479,39 +490,42 @@ export async function initiateSandraCallAction(
   if (!elKey) return { error: "ELEVENLABS_API_KEY not configured" };
 
   const supabase = await createClient();
-  // The generated db types may not include the new voice_* columns yet
-  // (run npm run db:types after schema-step23 applies). Use unknown cast
-  // so we don't block on a stale type file.
+  // We use the MASTER Sandra agent for every tenant and override its
+  // persona per call via conversation_config_override. Tenants never
+  // touch ElevenLabs — they edit their voice_persona JSONB.
+  const sandraAgentId = process.env.MASTER_SANDRA_AGENT_ID;
+  if (!sandraAgentId) return { error: "MASTER_SANDRA_AGENT_ID not configured" };
+
   const { data: row, error: tErr } = await supabase
     .from("tenants")
-    .select(
-      "voice_phone_number, voice_elevenlabs_outbound_phone_id, voice_elevenlabs_sandra_agent_id" as never,
-    )
+    .select("name, voice_phone_number, voice_elevenlabs_outbound_phone_id, voice_persona" as never)
     .eq("id", parsed.data.tenant_id)
     .single();
 
   if (tErr || !row) return { error: tErr?.message ?? "Tenant not found" };
   const tenant = row as unknown as {
+    name: string;
     voice_phone_number: string | null;
     voice_elevenlabs_outbound_phone_id: string | null;
-    voice_elevenlabs_sandra_agent_id: string | null;
+    voice_persona: VoicePersona | null;
   };
 
   if (!tenant.voice_phone_number || !tenant.voice_elevenlabs_outbound_phone_id) {
     return { error: "Voice number not configured for this tenant." };
   }
-  if (!tenant.voice_elevenlabs_sandra_agent_id) {
-    return { error: "Sandra agent ID not configured for this tenant." };
-  }
+
+  const override = buildSandraOverride({
+    tenantName: tenant.name,
+    persona: tenant.voice_persona ?? {},
+  });
 
   const body: Record<string, unknown> = {
-    agent_id: tenant.voice_elevenlabs_sandra_agent_id,
+    agent_id: sandraAgentId,
     agent_phone_number_id: tenant.voice_elevenlabs_outbound_phone_id,
     to_number: parsed.data.to_number,
-  };
-  if (parsed.data.context || parsed.data.lead_id) {
-    body.conversation_initiation_client_data = {
+    conversation_initiation_client_data: {
       dynamic_variables: {
+        tenant_id: parsed.data.tenant_id,
         // lead_id is the join key the Sandra Tick uses to auto-update the
         // lead's status after the call ends — empty string means "manually-
         // dialed call, no status auto-update".
@@ -521,8 +535,9 @@ export async function initiateSandraCallAction(
         lead_role: parsed.data.context?.lead_role ?? "",
         notes: parsed.data.context?.notes ?? "",
       },
-    };
-  }
+      conversation_config_override: override,
+    },
+  };
 
   let conversationId: string | null = null;
   try {
@@ -619,14 +634,28 @@ export async function initiateBatchSandraCallAction(
     };
   }
 
+  const sandraAgentId = process.env.MASTER_SANDRA_AGENT_ID;
+  if (!sandraAgentId) {
+    return {
+      error: "MASTER_SANDRA_AGENT_ID not configured",
+      queued: 0,
+      skipped_dnc: 0,
+      skipped_no_phone: 0,
+    };
+  }
+
   const supabase = await createClient();
 
-  // 1. Load tenant voice config
+  // Mark the rebecca-side as referenced (silences unused-import warnings
+  // when the file is built standalone). Will be wired into a real inbound
+  // workflow once Rebecca's master config lands.
+  void buildRebeccaOverride;
+
+  // 1. Load tenant voice config + persona (we override the master agent's
+  // behavior per call with the tenant's persona JSON)
   const { data: tRow, error: tErr } = await supabase
     .from("tenants")
-    .select(
-      "voice_elevenlabs_outbound_phone_id, voice_elevenlabs_sandra_agent_id" as never,
-    )
+    .select("name, voice_elevenlabs_outbound_phone_id, voice_persona" as never)
     .eq("id", parsed.data.tenant_id)
     .single();
   if (tErr || !tRow) {
@@ -638,20 +667,23 @@ export async function initiateBatchSandraCallAction(
     };
   }
   const tenant = tRow as unknown as {
+    name: string;
     voice_elevenlabs_outbound_phone_id: string | null;
-    voice_elevenlabs_sandra_agent_id: string | null;
+    voice_persona: VoicePersona | null;
   };
-  if (
-    !tenant.voice_elevenlabs_outbound_phone_id ||
-    !tenant.voice_elevenlabs_sandra_agent_id
-  ) {
+  if (!tenant.voice_elevenlabs_outbound_phone_id) {
     return {
-      error: "Voice configuration missing on tenant.",
+      error: "Phone number not configured for this tenant.",
       queued: 0,
       skipped_dnc: 0,
       skipped_no_phone: 0,
     };
   }
+
+  const override = buildSandraOverride({
+    tenantName: tenant.name,
+    persona: tenant.voice_persona ?? {},
+  });
 
   // 2. Load the leads + their metadata
   const { data: leadRows, error: lErr } = await supabase
@@ -683,6 +715,7 @@ export async function initiateBatchSandraCallAction(
     phone_number: string;
     conversation_initiation_client_data: {
       dynamic_variables: Record<string, string>;
+      conversation_config_override: ReturnType<typeof buildSandraOverride>;
     };
   }> = [];
 
@@ -707,12 +740,14 @@ export async function initiateBatchSandraCallAction(
       phone_number: e164,
       conversation_initiation_client_data: {
         dynamic_variables: {
+          tenant_id: parsed.data.tenant_id,
           lead_id: r.id,
           lead_name: r.name ?? "",
           lead_company: vertical,
           lead_role: "",
           notes: r.notes ?? "",
         },
+        conversation_config_override: override,
       },
     });
   }
@@ -732,7 +767,7 @@ export async function initiateBatchSandraCallAction(
   // 3. Submit the batch to ElevenLabs
   const body = {
     call_name: parsed.data.batch_name ?? `Lote ${new Date().toISOString().slice(0, 16)}`,
-    agent_id: tenant.voice_elevenlabs_sandra_agent_id,
+    agent_id: sandraAgentId,
     agent_phone_number_id: tenant.voice_elevenlabs_outbound_phone_id,
     scheduled_time_unix: Math.floor(Date.now() / 1000),
     recipients,
@@ -791,4 +826,55 @@ export async function initiateBatchSandraCallAction(
     skipped_dnc: skippedDnc,
     skipped_no_phone: skippedNoPhone,
   };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Voice persona — what the tenant edits to customize Sandra and Rebecca.
+// Stored in tenants.voice_persona JSONB and applied at call time via
+// conversation_config_override (see lib/voice/persona.ts).
+// ────────────────────────────────────────────────────────────────────
+
+const personaSchema = z.object({
+  tenant_id: z.string().uuid(),
+  persona: z.object({
+    business_name: z.string().trim().max(160).optional(),
+    business_description: z.string().trim().max(1000).optional(),
+    voice_id: z.string().trim().max(80).optional(),
+    language: z.string().trim().max(8).optional(),
+    sandra: z
+      .object({
+        first_message: z.string().trim().max(400).optional(),
+        value_prop: z.string().trim().max(800).optional(),
+        forbidden_topics: z.string().trim().max(800).optional(),
+      })
+      .optional(),
+    rebecca: z
+      .object({
+        first_message: z.string().trim().max(400).optional(),
+        faq: z.string().trim().max(2000).optional(),
+        forbidden_topics: z.string().trim().max(800).optional(),
+      })
+      .optional(),
+  }),
+});
+
+export async function updateVoicePersonaAction(
+  input: z.infer<typeof personaSchema>,
+): Promise<VoiceActionState> {
+  const parsed = personaSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid persona" };
+  }
+  await requireUser();
+  await requireTenantAccess(parsed.data.tenant_id, { minRole: "operator" });
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tenants")
+    .update({ voice_persona: parsed.data.persona } as never)
+    .eq("id", parsed.data.tenant_id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
 }
