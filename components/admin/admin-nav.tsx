@@ -9,7 +9,7 @@ const TABS = [
   { href: "/admin", label: "Tenants", exact: true },
   { href: "/admin/usage", label: "Uso & Costos" },
   { href: "/admin/pricing", label: "Precios" },
-  { href: "/admin/templates", label: "Plantillas" },
+  { href: "/admin/brain", label: "Brain" },
   { href: "/admin/users", label: "Equipo BolivAI" },
 ];
 

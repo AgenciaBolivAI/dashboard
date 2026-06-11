@@ -266,7 +266,8 @@ export async function triggerCcavaiGenerationAction(
         Authorization: `Bearer ${secret}`,
         "Content-Type": "application/json",
       },
-      body: "{}",
+      // Pass tenant_id so the multi-tenant CCAVAI workflow routes correctly
+      body: JSON.stringify({ tenant_id: tenantId }),
       signal: AbortSignal.timeout(20_000),
     });
     if (!res.ok) {
@@ -282,5 +283,75 @@ export async function triggerCcavaiGenerationAction(
     return { error: msg };
   }
 
+  return { error: null, success: true };
+}
+
+// Alias for the new settings form which uses the more concise name
+export const triggerCcavaiRunAction = triggerCcavaiGenerationAction;
+
+// ── Per-tenant settings ──────────────────────────────────────────────
+const PLATFORMS_VALUES = ["linkedin", "instagram", "facebook", "x"] as const;
+const TONE_VALUES = [
+  "professional_warm",
+  "casual_friendly",
+  "bold_punchy",
+  "educational",
+  "industry_voice",
+] as const;
+const IMAGE_STYLE_VALUES = [
+  "branded_modern",
+  "editorial",
+  "photographic",
+  "illustration",
+] as const;
+
+const settingsSchema = z.object({
+  enabled: z.boolean().optional(),
+  platforms: z.array(z.enum(PLATFORMS_VALUES)).max(10).optional(),
+  tone: z.enum(TONE_VALUES).optional(),
+  rss_sources: z
+    .array(
+      z.object({
+        url: z.string().trim().url("URL inválida").max(500),
+        name: z.string().trim().max(100).optional(),
+      }),
+    )
+    .max(30)
+    .optional(),
+  drafts_per_run: z.coerce.number().int().min(1).max(10).optional(),
+  generate_images: z.boolean().optional(),
+  image_style: z.enum(IMAGE_STYLE_VALUES).optional(),
+  auto_post: z.boolean().optional(),
+  brand_vocabulary: z.string().trim().max(2000).nullable().optional(),
+  do_not_say: z.array(z.string().trim().min(1).max(60)).max(50).optional(),
+});
+
+export async function updateCcavaiSettingsAction(
+  tenantId: string,
+  fields: z.infer<typeof settingsSchema>,
+): Promise<CcavaiState> {
+  const parsed = settingsSchema.safeParse(fields);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+
+  const svc = createServiceClient();
+  const { error } = await svc.from("ccavai_settings").upsert(
+    {
+      tenant_id: tenantId,
+      ...parsed.data,
+      ...(parsed.data.rss_sources !== undefined && {
+        rss_sources: parsed.data.rss_sources as unknown as Record<string, never>[],
+      }),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "tenant_id" },
+  );
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }

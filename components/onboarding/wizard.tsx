@@ -7,7 +7,6 @@ import {
   ArrowRight,
   Loader2,
   Building2,
-  Sparkles,
   MessageCircle,
   Palette,
   Check,
@@ -19,14 +18,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { provisionTenantAction } from "@/lib/actions/onboarding";
 import { cn } from "@/lib/utils";
-
-type TemplateOption = {
-  id: string;
-  name: string;
-  vertical: string;
-  description: string;
-  features: { id: string; label: string }[];
-};
 
 const TIMEZONES = [
   "America/Bogota",
@@ -56,10 +47,8 @@ const LANGUAGES = [
 
 export function OnboardingWizard({
   userEmail,
-  templates,
 }: {
   userEmail: string;
-  templates: TemplateOption[];
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -70,13 +59,14 @@ export function OnboardingWizard({
   const [country, setCountry] = useState<string>("BO");
   const [timezone, setTimezone] = useState("America/La_Paz");
   const [language, setLanguage] = useState<"es" | "en" | "pt">("es");
-  const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
   const [whatsappNumber, setWhatsappNumber] = useState("+");
   const [primaryColor, setPrimaryColor] = useState("#00e5a0");
   const [accentColor, setAccentColor] = useState("#00b87d");
   const [logoUrl, setLogoUrl] = useState("");
 
-  const totalSteps = 4;
+  // 3-step wizard: business → WhatsApp → branding. Templates are gone —
+  // every tenant gets every feature, billed per use.
+  const totalSteps = 3;
 
   // Per-step gating: which fields are required to move forward
   const canAdvance = useMemo(() => {
@@ -87,11 +77,10 @@ export function OnboardingWizard({
         country.length === 2
       );
     }
-    if (step === 2) return !!templateId;
-    if (step === 3) return /^\+?[0-9]{8,16}$/.test(whatsappNumber.trim());
-    if (step === 4) return /^#[0-9a-f]{6}$/i.test(primaryColor);
+    if (step === 2) return /^\+?[0-9]{8,16}$/.test(whatsappNumber.trim());
+    if (step === 3) return /^#[0-9a-f]{6}$/i.test(primaryColor);
     return true;
-  }, [step, companyName, industry, country, templateId, whatsappNumber, primaryColor]);
+  }, [step, companyName, industry, country, whatsappNumber, primaryColor]);
 
   function handleSubmit() {
     const fd = new FormData();
@@ -100,7 +89,6 @@ export function OnboardingWizard({
     fd.set("country", country);
     fd.set("timezone", timezone);
     fd.set("language", language);
-    fd.set("template_id", templateId);
     fd.set("whatsapp_number", whatsappNumber);
     fd.set("primary_color", primaryColor);
     fd.set("accent_color", accentColor);
@@ -149,19 +137,12 @@ export function OnboardingWizard({
               />
             )}
             {step === 2 && (
-              <Step2
-                templates={templates}
-                templateId={templateId}
-                setTemplateId={setTemplateId}
-              />
-            )}
-            {step === 3 && (
               <Step3
                 whatsappNumber={whatsappNumber}
                 setWhatsappNumber={setWhatsappNumber}
               />
             )}
-            {step === 4 && (
+            {step === 3 && (
               <Step4
                 primaryColor={primaryColor}
                 setPrimaryColor={setPrimaryColor}
@@ -212,7 +193,6 @@ export function OnboardingWizard({
 function Stepper({ step, total }: { step: number; total: number }) {
   const labels = [
     { icon: Building2, label: "Negocio" },
-    { icon: Sparkles, label: "Plantilla" },
     { icon: MessageCircle, label: "WhatsApp" },
     { icon: Palette, label: "Marca" },
   ];
@@ -334,59 +314,6 @@ function Step1(props: {
             <option key={tz} value={tz}>{tz}</option>
           ))}
         </select>
-      </div>
-    </Card>
-  );
-}
-
-function Step2({
-  templates,
-  templateId,
-  setTemplateId,
-}: {
-  templates: TemplateOption[];
-  templateId: string;
-  setTemplateId: (v: string) => void;
-}) {
-  return (
-    <Card className="p-6 md:p-8 space-y-5">
-      <div>
-        <h2 className="text-2xl font-display font-bold">Elige una plantilla</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Cada plantilla viene pre-configurada con las herramientas y el lenguaje correctos para esa industria.
-        </p>
-      </div>
-      <div className="grid grid-cols-1 gap-3">
-        {templates.map((t) => {
-          const selected = t.id === templateId;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTemplateId(t.id)}
-              className={cn(
-                "text-left rounded-lg border-2 bg-card p-4 transition hover:border-primary/40",
-                selected ? "border-primary bg-primary/5" : "border-border",
-              )}
-            >
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <h3 className="font-semibold">{t.name}</h3>
-                {selected && <Check className="size-5 text-primary" />}
-              </div>
-              <p className="text-sm text-muted-foreground mb-3">{t.description}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {t.features.map((f) => (
-                  <span
-                    key={f.id}
-                    className="text-xs px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground"
-                  >
-                    {f.label}
-                  </span>
-                ))}
-              </div>
-            </button>
-          );
-        })}
       </div>
     </Card>
   );

@@ -17,6 +17,7 @@ import {
   Wand2,
   Megaphone,
   PhoneCall,
+  Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,13 +31,16 @@ const NAV_ITEMS = [
   { href: "services", label: "Servicios", icon: Sparkles },
   { href: "staff", label: "Personal", icon: Users },
   { href: "knowledge", label: "Conocimiento", icon: FileText },
+  { href: "marketing", label: "Marketing (AIMA)", icon: Megaphone },
+  { href: "content", label: "Contenido (CCAVAI)", icon: Wand2 },
+  { href: "shorts", label: "Shorts (VIRA)", icon: Video },
   { href: "billing", label: "Facturación", icon: Coins },
   { href: "settings", label: "Ajustes", icon: Settings },
 ];
 
+// Internal-only nav items kept for BolivAI's own tenant (single-tenant tables).
+// Will get multi-tenant when sandra_call_queue gets a tenant_id column.
 const BOLIVAI_ONLY_ITEMS = [
-  { href: "content", label: "Contenido IA", icon: Wand2 },
-  { href: "marketing", label: "Marketing IA", icon: Megaphone },
   { href: "sandra", label: "Cola de Sandra", icon: PhoneCall },
 ];
 

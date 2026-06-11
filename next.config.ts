@@ -1,5 +1,16 @@
 import type { NextConfig } from "next";
 
+// Silence the harmless "unrecognized HMR message" uncaughtException Turbopack
+// emits in 15.3.x when the browser sends `browser-logs` events the server-side
+// handler doesn't know yet. The app keeps working; it's purely log noise.
+// Remove this when we move to Next 16 (which adds the handler).
+if (process.env.NODE_ENV === "development") {
+  process.on("uncaughtException", (err: Error) => {
+    if (err?.message?.includes("unrecognized HMR message")) return;
+    throw err;
+  });
+}
+
 const config: NextConfig = {
   experimental: {
     serverActions: {

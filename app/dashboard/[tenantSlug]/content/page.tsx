@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Sparkles, Clock, CheckCircle2, Send, XCircle } from "lucide-react";
+import { Sparkles, Clock, CheckCircle2, Send, XCircle, Settings } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import {
@@ -27,8 +28,6 @@ const STATUS_FILTERS: { id: string; label: string }[] = [
   { id: "all", label: "Todos" },
 ];
 
-const ALLOWED_TENANT_SLUG = "bolivai";
-
 export default async function ContentPage({
   params,
   searchParams,
@@ -40,30 +39,15 @@ export default async function ContentPage({
   const { status: statusFilter = "pending" } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
 
-  if (tenant.slug !== ALLOWED_TENANT_SLUG) {
-    return (
-      <div className="p-6 md:p-8 max-w-3xl">
-        <h1 className="text-3xl font-display font-extrabold tracking-tight">
-          Contenido IA
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          La generación de contenido (CCAVAI) está activa solo para el tenant{" "}
-          <code className="px-1.5 py-0.5 rounded bg-secondary text-xs">bolivai</code>{" "}
-          por ahora.
-        </p>
-      </div>
-    );
-  }
-
   const [drafts, runs, statsToday, statsWeek] = await Promise.all([
-    listCcavaiDrafts({
+    listCcavaiDrafts(tenant.id, {
       status:
         statusFilter === "all"
           ? undefined
           : (statusFilter as CcavaiDraft["status"]),
       limit: 300,
     }),
-    listCcavaiRuns(10),
+    listCcavaiRuns(tenant.id, 10),
     getCcavaiStats("today"),
     getCcavaiStats("7d"),
   ]);
@@ -113,7 +97,15 @@ export default async function ContentPage({
             Revisa, aprueba y copia para publicar.
           </p>
         </div>
-        <GenerateContentButton tenantId={tenant.id} />
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/dashboard/${tenantSlug}/content/settings`}>
+              <Settings className="size-4" />
+              Ajustes
+            </Link>
+          </Button>
+          <GenerateContentButton tenantId={tenant.id} />
+        </div>
       </div>
 
       {/* Stat cards */}

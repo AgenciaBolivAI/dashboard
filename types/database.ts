@@ -257,6 +257,7 @@ export type Database = {
           story_title: string
           story_url: string | null
           subject_image_url: string | null
+          tenant_id: string
           visual_prompt: string | null
         }
         Insert: {
@@ -281,6 +282,7 @@ export type Database = {
           story_title: string
           story_url?: string | null
           subject_image_url?: string | null
+          tenant_id?: string
           visual_prompt?: string | null
         }
         Update: {
@@ -305,9 +307,18 @@ export type Database = {
           story_title?: string
           story_url?: string | null
           subject_image_url?: string | null
+          tenant_id?: string
           visual_prompt?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ccavai_drafts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ccavai_runs: {
         Row: {
@@ -321,6 +332,7 @@ export type Database = {
           started_at: string
           status: string
           stories_picked: number
+          tenant_id: string
         }
         Insert: {
           articles_seen?: number
@@ -333,6 +345,7 @@ export type Database = {
           started_at?: string
           status?: string
           stories_picked?: number
+          tenant_id?: string
         }
         Update: {
           articles_seen?: number
@@ -345,8 +358,73 @@ export type Database = {
           started_at?: string
           status?: string
           stories_picked?: number
+          tenant_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ccavai_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ccavai_settings: {
+        Row: {
+          auto_post: boolean
+          brand_vocabulary: string | null
+          created_at: string
+          do_not_say: string[]
+          drafts_per_run: number
+          enabled: boolean
+          generate_images: boolean
+          image_style: string
+          platforms: string[]
+          rss_sources: Json
+          tenant_id: string
+          tone: string
+          updated_at: string
+        }
+        Insert: {
+          auto_post?: boolean
+          brand_vocabulary?: string | null
+          created_at?: string
+          do_not_say?: string[]
+          drafts_per_run?: number
+          enabled?: boolean
+          generate_images?: boolean
+          image_style?: string
+          platforms?: string[]
+          rss_sources?: Json
+          tenant_id: string
+          tone?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_post?: boolean
+          brand_vocabulary?: string | null
+          created_at?: string
+          do_not_say?: string[]
+          drafts_per_run?: number
+          enabled?: boolean
+          generate_images?: boolean
+          image_style?: string
+          platforms?: string[]
+          rss_sources?: Json
+          tenant_id?: string
+          tone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ccavai_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_history: {
         Row: {
@@ -1778,6 +1856,196 @@ export type Database = {
           },
         ]
       }
+      vira_clips: {
+        Row: {
+          clip_index: number
+          created_at: string
+          end_seconds: number
+          id: string
+          job_id: string
+          metadata: Json
+          output_url: string | null
+          reasoning: string | null
+          start_seconds: number
+          subtitle_track_url: string | null
+          tenant_id: string
+          thumbnail_url: string | null
+          title: string | null
+          transcript_excerpt: string | null
+        }
+        Insert: {
+          clip_index: number
+          created_at?: string
+          end_seconds: number
+          id?: string
+          job_id: string
+          metadata?: Json
+          output_url?: string | null
+          reasoning?: string | null
+          start_seconds: number
+          subtitle_track_url?: string | null
+          tenant_id: string
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript_excerpt?: string | null
+        }
+        Update: {
+          clip_index?: number
+          created_at?: string
+          end_seconds?: number
+          id?: string
+          job_id?: string
+          metadata?: Json
+          output_url?: string | null
+          reasoning?: string | null
+          start_seconds?: number
+          subtitle_track_url?: string | null
+          tenant_id?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          transcript_excerpt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vira_clips_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "vira_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vira_clips_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vira_jobs: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          language: string | null
+          metadata: Json
+          reasoning_summary: string | null
+          settings_snapshot: Json
+          source_type: string | null
+          source_url: string
+          started_at: string | null
+          status: string
+          tenant_id: string
+          transcript: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          language?: string | null
+          metadata?: Json
+          reasoning_summary?: string | null
+          settings_snapshot?: Json
+          source_type?: string | null
+          source_url: string
+          started_at?: string | null
+          status?: string
+          tenant_id: string
+          transcript?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          language?: string | null
+          metadata?: Json
+          reasoning_summary?: string | null
+          settings_snapshot?: Json
+          source_type?: string | null
+          source_url?: string
+          started_at?: string | null
+          status?: string
+          tenant_id?: string
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vira_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vira_settings: {
+        Row: {
+          add_subtitles: boolean
+          add_watermark: boolean
+          auto_post_drafts: boolean
+          clip_style: string
+          clips_per_video: number
+          created_at: string
+          enabled: boolean
+          max_clip_seconds: number
+          max_input_minutes: number
+          min_clip_seconds: number
+          output_format: string
+          subtitle_style: string
+          tenant_id: string
+          updated_at: string
+          watermark_text: string | null
+        }
+        Insert: {
+          add_subtitles?: boolean
+          add_watermark?: boolean
+          auto_post_drafts?: boolean
+          clip_style?: string
+          clips_per_video?: number
+          created_at?: string
+          enabled?: boolean
+          max_clip_seconds?: number
+          max_input_minutes?: number
+          min_clip_seconds?: number
+          output_format?: string
+          subtitle_style?: string
+          tenant_id: string
+          updated_at?: string
+          watermark_text?: string | null
+        }
+        Update: {
+          add_subtitles?: boolean
+          add_watermark?: boolean
+          auto_post_drafts?: boolean
+          clip_style?: string
+          clips_per_video?: number
+          created_at?: string
+          enabled?: boolean
+          max_clip_seconds?: number
+          max_input_minutes?: number
+          min_clip_seconds?: number
+          output_format?: string
+          subtitle_style?: string
+          tenant_id?: string
+          updated_at?: string
+          watermark_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vira_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voice_conversations: {
         Row: {
           call_outcome: string | null
@@ -2207,6 +2475,10 @@ export type Database = {
           tenant_id: string
           usage_credits: number
         }[]
+      }
+      vira_clip_duration_seconds: {
+        Args: { c: Database["public"]["Tables"]["vira_clips"]["Row"] }
+        Returns: number
       }
     }
     Enums: {

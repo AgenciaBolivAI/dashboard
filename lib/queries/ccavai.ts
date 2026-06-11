@@ -43,28 +43,38 @@ export type CcavaiStats = {
   window_start: string;
 };
 
-export async function listCcavaiDrafts(opts: {
-  status?: CcavaiDraft["status"];
-  limit?: number;
-} = {}): Promise<CcavaiDraft[]> {
+export type CcavaiSettings = {
+  tenant_id: string;
+  enabled: boolean;
+  platforms: string[];
+  tone: "professional_warm" | "casual_friendly" | "bold_punchy" | "educational" | "industry_voice";
+  rss_sources: { url: string; name?: string }[];
+  drafts_per_run: number;
+  generate_images: boolean;
+  image_style: "branded_modern" | "editorial" | "photographic" | "illustration";
+  auto_post: boolean;
+  brand_vocabulary: string | null;
+  do_not_say: string[];
+  updated_at: string;
+};
+
+export async function listCcavaiDrafts(
+  tenantId: string,
+  opts: { status?: CcavaiDraft["status"]; limit?: number } = {},
+): Promise<CcavaiDraft[]> {
   const supabase = await createClient();
-  // Deliberately DO NOT select image_url or subject_image_url here — each
-  // is a ~2MB base64 data URI; inlining 9+ rows blows Vercel's 4.5MB
-  // serverless response cap. The browser pulls images lazily from
-  // /api/ccavai/drafts/[id]/image instead.
   let q = supabase
     .from("ccavai_drafts")
     .select(
       "id, run_id, generated_at, platform, story_title, story_url, story_source, story_summary, draft_title, draft_body, draft_hashtags, visual_prompt, image_prompt, branded_headline, accent_phrases, status, decided_at, decided_notes, posted_url",
     )
+    .eq("tenant_id", tenantId)
     .order("generated_at", { ascending: false })
     .limit(opts.limit ?? 200);
 
   if (opts.status) q = q.eq("status", opts.status);
 
   const { data } = await q;
-  // Synthesize the URL fields so the card components can treat them as
-  // present without having to know about the separate /image route.
   return (data ?? []).map((row) => ({
     ...(row as Omit<CcavaiDraft, "image_url" | "subject_image_url">),
     image_url: `/api/ccavai/drafts/${(row as { id: string }).id}/image`,
@@ -72,14 +82,34 @@ export async function listCcavaiDrafts(opts: {
   })) as CcavaiDraft[];
 }
 
-export async function listCcavaiRuns(limit = 30): Promise<CcavaiRun[]> {
+export async function listCcavaiRuns(tenantId: string, limit = 30): Promise<CcavaiRun[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("ccavai_runs")
     .select("id, started_at, finished_at, status, drafts_created, stories_picked")
+    .eq("tenant_id", tenantId)
     .order("started_at", { ascending: false })
     .limit(limit);
   return (data ?? []) as CcavaiRun[];
+}
+
+export async function getCcavaiSettings(tenantId: string): Promise<CcavaiSettings | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("ccavai_settings")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!data) return null;
+  const row = data as unknown as Omit<CcavaiSettings, "rss_sources"> & {
+    rss_sources: unknown;
+  };
+  return {
+    ...row,
+    rss_sources: Array.isArray(row.rss_sources)
+      ? (row.rss_sources as { url: string; name?: string }[])
+      : [],
+  };
 }
 
 export async function getCcavaiStats(

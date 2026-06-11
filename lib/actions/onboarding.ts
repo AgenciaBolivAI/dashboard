@@ -14,8 +14,16 @@ export type OnboardingState = {
   slug?: string;
 };
 
-const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as [string, ...string[]];
 const LANGUAGES = ["es", "en", "pt"] as const;
+
+// Templates are deprecated — every tenant gets every feature now (pay per use).
+// We still need a default prompt to seed the WhatsApp agent, so we fall back to
+// the 'physio' template if it exists, otherwise the first template in the
+// registry. The workflow_template column on tenants stays so existing rows
+// keep working, but new signups all get the same default.
+const DEFAULT_TEMPLATE_ID = TEMPLATES.find((t) => t.id === "physio")?.id
+  ?? TEMPLATES[0]?.id
+  ?? "physio";
 
 const provisionSchema = z.object({
   company_name: z.string().trim().min(2, "Mínimo 2 caracteres").max(80),
@@ -23,7 +31,6 @@ const provisionSchema = z.object({
   country: z.string().trim().length(2, "Código ISO de 2 letras").transform((s) => s.toUpperCase()),
   timezone: z.string().trim().min(3).max(80).default("America/La_Paz"),
   language: z.enum(LANGUAGES).default("es"),
-  template_id: z.enum(TEMPLATE_IDS),
   whatsapp_number: z
     .string()
     .trim()
@@ -103,8 +110,8 @@ export async function provisionTenantAction(
     return { error: "Tu cuenta ya está asociada a un tenant. Contáctanos para crear otro." };
   }
 
-  const template = TEMPLATES.find((t) => t.id === parsed.data.template_id);
-  if (!template) return { error: "Plantilla inválida" };
+  const template = TEMPLATES.find((t) => t.id === DEFAULT_TEMPLATE_ID);
+  if (!template) return { error: "Configuración base no disponible — contacta a soporte." };
 
   const slug = await findUniqueSlug(baseSlug(parsed.data.company_name));
 
