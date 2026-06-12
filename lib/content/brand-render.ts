@@ -14,6 +14,34 @@ import { Resvg } from "@resvg/resvg-js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import React from "react";
+import sharp from "sharp";
+
+/**
+ * The subject image displays in a 1080×740 region. gpt-image-1 returns a
+ * 1024×1024 PNG (~2 MB base64). Embedding that raw into the SVG makes resvg
+ * rasterize a giant inline image — fast (~4s) when the lambda is warm with
+ * memory headroom, but it balloons to >120s (timeouts) under any cold-start
+ * or memory pressure. Downscaling + recompressing to a JPEG that exactly
+ * fills the slot (~120 KB) keeps the embedded SVG small and renders
+ * consistently in a couple seconds.
+ *
+ * Falls back to the original image if anything goes wrong (URLs, odd inputs)
+ * so we never break a render over the optimization.
+ */
+async function prepareSubjectImage(src: string): Promise<string> {
+  if (typeof src !== "string" || !src.startsWith("data:image/")) return src;
+  try {
+    const b64 = src.slice(src.indexOf(",") + 1);
+    const input = Buffer.from(b64, "base64");
+    const out = await sharp(input)
+      .resize(1080, 740, { fit: "cover", position: "attention" })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+    return `data:image/jpeg;base64,${out.toString("base64")}`;
+  } catch {
+    return src;
+  }
+}
 
 export type BrandRenderInput = {
   /** Source for the subject image — URL or `data:image/png;base64,…`. */
@@ -247,9 +275,14 @@ function buildTree(input: BrandRenderInput) {
 }
 
 export async function renderBrandedPng(input: BrandRenderInput): Promise<Buffer> {
-  const [fonts, defaultLogo] = await Promise.all([loadFonts(), loadDefaultLogotype()]);
+  const [fonts, defaultLogo, subject] = await Promise.all([
+    loadFonts(),
+    loadDefaultLogotype(),
+    prepareSubjectImage(input.subject_image),
+  ]);
   const tree = buildTree({
     ...input,
+    subject_image: subject,
     wordmark_image_url: input.wordmark_image_url ?? defaultLogo,
   });
   const svg = await satori(tree, {

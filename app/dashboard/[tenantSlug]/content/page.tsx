@@ -217,6 +217,7 @@ export default async function ContentPage({
                         ? new Date(generatedAt).toLocaleString("es-BO", {
                             dateStyle: "medium",
                             timeStyle: "short",
+                            timeZone: tenant.timezone,
                           })
                         : "",
                     })}
@@ -287,6 +288,7 @@ export default async function ContentPage({
                   day: "numeric",
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: tenant.timezone,
                 })}
                 {" · "}
                 {r.drafts_created}d

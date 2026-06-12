@@ -57,7 +57,15 @@ export function OnboardingWizard({
   const [companyName, setCompanyName] = useState("");
   const [industry, setIndustry] = useState("");
   const [country, setCountry] = useState<string>("BO");
-  const [timezone, setTimezone] = useState("America/La_Paz");
+  // Auto-detect the signer-upper's timezone from the browser — worldwide
+  // product, no region-biased default. Falls back to UTC if detection fails.
+  const [timezone, setTimezone] = useState(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+      return "UTC";
+    }
+  });
   const [language, setLanguage] = useState<"es" | "en" | "pt">("es");
   const [whatsappNumber, setWhatsappNumber] = useState("+");
   const [primaryColor, setPrimaryColor] = useState("#00e5a0");
@@ -310,6 +318,9 @@ function Step1(props: {
           onChange={(e) => props.setTimezone(e.target.value)}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
+          {!TIMEZONES.includes(props.timezone) ? (
+            <option value={props.timezone}>{props.timezone} (detectada)</option>
+          ) : null}
           {TIMEZONES.map((tz) => (
             <option key={tz} value={tz}>{tz}</option>
           ))}

@@ -88,7 +88,9 @@ export default async function LeadDetailPage({
             ) : null}
             <span className="inline-flex items-center gap-1">
               <Calendar className="size-3" />
-              {new Date(lead.created_at).toLocaleDateString()}
+              {new Date(lead.created_at).toLocaleDateString("es-BO", {
+                timeZone: tenant.timezone,
+              })}
             </span>
           </div>
         </div>
@@ -224,7 +226,12 @@ export default async function LeadDetailPage({
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(c.started_at).toLocaleString()} · {fmtDuration(c.duration_secs)}
+                    {new Date(c.started_at).toLocaleString("es-BO", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: tenant.timezone,
+                    })}{" "}
+                    · {fmtDuration(c.duration_secs)}
                   </p>
                 </div>
                 {c.conversation_id ? (

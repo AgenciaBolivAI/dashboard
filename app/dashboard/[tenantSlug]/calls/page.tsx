@@ -117,7 +117,11 @@ export default async function CallsPage({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(c.started_at).toLocaleString()}
+                      {new Date(c.started_at).toLocaleString("es-BO", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: tenant.timezone,
+                      })}
                     </td>
                     <td className="px-4 py-3">
                       {c.call_outcome ? (
