@@ -2159,7 +2159,9 @@ export type Database = {
     }
     Functions: {
       aima_stats: {
-        Args: { p_window?: string }
+        Args:
+          | { p_window?: string }
+          | { p_tenant_id: string; p_window?: string }
         Returns: {
           cold_email_enabled: boolean
           demos_booked: number

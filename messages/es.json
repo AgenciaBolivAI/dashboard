@@ -160,7 +160,10 @@
     "cf_remove": "Eliminar",
     "cf_autopost": "Auto-publicar borradores aprobados",
     "cf_autopost_help": "Cuando este disponible, los borradores aprobados se publicaran automaticamente. Por ahora se mantienen como aprobados para que los copies y pegues manualmente.",
-    "cf_save_changes": "Guardar cambios"
+    "cf_save_changes": "Guardar cambios",
+    "cf_mode_mixed": "Noticias + marca",
+    "cf_mode_news": "Solo noticias",
+    "cf_mode_brand": "Solo marca"
   },
   "conversations": {
     "page_title": "Conversaciones",

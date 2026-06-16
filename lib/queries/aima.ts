@@ -90,10 +90,18 @@ export async function listAimaScrapeRuns(
 }
 
 export async function getAimaStats(
+  tenantId: string,
   window: "today" | "week" | "month" | "7d" | "30d" = "7d",
 ): Promise<AimaStats | null> {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("aima_stats", { p_window: window });
+  // MUST pass tenantId — the 1-arg public.aima_stats delegates to
+  // brain.aima_stats which has the BolivAI tenant id hardcoded (founder
+  // metric). The 2-arg overload is tenant-scoped + SECURITY INVOKER so RLS
+  // double-guards. See migrations/schema-step30-aima-stats-tenant-scoped.sql
+  const { data } = await supabase.rpc("aima_stats", {
+    p_tenant_id: tenantId,
+    p_window: window,
+  });
   const row = Array.isArray(data) ? data[0] : data;
   return (row ?? null) as AimaStats | null;
 }

@@ -1,27 +1,59 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Newspaper, Building2, Blend, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { triggerCcavaiGenerationAction } from "@/lib/actions/ccavai";
+import {
+  triggerCcavaiGenerationAction,
+  type CcavaiMode,
+} from "@/lib/actions/ccavai";
+import { cn } from "@/lib/utils";
+
+const MODES: {
+  id: CcavaiMode;
+  label: string;
+  desc: string;
+  icon: typeof Sparkles;
+}[] = [
+  {
+    id: "mixed",
+    label: "Noticias + marca",
+    desc: "Mezcla: posts de tu negocio y reacciones a noticias del día.",
+    icon: Blend,
+  },
+  {
+    id: "news",
+    label: "Solo noticias",
+    desc: "Todo basado en las noticias de tus feeds RSS, con el ángulo de tu negocio.",
+    icon: Newspaper,
+  },
+  {
+    id: "brand",
+    label: "Solo marca",
+    desc: "Solo tu negocio y persona — tips, servicios, ofertas. Sin noticias.",
+    icon: Building2,
+  },
+];
 
 export function GenerateContentButton({ tenantId }: { tenantId: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [polling, setPolling] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  function handleClick() {
+  function generate(mode: CcavaiMode) {
+    setOpen(false);
     startTransition(async () => {
-      const res = await triggerCcavaiGenerationAction(tenantId);
+      const res = await triggerCcavaiGenerationAction(tenantId, mode);
       if (res.error) {
         toast.error(res.error);
         return;
       }
-      toast.success("CCAVAI está generando contenido. Aparecerán en ~1 minuto.");
+      const modeLabel = MODES.find((m) => m.id === mode)?.label ?? "";
+      toast.success(`Generando contenido (${modeLabel}). Aparecerá en ~1 minuto.`);
       setPolling(true);
-      // Refresh the page a few times so drafts appear as they land
       let attempts = 0;
       const interval = setInterval(() => {
         attempts++;
@@ -35,15 +67,62 @@ export function GenerateContentButton({ tenantId }: { tenantId: string }) {
   }
 
   const busy = pending || polling;
+
   return (
-    <Button
-      onClick={handleClick}
-      disabled={busy}
-      size="sm"
-      className="gap-2"
-    >
-      {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-      {busy ? "Generando..." : "Generar contenido"}
-    </Button>
+    <div className="relative">
+      <div className="inline-flex">
+        {/* Primary = mixed (the default). The caret opens the mode menu. */}
+        <Button
+          onClick={() => generate("mixed")}
+          disabled={busy}
+          size="sm"
+          className="gap-2 rounded-r-none"
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+          {busy ? "Generando..." : "Generar contenido"}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          disabled={busy}
+          size="sm"
+          className="rounded-l-none border-l border-primary-foreground/20 px-2"
+          aria-label="Elegir tipo de contenido"
+        >
+          <ChevronDown className="size-4" />
+        </Button>
+      </div>
+
+      {open && !busy ? (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute right-0 mt-1 w-72 z-20 rounded-lg border border-border bg-popover shadow-lg p-1.5">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => generate(m.id)}
+                className={cn(
+                  "w-full text-left rounded-md p-2.5 flex items-start gap-2.5 transition",
+                  "hover:bg-secondary",
+                )}
+              >
+                <m.icon className="size-4 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium">{m.label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                    {m.desc}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }

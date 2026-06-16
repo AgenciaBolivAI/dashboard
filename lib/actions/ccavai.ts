@@ -25,7 +25,11 @@ export async function updateCcavaiDraftStatusAction(
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
-  const supabase = await createClient();
+  // Service client (bypasses RLS) like the sibling draft-mutation actions —
+  // ccavai_drafts has no member UPDATE policy. Access is already gated by
+  // requireTenantAccess above; the .eq("tenant_id") below scopes the write
+  // to this tenant's drafts so an operator can't touch another tenant's row.
+  const supabase = createServiceClient();
   const { error } = await supabase
     .from("ccavai_drafts")
     .update({
@@ -34,7 +38,8 @@ export async function updateCcavaiDraftStatusAction(
       ...(notes !== undefined && { decided_notes: notes.trim() || null }),
       ...(postedUrl !== undefined && { posted_url: postedUrl.trim() || null }),
     })
-    .eq("id", draftId);
+    .eq("id", draftId)
+    .eq("tenant_id", tenantId);
 
   if (error) return { error: error.message };
 
@@ -245,11 +250,18 @@ export async function replaceCcavaiSubjectAction(
   return { error: null, success: true };
 }
 
+export type CcavaiMode = "mixed" | "news" | "brand";
+
 export async function triggerCcavaiGenerationAction(
   tenantId: string,
+  mode: CcavaiMode = "mixed",
 ): Promise<CcavaiState> {
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
+
+  const safeMode: CcavaiMode = ["mixed", "news", "brand"].includes(mode)
+    ? mode
+    : "mixed";
 
   const url = process.env.CCAVAI_WEBHOOK_URL;
   const secret = process.env.CCAVAI_WEBHOOK_SECRET;
@@ -266,8 +278,9 @@ export async function triggerCcavaiGenerationAction(
         Authorization: `Bearer ${secret}`,
         "Content-Type": "application/json",
       },
-      // Pass tenant_id so the multi-tenant CCAVAI workflow routes correctly
-      body: JSON.stringify({ tenant_id: tenantId }),
+      // tenant_id routes the multi-tenant workflow; mode picks the content
+      // source: news (RSS only), brand (persona only), or mixed (both).
+      body: JSON.stringify({ tenant_id: tenantId, mode: safeMode }),
       signal: AbortSignal.timeout(20_000),
     });
     if (!res.ok) {

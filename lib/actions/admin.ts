@@ -311,3 +311,72 @@ export async function loadBolivAIStaff(): Promise<StaffRow[]> {
   }
   return staff;
 }
+
+// ────────────────────────────────────────────────────────────────────
+// Grant credits — Celiel (platform owner) comps any tenant credits since
+// he pays the underlying vendor costs. Goes through the same atomic
+// credit_topup RPC as a Stripe top-up (1 credit = 1¢, $1 = 100 credits),
+// but tagged source=admin_grant in metadata so it's distinguishable from
+// real customer payments in the ledger.
+// ────────────────────────────────────────────────────────────────────
+
+const grantSchema = z.object({
+  tenant_id: z.string().uuid(),
+  amount_usd: z.coerce
+    .number()
+    .positive("El monto debe ser mayor a 0")
+    .max(100000, "Monto demasiado alto"),
+  note: z.string().trim().max(200).optional(),
+});
+
+export type GrantState = {
+  error: string | null;
+  success?: boolean;
+  new_balance_credits?: number;
+  credits_added?: number;
+};
+
+export async function grantTenantCreditsAction(
+  _prev: GrantState,
+  formData: FormData,
+): Promise<GrantState> {
+  const parsed = grantSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const user = await requireUser();
+  await requireBolivAIAdmin();
+
+  // $1 = 100 credits; credit_topup treats p_paid_cents 1:1 as base credits.
+  const paidCents = Math.round(parsed.data.amount_usd * 100);
+  const ref = `admin_grant:${parsed.data.tenant_id}:${Date.now()}`;
+
+  const svc = createServiceClient();
+  const { data, error } = await svc.rpc("credit_topup", {
+    p_tenant_id: parsed.data.tenant_id,
+    p_paid_cents: paidCents,
+    p_bonus_credits: 0,
+    p_stripe_pi_id: ref,
+    p_metadata: {
+      source: "admin_grant",
+      granted_by: user.email ?? user.id,
+      note: parsed.data.note ?? null,
+      amount_usd: parsed.data.amount_usd,
+    },
+  });
+  if (error) return { error: error.message };
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { new_balance: number; credits_added: number }
+    | null;
+
+  revalidatePath(`/admin/tenants/${parsed.data.tenant_id}`);
+  revalidatePath("/admin", "layout");
+  revalidatePath("/dashboard", "layout");
+  return {
+    error: null,
+    success: true,
+    new_balance_credits: row?.new_balance ?? 0,
+    credits_added: row?.credits_added ?? 0,
+  };
+}

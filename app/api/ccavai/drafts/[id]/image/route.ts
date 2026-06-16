@@ -18,6 +18,20 @@ export const runtime = "nodejs";
 
 const DATA_URI_RE = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/;
 
+// 1×1 transparent PNG. Served (200) instead of 404 when a draft has no image
+// yet (e.g. a generation whose image step failed) so the browser <img> doesn't
+// flood the console with 404s. The card still shows, just without a picture.
+const PLACEHOLDER_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+function placeholder() {
+  return new NextResponse(new Uint8Array(PLACEHOLDER_PNG), {
+    status: 200,
+    headers: { "Content-Type": "image/png", "Cache-Control": "private, max-age=30" },
+  });
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -44,12 +58,12 @@ export async function GET(
     .single();
 
   if (error || !data) {
-    return new NextResponse("Not found", { status: 404 });
+    return placeholder();
   }
   const row = data as Record<string, string | null>;
   const dataUri = row[column];
   if (!dataUri) {
-    return new NextResponse("Not found", { status: 404 });
+    return placeholder();
   }
 
   const match = dataUri.match(DATA_URI_RE);

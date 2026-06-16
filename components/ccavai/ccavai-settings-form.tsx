@@ -132,11 +132,11 @@ export function CcavaiSettingsForm({
     });
   }
 
-  function handleTrigger() {
+  function handleTrigger(mode: "mixed" | "news" | "brand") {
     // No RSS requirement: CCAVAI always has curated sources to work with;
-    // custom feeds are additive.
+    // custom feeds are additive. mode picks the content source.
     startAct(async () => {
-      const res = await triggerCcavaiRunAction(tenantId);
+      const res = await triggerCcavaiRunAction(tenantId, mode);
       if (res.error) {
         toast.error(res.error);
         return;
@@ -145,6 +145,12 @@ export function CcavaiSettingsForm({
       router.refresh();
     });
   }
+
+  const MODE_BTNS: { id: "news" | "brand" | "mixed"; label: string }[] = [
+    { id: "mixed", label: t("cf_mode_mixed") },
+    { id: "news", label: t("cf_mode_news") },
+    { id: "brand", label: t("cf_mode_brand") },
+  ];
 
   return (
     <div className="space-y-6">
@@ -160,10 +166,26 @@ export function CcavaiSettingsForm({
               {t("cf_gen_desc")}
             </p>
           </div>
-          <Button size="sm" onClick={handleTrigger} disabled={acting} className="gap-1.5">
-            {acting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-            {t("cf_generate_now")}
-          </Button>
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              {t("cf_generate_now")}
+            </span>
+            <div className="flex gap-1.5 flex-wrap justify-end">
+              {MODE_BTNS.map((m) => (
+                <Button
+                  key={m.id}
+                  size="sm"
+                  variant={m.id === "mixed" ? "default" : "outline"}
+                  onClick={() => handleTrigger(m.id)}
+                  disabled={acting}
+                  className="gap-1.5"
+                >
+                  {acting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                  {m.label}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       </Card>
 

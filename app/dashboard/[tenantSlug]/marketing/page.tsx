@@ -25,7 +25,7 @@ export default async function AimaMarketingPage({
   const [settings, runs, stats7d] = await Promise.all([
     getAimaSettings(tenant.id),
     listAimaScrapeRuns(tenant.id, 10),
-    getAimaStats("7d"),
+    getAimaStats(tenant.id, "7d"),
   ]);
 
   return (

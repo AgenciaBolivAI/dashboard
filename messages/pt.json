@@ -160,7 +160,10 @@
     "cf_remove": "Remove",
     "cf_autopost": "Auto-publish approved drafts",
     "cf_autopost_help": "When available, approved drafts will be published automatically. For now they stay as approved so you can copy and paste them manually.",
-    "cf_save_changes": "Save changes"
+    "cf_save_changes": "Save changes",
+    "cf_mode_mixed": "News + brand",
+    "cf_mode_news": "News only",
+    "cf_mode_brand": "Brand only"
   },
   "conversations": {
     "page_title": "Conversas",

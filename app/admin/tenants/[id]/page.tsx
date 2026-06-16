@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { ArrowLeft, ExternalLink, Coins, DollarSign, TrendingDown, PiggyBank } from "lucide-react";
+import { ArrowLeft, ExternalLink, Coins, DollarSign, TrendingDown, PiggyBank, Gift } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { createServiceClient } from "@/lib/supabase/service";
 import { TenantAdminForm } from "@/components/admin/tenant-admin-form";
+import { GrantCreditsForm } from "@/components/admin/grant-credits-form";
 import { TenantDangerZone } from "@/components/admin/tenant-danger-zone";
 import { EvolutionProvisioner } from "@/components/admin/evolution-provisioner";
 import { Sparkline } from "@/components/admin/sparkline";
@@ -213,6 +214,23 @@ export default async function AdminTenantDetail({
             <SparkBlock label={tr("spark_cost_daily")} points={usageDailyMicros.map(microsToDollars)} color="text-amber-600" />
             <SparkBlock label={tr("spark_margin_daily")} points={marginDailyMicros.map(microsToDollars)} color="text-primary" />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ── GRANT CREDITS (owner comp) ────────────────────────────── */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="size-5 text-primary" />
+            Acreditar créditos
+          </CardTitle>
+          <CardDescription>
+            Agrega créditos a este tenant. Vos pagás el costo de vendor, así que
+            podés regalar saldo cuando quieras. $1 = 100 créditos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GrantCreditsForm tenantId={t.id} />
         </CardContent>
       </Card>
 
