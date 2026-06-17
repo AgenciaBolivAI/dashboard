@@ -5,16 +5,16 @@ import createNextIntlPlugin from "next-intl/plugin";
 // auto-discovery so we don't have to import it manually anywhere.
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
-// Content-Security-Policy (REPORT-ONLY for now). The allowlist reflects what
-// the browser actually loads: same-origin Next assets, Supabase (REST +
-// storage + realtime over wss), Google Analytics/gtag, and Vercel Analytics /
-// Speed Insights. Server-side calls (OpenAI, ElevenLabs, Twilio, Stripe, n8n)
-// and plain <a> links do NOT need CSP entries. Inline scripts (gtag init,
-// next-themes no-flash, Next hydration) require 'unsafe-inline' because we
-// don't run nonces under Turbopack. Report-only blocks nothing — it surfaces
-// violations in the browser console so we can confirm coverage before
-// promoting to an enforcing `Content-Security-Policy`.
-const CSP_REPORT_ONLY = [
+// Content-Security-Policy (ENFORCING). The allowlist reflects what the browser
+// actually loads — verified 2026-06-17 with a real authenticated headless-Chrome
+// walk of every heavy page (marketing, calendar, voice, content, billing, leads):
+// zero violations, only same-origin + Supabase (REST/storage/realtime wss) + GA +
+// Vercel Analytics contacted. Server-side calls (OpenAI, ElevenLabs, Twilio,
+// Stripe, n8n) and plain <a> links do NOT need CSP entries. Inline scripts (gtag
+// init, next-themes no-flash, Next hydration) require 'unsafe-inline' since we
+// don't run nonces. No 'unsafe-eval' needed (shared chunks + react-force-graph +
+// d3 are eval/Function/Worker-free).
+const CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
@@ -24,6 +24,7 @@ const CSP_REPORT_ONLY = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.supabase.co https://bolivai.cloud https://bolivai.com https://www.googletagmanager.com https://www.google-analytics.com",
   "font-src 'self' data:",
+  "media-src 'self' blob: https://*.supabase.co",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://vitals.vercel-insights.com https://va.vercel-scripts.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
@@ -79,9 +80,9 @@ const config: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Security response headers (added 2026-06-17 after VibeAuditt scan). The
-  // four below are ENFORCED — all are safe for a gated dashboard and carry no
-  // breakage risk. CSP ships as report-only (see CSP_REPORT_ONLY above).
+  // Security response headers (added 2026-06-17 after VibeAuditt scan). All
+  // enforced — CSP verified safe via an authenticated headless-Chrome walk of
+  // every heavy page (see CSP above). Safe for a gated dashboard.
   async headers() {
     return [
       {
@@ -95,8 +96,8 @@ const config: NextConfig = {
             value: "camera=(), microphone=(), geolocation=()",
           },
           {
-            key: "Content-Security-Policy-Report-Only",
-            value: CSP_REPORT_ONLY,
+            key: "Content-Security-Policy",
+            value: CSP,
           },
         ],
       },
