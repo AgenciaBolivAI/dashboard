@@ -27,10 +27,36 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "BolivAI Cloud",
-  description: "Panel de gestión de tus agentes de IA — BolivAI",
+  // metadataBase makes the relative OG/Twitter image URLs resolve to absolute
+  // https:// links (required by Next + the social crawlers).
+  metadataBase: new URL("https://bolivai.cloud"),
+  title: {
+    default: "BolivAI Cloud — Tu fuerza laboral de agentes de IA",
+    template: "%s · BolivAI Cloud",
+  },
+  description:
+    "BolivAI Cloud: el panel para gestionar tu fuerza laboral de agentes de IA — ventas, atención al cliente, WhatsApp, generación de leads y marketing en un solo lugar.",
+  applicationName: "BolivAI Cloud",
   // Next.js auto-detects app/icon.svg and serves it as the favicon.
-  // The explicit `icons` field is no longer needed.
+  openGraph: {
+    type: "website",
+    siteName: "BolivAI Cloud",
+    title: "BolivAI Cloud — Tu fuerza laboral de agentes de IA",
+    description:
+      "Gestiona tus agentes de IA de ventas, soporte y marketing desde un solo panel.",
+    url: "https://bolivai.cloud",
+    locale: "es_ES",
+    // TODO: swap for a dedicated 1200×630 social card when one exists;
+    // logotype.png is a valid placeholder so previews aren't blank.
+    images: [{ url: "/branding/logotype.png", alt: "BolivAI" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BolivAI Cloud — Tu fuerza laboral de agentes de IA",
+    description:
+      "Gestiona tus agentes de IA de ventas, soporte y marketing desde un solo panel.",
+    images: ["/branding/logotype.png"],
+  },
 };
 
 export const viewport: Viewport = {
