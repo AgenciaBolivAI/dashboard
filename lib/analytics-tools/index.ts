@@ -12,6 +12,21 @@ import { getTenantOverviewMetrics } from "@/lib/queries/metrics";
 import { getTenantRecentTransactions } from "@/lib/queries/admin-tenant-pnl";
 import { getAimaStats } from "@/lib/queries/aima";
 import { getBalanceWithService } from "@/lib/billing/credits";
+import { getRoleOnTenant } from "@/lib/auth";
+import { LEAD_STATUSES } from "@/lib/leads-types";
+import { triggerCcavaiGenerationAction } from "@/lib/actions/ccavai";
+import { triggerAimaScrapeAction } from "@/lib/actions/aima";
+
+// Write actions require operator+ on the tenant. getRoleOnTenant reads the
+// session — the model never supplies the role.
+const ROLE_RANK = ["viewer", "member", "operator", "admin", "owner", "bolivai_admin"];
+async function ensureOperator(tenantId: string): Promise<string | null> {
+  const role = await getRoleOnTenant(tenantId);
+  if (!role || ROLE_RANK.indexOf(role) < ROLE_RANK.indexOf("operator")) {
+    return "No tienes permiso para esta acción (requiere rol operador o superior).";
+  }
+  return null;
+}
 
 // supabase-js is typed to known tables; several analytics helpers query by a
 // dynamic table name, so we use a loosely-typed view of the same client.
@@ -57,6 +72,39 @@ const windowParam = {
   enum: WINDOWS,
   description: "Time window. today=since midnight UTC, 24h=last 24 hours, month=calendar month to date.",
 };
+
+// ── General-purpose query engine (answers anything in the platform) ──────
+// Allowlisted tenant-owned tables the generic query tool may read. Settings/
+// secret tables (aima_settings, ccavai_settings, tenant_integrations, tenants)
+// are intentionally excluded.
+const QUERYABLE_TABLES = [
+  "reservations", "leads", "users", "conversations", "voice_conversations",
+  "invoices", "services", "staff", "ccavai_drafts", "ccavai_runs",
+  "vira_jobs", "vira_clips", "documents", "aima_scrape_runs",
+  "sandra_call_queue", "credit_transactions", "subscriptions",
+] as const;
+// Default time column per table (most use created_at). These don't have one.
+const TIME_COL: Record<string, string> = {
+  voice_conversations: "started_at",
+  aima_scrape_runs: "started_at",
+  ccavai_drafts: "generated_at",
+  ccavai_runs: "started_at",
+  sandra_call_queue: "queued_at",
+};
+const FILTER_OPS = ["eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "is"];
+// Columns never exposed to the model: secrets, our internal cost/margin, vectors,
+// large blobs, and customer memory internals.
+const SENSITIVE_RE =
+  /token|secret|password|api_key|access_|refresh_|_micros|cost_cents|vendor_|embedding|zep_session|facts|gateway_config|image_url|subject_image|proxy|stripe_account/i;
+
+function sanitizeRow(r: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(r)) {
+    if (SENSITIVE_RE.test(k)) continue;
+    out[k] = typeof v === "string" && v.length > 500 ? v.slice(0, 500) + "…" : v;
+  }
+  return out;
+}
 
 type Handler = (args: Record<string, unknown>, tenantId: string) => Promise<unknown>;
 type Tool = {
@@ -305,6 +353,136 @@ export const TOOLS: Record<string, Tool> = {
     },
   },
 
+  list_conversations: {
+    description:
+      "List recent conversations WITH the customer's name + phone, status and last activity. Use for 'with whom', 'who did I talk to', 'which conversations' — anything needing names, not just a count.",
+    parameters: {
+      type: "object",
+      properties: {
+        window: windowParam,
+        limit: { type: "integer", minimum: 1, maximum: 25, description: "How many (default 15)." },
+      },
+      required: ["window"],
+    },
+    run: async (args, tenantId) => {
+      const w = win(args.window, "30d");
+      const limit = Math.min(25, Math.max(1, Number(args.limit) || 15));
+      const { data: convos } = await svcAny()
+        .from("conversations")
+        .select("user_id, status, last_message_at, created_at")
+        .eq("tenant_id", tenantId)
+        .gte("created_at", startOf(w).toISOString())
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(limit);
+      const rows = (convos ?? []) as {
+        user_id: string | null;
+        status: string | null;
+        last_message_at: string | null;
+        created_at: string | null;
+      }[];
+      const ids = [...new Set(rows.map((r) => r.user_id).filter(Boolean))] as string[];
+      const umap = new Map<string, { name: string | null; whatsapp_number: string | null }>();
+      if (ids.length) {
+        const { data: users } = await svcAny()
+          .from("users")
+          .select("id, name, whatsapp_number")
+          .eq("tenant_id", tenantId)
+          .in("id", ids);
+        for (const u of (users ?? []) as { id: string; name: string | null; whatsapp_number: string | null }[]) {
+          umap.set(u.id, { name: u.name, whatsapp_number: u.whatsapp_number });
+        }
+      }
+      return {
+        window: w,
+        count: rows.length,
+        conversations: rows.map((r) => ({
+          contact: (r.user_id && umap.get(r.user_id)?.name) || "—",
+          phone: (r.user_id && umap.get(r.user_id)?.whatsapp_number) || null,
+          status: r.status,
+          last_activity: r.last_message_at,
+        })),
+      };
+    },
+  },
+
+  list_customers: {
+    description:
+      "List customers (contacts) with name, phone and email. Optionally filter to those acquired within a window. Use for 'who are my customers', 'list my clients'.",
+    parameters: {
+      type: "object",
+      properties: {
+        window: windowParam,
+        limit: { type: "integer", minimum: 1, maximum: 50, description: "How many (default 20)." },
+      },
+    },
+    run: async (args, tenantId) => {
+      const w = win(args.window, "all");
+      const limit = Math.min(50, Math.max(1, Number(args.limit) || 20));
+      const { data } = await svcAny()
+        .from("users")
+        .select("name, whatsapp_number, email, created_at")
+        .eq("tenant_id", tenantId)
+        .gte("created_at", startOf(w).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      return { window: w, count: (data ?? []).length, customers: data ?? [] };
+    },
+  },
+
+  list_leads_detail: {
+    description:
+      "List individual leads with name, phone, status, intent and source over a window. Use for 'which leads', 'who are my new leads', not just counts.",
+    parameters: {
+      type: "object",
+      properties: {
+        window: windowParam,
+        status: { type: "string", description: "Optional status filter (new, contacted, converted, lost)." },
+        limit: { type: "integer", minimum: 1, maximum: 50, description: "How many (default 20)." },
+      },
+      required: ["window"],
+    },
+    run: async (args, tenantId) => {
+      const w = win(args.window, "30d");
+      const limit = Math.min(50, Math.max(1, Number(args.limit) || 20));
+      let q = svcAny()
+        .from("leads")
+        .select("name, whatsapp_number, email, status, intent, source, created_at")
+        .eq("tenant_id", tenantId)
+        .gte("created_at", startOf(w).toISOString());
+      if (args.status) q = q.eq("status", args.status);
+      const { data } = await q.order("created_at", { ascending: false }).limit(limit);
+      return { window: w, count: (data ?? []).length, leads: data ?? [] };
+    },
+  },
+
+  list_reservations_detail: {
+    description:
+      "List individual reservations with customer name, phone, status and time over a window. Use for 'which appointments', 'who has a booking', not just counts.",
+    parameters: {
+      type: "object",
+      properties: {
+        window: windowParam,
+        date_field: { type: "string", enum: ["created_at", "start_at"], description: "created_at = made in period (default); start_at = happening in period." },
+        status: { type: "string", enum: ["confirmed", "cancelled", "completed", "no_show"], description: "Optional status filter." },
+        limit: { type: "integer", minimum: 1, maximum: 50, description: "How many (default 20)." },
+      },
+      required: ["window"],
+    },
+    run: async (args, tenantId) => {
+      const w = win(args.window, "30d");
+      const tsCol = args.date_field === "start_at" ? "start_at" : "created_at";
+      const limit = Math.min(50, Math.max(1, Number(args.limit) || 20));
+      let q = svcAny()
+        .from("reservations")
+        .select("customer_name, customer_phone, status, start_at, created_at")
+        .eq("tenant_id", tenantId)
+        .gte(tsCol, startOf(w).toISOString());
+      if (args.status) q = q.eq("status", args.status);
+      const { data } = await q.order(tsCol, { ascending: false }).limit(limit);
+      return { window: w, date_field: tsCol, count: (data ?? []).length, reservations: data ?? [] };
+    },
+  },
+
   get_recent_transactions: {
     description: "The most recent credit ledger entries (top-ups and usage), newest first.",
     parameters: {
@@ -316,7 +494,382 @@ export const TOOLS: Record<string, Tool> = {
       return getTenantRecentTransactions(tenantId, limit);
     },
   },
+
+  query_business_data: {
+    description:
+      "General-purpose READ-ONLY query over the business's own data — the fallback for ANY data question no specific tool covers. " +
+      "Tables: reservations, leads, users (customers), conversations, voice_conversations, invoices, services, staff, " +
+      "ccavai_drafts (social content), ccavai_runs, vira_jobs (video shorts), vira_clips, documents (knowledge base), " +
+      "aima_scrape_runs, sandra_call_queue, credit_transactions, subscriptions. " +
+      "mode 'count' returns a number; 'list' returns rows. Optionally filter (column/op/value), restrict to a time " +
+      "window, group_by a column for a breakdown, or order_by. To discover a table's columns, call it with mode:list limit:1.",
+    parameters: {
+      type: "object",
+      properties: {
+        table: { type: "string", enum: [...QUERYABLE_TABLES] },
+        mode: { type: "string", enum: ["count", "list"], description: "count = how many; list = the rows. Default list." },
+        filters: {
+          type: "array",
+          description: "Optional filters, all ANDed together.",
+          items: {
+            type: "object",
+            properties: {
+              column: { type: "string" },
+              op: { type: "string", enum: FILTER_OPS },
+              value: {},
+            },
+            required: ["column", "op", "value"],
+          },
+        },
+        window: windowParam,
+        group_by: { type: "string", description: "Optional column to group counts by (returns {value: count})." },
+        order_by: { type: "string", description: "Optional column to sort by, descending." },
+        limit: { type: "integer", minimum: 1, maximum: 50, description: "Rows for list mode (default 20)." },
+      },
+      required: ["table"],
+    },
+    run: async (args, tenantId) => {
+      const table = String(args.table);
+      if (!(QUERYABLE_TABLES as readonly string[]).includes(table)) {
+        return { error: `table not allowed: ${table}` };
+      }
+      const limit = Math.min(50, Math.max(1, Number(args.limit) || 20));
+      const timeCol = TIME_COL[table] ?? "created_at";
+      const wantCount = args.mode === "count";
+      const groupBy =
+        typeof args.group_by === "string" && !SENSITIVE_RE.test(args.group_by) ? args.group_by : null;
+
+      // tenant_id is forced below — a model-supplied tenant_id filter could only
+      // narrow (AND), never widen to another tenant.
+      let q = svcAny()
+        .from(table)
+        .select(groupBy ?? "*", wantCount && !groupBy ? { count: "exact", head: true } : undefined)
+        .eq("tenant_id", tenantId);
+      if (args.window) q = q.gte(timeCol, startOf(win(args.window, "all")).toISOString());
+      const filters = (Array.isArray(args.filters) ? args.filters : []) as {
+        column?: string;
+        op?: string;
+        value?: unknown;
+      }[];
+      for (const f of filters) {
+        if (!f || typeof f.column !== "string" || !FILTER_OPS.includes(String(f.op)) || SENSITIVE_RE.test(f.column))
+          continue;
+        const c = f.column, v = f.value;
+        switch (f.op) {
+          case "eq": q = q.eq(c, v); break;
+          case "neq": q = q.neq(c, v); break;
+          case "gt": q = q.gt(c, v); break;
+          case "gte": q = q.gte(c, v); break;
+          case "lt": q = q.lt(c, v); break;
+          case "lte": q = q.lte(c, v); break;
+          case "like": q = q.like(c, String(v)); break;
+          case "ilike": q = q.ilike(c, String(v)); break;
+          case "is": q = q.is(c, v); break;
+        }
+      }
+
+      if (groupBy) {
+        const { data } = await q.limit(5000);
+        const rows = (data ?? []) as Record<string, unknown>[];
+        const by: Record<string, number> = {};
+        for (const r of rows) {
+          const k = String(r[groupBy] ?? "null");
+          by[k] = (by[k] ?? 0) + 1;
+        }
+        return { table, group_by: groupBy, total: rows.length, by, capped: rows.length >= 5000 };
+      }
+      if (wantCount) {
+        const { count } = await q;
+        return { table, count: count ?? 0 };
+      }
+      const orderBy =
+        typeof args.order_by === "string" && !SENSITIVE_RE.test(args.order_by) ? args.order_by : timeCol;
+      const { data } = await q.order(orderBy, { ascending: false, nullsFirst: false }).limit(limit);
+      const rows = ((data ?? []) as Record<string, unknown>[]).map(sanitizeRow);
+      return { table, count: rows.length, rows };
+    },
+  },
+
+  search_available_slots: {
+    description:
+      "Find open appointment slots for a date + service (read-only). Needed before rescheduling: get the reservation's service_id + duration_minutes (via query_business_data on reservations), then call this for the desired date to pick a new_slot_id.",
+    parameters: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "Date YYYY-MM-DD (in the business timezone)." },
+        duration_minutes: { type: "integer", minimum: 5, maximum: 480 },
+        service_id: { type: "string", description: "Service UUID (from the reservation)." },
+      },
+      required: ["date", "duration_minutes", "service_id"],
+    },
+    run: async (args, tenantId) => {
+      const svc = createServiceClient();
+      const { data, error } = await svc.rpc("search_slots_day", {
+        p_tenant_id: tenantId,
+        p_date: String(args.date),
+        p_duration_min: Number(args.duration_minutes),
+        p_service_id: String(args.service_id),
+      });
+      if (error) return { error: error.message };
+      const rows = (data ?? []) as { slot_id: string; start_time: string; staff_name: string }[];
+      return { date: args.date, count: rows.length, slots: rows.slice(0, 20) };
+    },
+  },
+
+  // ── Write actions ───────────────────────────────────────────────────────
+  // All require operator+ and require confirm:true to execute. With confirm
+  // absent/false they only return a preview (no mutation) — the hard safety
+  // gate. The model must identify the exact target + get the user's explicit
+  // confirmation before passing confirm:true.
+
+  cancel_reservation: {
+    description:
+      "Cancel a booking/reservation by id. DESTRUCTIVE: it notifies the customer by email. First identify the exact reservation (list_reservations_detail / query_business_data), show it to the user, and get their explicit confirmation; only then call again with confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        reservation_id: { type: "string", description: "The reservation UUID." },
+        reason: { type: "string", description: "Optional cancellation reason." },
+        confirm: { type: "boolean", description: "Set true ONLY after the user has explicitly confirmed this exact cancellation." },
+      },
+      required: ["reservation_id"],
+    },
+    run: async (args, tenantId) => {
+      const noPerm = await ensureOperator(tenantId);
+      if (noPerm) return { error: noPerm };
+      const rid = String(args.reservation_id || "");
+      const svc = createServiceClient();
+      const { data: own } = await svc
+        .from("reservations")
+        .select("id, customer_name, start_at, status")
+        .eq("id", rid)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      const row = own as { customer_name: string | null; start_at: string | null; status: string | null } | null;
+      if (!row) return { error: "Reserva no encontrada para este negocio." };
+      if (row.status === "cancelled") return { error: "Esa reserva ya está cancelada." };
+      if (args.confirm !== true) {
+        return {
+          requires_confirmation: true,
+          summary: `Cancelar la reserva de ${row.customer_name ?? "—"} (${row.start_at}). Esto NOTIFICA al cliente por email. Pide confirmación antes de ejecutar.`,
+        };
+      }
+      const { error } = await svc.rpc("cancel_reservation", {
+        p_reservation_id: rid,
+        p_reason: typeof args.reason === "string" && args.reason ? args.reason : undefined,
+      });
+      if (error) return { error: error.message };
+      return { ok: true, cancelled: rid, customer: row.customer_name };
+    },
+  },
+
+  update_lead_status: {
+    description:
+      `Change a lead's status (one of: ${LEAD_STATUSES.join(", ")}). Identify the lead and confirm with the user, then call with confirm:true.`,
+    parameters: {
+      type: "object",
+      properties: {
+        lead_id: { type: "string", description: "The lead UUID." },
+        status: { type: "string", enum: [...LEAD_STATUSES] },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["lead_id", "status"],
+    },
+    run: async (args, tenantId) => {
+      const noPerm = await ensureOperator(tenantId);
+      if (noPerm) return { error: noPerm };
+      const lid = String(args.lead_id || "");
+      const status = String(args.status || "");
+      if (!(LEAD_STATUSES as readonly string[]).includes(status)) {
+        return { error: `Estado inválido. Opciones: ${LEAD_STATUSES.join(", ")}` };
+      }
+      const svc = createServiceClient();
+      const { data: own } = await svc
+        .from("leads")
+        .select("id, name, status")
+        .eq("id", lid)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      const row = own as { name: string | null; status: string | null } | null;
+      if (!row) return { error: "Lead no encontrado para este negocio." };
+      if (args.confirm !== true) {
+        return {
+          requires_confirmation: true,
+          summary: `Cambiar el estado de ${row.name ?? "el lead"} de "${row.status}" a "${status}". Pide confirmación.`,
+        };
+      }
+      const { error } = await svc.from("leads").update({ status }).eq("id", lid).eq("tenant_id", tenantId);
+      if (error) return { error: error.message };
+      return { ok: true, lead_id: lid, status };
+    },
+  },
+
+  trigger_content_generation: {
+    description:
+      "Start a CCAVAI content-generation run now (social drafts). mode: mixed | news | brand. Non-destructive. Confirm with the user, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["mixed", "news", "brand"], description: "Content source. Default mixed." },
+        confirm: { type: "boolean" },
+      },
+    },
+    run: async (args, tenantId) => {
+      const noPerm = await ensureOperator(tenantId);
+      if (noPerm) return { error: noPerm };
+      const mode = ["mixed", "news", "brand"].includes(String(args.mode)) ? String(args.mode) : "mixed";
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Generar contenido nuevo (modo: ${mode}). Pide confirmación.` };
+      }
+      const res = await triggerCcavaiGenerationAction(tenantId, mode as "mixed" | "news" | "brand");
+      if (res.error) return { error: res.error };
+      return { ok: true, message: "Generación de contenido iniciada. Aparecerá en Contenido en ~1 minuto." };
+    },
+  },
+
+  trigger_lead_search: {
+    description:
+      "Start an AIMA lead-search run now (scrapes Google Maps for leads in the configured verticals/cities). Non-destructive. Confirm with the user, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: { confirm: { type: "boolean" } },
+    },
+    run: async (args, tenantId) => {
+      const noPerm = await ensureOperator(tenantId);
+      if (noPerm) return { error: noPerm };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: "Iniciar una búsqueda de leads con AIMA ahora. Pide confirmación." };
+      }
+      const res = await triggerAimaScrapeAction(tenantId);
+      if (res.error) return { error: res.error };
+      return { ok: true, message: "Búsqueda de leads iniciada. Revisa Marketing → Corridas recientes." };
+    },
+  },
+
+  reschedule_reservation: {
+    description:
+      "Move a booking to a new time slot. First get the reservation (query_business_data → id, service_id, duration_minutes, start_at), then search_available_slots to pick a new_slot_id, show the new time to the user, get confirmation, then call with confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        reservation_id: { type: "string", description: "The reservation UUID." },
+        new_slot_id: { type: "string", description: "The chosen slot UUID from search_available_slots." },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed the new time." },
+      },
+      required: ["reservation_id", "new_slot_id"],
+    },
+    run: async (args, tenantId) => {
+      const noPerm = await ensureOperator(tenantId);
+      if (noPerm) return { error: noPerm };
+      const rid = String(args.reservation_id || "");
+      const svc = createServiceClient();
+      const { data: own } = await svc
+        .from("reservations")
+        .select("id, customer_name, start_at, status")
+        .eq("id", rid)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      const row = own as { customer_name: string | null; start_at: string | null; status: string | null } | null;
+      if (!row) return { error: "Reserva no encontrada para este negocio." };
+      if (args.confirm !== true) {
+        return {
+          requires_confirmation: true,
+          summary: `Reagendar la reserva de ${row.customer_name ?? "—"} (actual: ${row.start_at}) al nuevo horario seleccionado. Esto notifica al cliente. Pide confirmación.`,
+        };
+      }
+      const { error } = await svc.rpc("reschedule_reservation", {
+        p_reservation_id: rid,
+        p_new_slot_id: String(args.new_slot_id || ""),
+        p_duration_min: undefined,
+      });
+      if (error) return { error: error.message };
+      return { ok: true, rescheduled: rid, customer: row.customer_name };
+    },
+  },
+
+  set_customer_vip: {
+    description:
+      "Mark a customer as VIP or remove VIP. Identify the customer (list_customers / query_business_data on users) and confirm, then call with confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        user_id: { type: "string", description: "The customer (users) UUID." },
+        is_vip: { type: "boolean", description: "true = VIP, false = remove VIP." },
+        confirm: { type: "boolean" },
+      },
+      required: ["user_id", "is_vip"],
+    },
+    run: async (args, tenantId) => {
+      const noPerm = await ensureOperator(tenantId);
+      if (noPerm) return { error: noPerm };
+      const uid = String(args.user_id || "");
+      const isVip = args.is_vip === true;
+      const svc = createServiceClient();
+      const { data: own } = await svc
+        .from("users")
+        .select("id, name")
+        .eq("id", uid)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      const row = own as { name: string | null } | null;
+      if (!row) return { error: "Cliente no encontrado para este negocio." };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Marcar a ${row.name ?? "el cliente"} como ${isVip ? "VIP" : "no VIP"}. Pide confirmación.` };
+      }
+      const { error } = await svc.from("users").update({ is_vip: isVip } as never).eq("id", uid).eq("tenant_id", tenantId);
+      if (error) return { error: error.message };
+      return { ok: true, user_id: uid, is_vip: isVip };
+    },
+  },
+
+  add_customer_note: {
+    description:
+      "Append a private note to a customer's profile (not visible to the customer, not used by the agent). Identify the customer and confirm, then call with confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        user_id: { type: "string", description: "The customer (users) UUID." },
+        note: { type: "string", description: "The note text." },
+        confirm: { type: "boolean" },
+      },
+      required: ["user_id", "note"],
+    },
+    run: async (args, tenantId) => {
+      const noPerm = await ensureOperator(tenantId);
+      if (noPerm) return { error: noPerm };
+      const uid = String(args.user_id || "");
+      const note = String(args.note || "").slice(0, 1000).trim();
+      if (!note) return { error: "La nota está vacía." };
+      const svc = createServiceClient();
+      const { data: own } = await svc
+        .from("users")
+        .select("id, name, tenant_notes")
+        .eq("id", uid)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      const row = own as { name: string | null; tenant_notes: string | null } | null;
+      if (!row) return { error: "Cliente no encontrado para este negocio." };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Agregar nota a ${row.name ?? "el cliente"}: "${note}". Pide confirmación.` };
+      }
+      const merged = (row.tenant_notes ? row.tenant_notes.trim() + "\n" : "") + note;
+      const { error } = await svc.from("users").update({ tenant_notes: merged } as never).eq("id", uid).eq("tenant_id", tenantId);
+      if (error) return { error: error.message };
+      return { ok: true, user_id: uid };
+    },
+  },
 };
+
+/** Tools that mutate data — gated behind the UI confirm card (zero-trust). */
+export const WRITE_TOOL_NAMES = new Set<string>([
+  "cancel_reservation",
+  "reschedule_reservation",
+  "update_lead_status",
+  "set_customer_vip",
+  "add_customer_note",
+  "trigger_content_generation",
+  "trigger_lead_search",
+]);
 
 /** OpenAI function-calling specs for all tools. */
 export function toolSpecs() {

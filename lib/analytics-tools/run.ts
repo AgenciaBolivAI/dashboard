@@ -5,14 +5,22 @@
  * them server-side (tenant id injected, never from the model), feed results
  * back, and loop until it produces a final natural-language answer.
  */
-import { toolSpecs, dispatchTool } from "./index";
+import { toolSpecs, dispatchTool, WRITE_TOOL_NAMES } from "./index";
+import { PLATFORM_GUIDE } from "./platform-guide";
+
+export type PendingAction = { name: string; args: Record<string, unknown>; summary: string };
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-4o-mini";
 const MAX_TURNS = 5;
 
 export type ChatMsg = { role: "user" | "assistant"; content: string };
-export type AssistantResult = { answer: string; toolsUsed: string[]; error?: string };
+export type AssistantResult = {
+  answer: string;
+  toolsUsed: string[];
+  error?: string;
+  pendingAction?: PendingAction | null;
+};
 
 export async function runAssistant(opts: {
   tenantId: string;
@@ -25,15 +33,29 @@ export async function runAssistant(opts: {
 
   const today = new Date().toISOString().slice(0, 10);
   const system = [
-    `Eres el asistente de analítica del negocio "${opts.tenantName}" en BolivAI.`,
+    `Eres el asistente de "${opts.tenantName}" en BolivAI: respondes (1) preguntas sobre los DATOS de este negocio y (2) preguntas de CÓMO USAR la plataforma.`,
     `Hoy es ${today} (zona horaria del negocio: ${opts.timezone}).`,
-    "Respondes preguntas sobre los datos de ESTE negocio únicamente, usando las herramientas disponibles.",
+    "",
+    "Cómo decidir:",
+    "- Pregunta sobre DATOS del negocio (cifras, clientes, reservas, leads, créditos gastados, tendencias) → usa las HERRAMIENTAS. Llama SIEMPRE a una herramienta para cifras reales; NUNCA inventes números. Si no hay una herramienta específica, usa query_business_data. Para 'con quién/cuáles/quiénes' usa las list_*. Para 'por qué subió/bajó' usa compare_period. No digas que no puedes sin intentar una herramienta primero.",
+    "- Pregunta de CÓMO FUNCIONA o CÓMO HACER algo en la plataforma (empezar, conectar WhatsApp, activar AIMA, crear contenido, facturar, precios, '¿el agente no responde?', qué hace una función) → responde con la GUÍA DE PLATAFORMA de abajo. No necesitas herramientas para esto.",
+    "- Pedido de EJECUTAR una acción (cancelar una reserva, cambiar el estado de un lead, generar contenido, buscar leads) → usa las herramientas de acción.",
+    "",
+    "REGLAS DE ACCIONES (importantísimo):",
+    "- 1) IDENTIFICA primero el objetivo exacto con una herramienta de lectura (p. ej. busca la reserva por nombre/fecha y obtén su id).",
+    "- 2) MUESTRA al usuario exactamente qué vas a hacer y PIDE confirmación. NUNCA ejecutes en el primer mensaje. Llama la acción SIN confirm (o confirm:false) para previsualizar.",
+    "- 3) Solo cuando el usuario confirme explícitamente (sí/confirmo/dale), vuelve a llamar la MISMA acción con confirm:true.",
+    "- Si hay varios objetivos posibles (p. ej. dos reservas de 'Juan'), muéstralos y pide que elija; no adivines.",
+    "- Si no tienes permiso, la herramienta te lo dirá: explícalo amablemente.",
+    "",
     "Reglas:",
-    "- Llama SIEMPRE a una herramienta para obtener cifras reales. NUNCA inventes ni estimes números.",
     "- Si una herramienta devuelve vacío o cero, dilo claramente.",
-    "- Sé conciso: empieza por la cifra. Los créditos se miden en créditos (1 USD = 100 créditos).",
-    "- Para explicar por qué algo subió o bajó, usa compare_period y cita los deltas y días reales.",
+    "- Sé conciso y accionable: empieza por la cifra o el paso concreto (incluye dónde tocar en el panel: p. ej. 'Ajustes → Integraciones'). Créditos: 1 USD = 100 créditos.",
+    "- Si algo no es autoservicio todavía (reembolsos, publicación nativa, varios números de WhatsApp), dilo con franqueza y sugiere contactar a soporte. Nunca prometas lo que no existe.",
     "- Responde en el idioma del usuario.",
+    "",
+    "=== GUÍA DE PLATAFORMA ===",
+    PLATFORM_GUIDE,
   ].join("\n");
 
   // OpenAI message list (system + prior turns). `msg` objects from tool turns
@@ -42,6 +64,7 @@ export async function runAssistant(opts: {
   const messages: any[] = [{ role: "system", content: system }, ...opts.history];
   const tools = toolSpecs();
   const toolsUsed: string[] = [];
+  let pendingAction: PendingAction | null = null;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     let res: Response;
@@ -74,17 +97,36 @@ export async function runAssistant(opts: {
           args = {};
         }
         toolsUsed.push(tc.function.name);
-        const result = await dispatchTool(tc.function.name, args, opts.tenantId);
+        // Write tools can NEVER execute from the model loop — force a preview.
+        // Real execution only happens via the UI confirm card (executeAssistantAction).
+        const isWrite = WRITE_TOOL_NAMES.has(tc.function.name);
+        const callArgs = isWrite ? { ...args, confirm: false } : args;
+        const result = await dispatchTool(tc.function.name, callArgs, opts.tenantId);
+        if (
+          isWrite &&
+          result &&
+          typeof result === "object" &&
+          (result as { requires_confirmation?: boolean }).requires_confirmation
+        ) {
+          const { confirm: _omit, ...rest } = callArgs;
+          void _omit;
+          pendingAction = {
+            name: tc.function.name,
+            args: rest,
+            summary: String((result as { summary?: string }).summary ?? ""),
+          };
+        }
         messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
       }
       continue; // let the model read tool results next turn
     }
 
-    return { answer: msg.content ?? "", toolsUsed };
+    return { answer: msg.content ?? "", toolsUsed, pendingAction };
   }
 
   return {
     answer: "No pude completar la consulta con los datos disponibles. Intenta reformularla.",
     toolsUsed,
+    pendingAction,
   };
 }

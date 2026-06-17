@@ -914,6 +914,10 @@
     "suggestion_1": "Combien de réservations ont été faites ces dernières 24 heures ?",
     "suggestion_2": "Combien de crédits ai-je dépensés aujourd'hui uniquement sur WhatsApp ?",
     "suggestion_3": "Pourquoi les réservations ont-elles baissé la semaine dernière ?",
-    "suggestion_4": "Combien de nouveaux prospects ai-je ce mois-ci ?"
+    "suggestion_4": "Combien de nouveaux prospects ai-je ce mois-ci ?",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "confirm_generic": "Confirmer cette action ?",
+    "action_cancelled": "Action annulée."
   }
 }

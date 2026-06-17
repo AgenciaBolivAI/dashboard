@@ -2,17 +2,18 @@
 
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { getTenantBySlug } from "@/lib/tenant";
-import { runAssistant, type ChatMsg } from "@/lib/analytics-tools/run";
+import { runAssistant, type ChatMsg, type PendingAction } from "@/lib/analytics-tools/run";
+import { dispatchTool, WRITE_TOOL_NAMES } from "@/lib/analytics-tools/index";
 
 export type AskAssistantResult =
-  | { ok: true; answer: string; toolsUsed: string[] }
+  | { ok: true; answer: string; toolsUsed: string[]; pendingAction?: PendingAction | null }
   | { ok: false; error: string };
 
 /**
- * Tenant-facing "Ask your business" analytics assistant. Resolves the tenant
- * from the slug + session (so the LLM never chooses the tenant), then runs the
- * read-only analytics tool-calling loop. The client holds the running thread
- * and sends it each turn (no DB persistence for now).
+ * Tenant-facing "Ask your business" assistant. Resolves the tenant from the
+ * slug + session (the LLM never chooses the tenant), then runs the read-only +
+ * preview tool loop. Write actions only ever PREVIEW here — the model cannot
+ * execute them; that requires an explicit user click via executeAssistantAction.
  */
 export async function askAssistantAction(
   tenantSlug: string,
@@ -22,7 +23,6 @@ export async function askAssistantAction(
   const tenant = await getTenantBySlug(tenantSlug);
   await requireTenantAccess(tenant.id);
 
-  // Defensive bounds: trim to the last 16 turns, cap message length.
   const trimmed = (history ?? [])
     .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
     .slice(-16)
@@ -40,5 +40,37 @@ export async function askAssistantAction(
   });
 
   if (res.error) return { ok: false, error: res.error };
-  return { ok: true, answer: res.answer, toolsUsed: res.toolsUsed };
+  return { ok: true, answer: res.answer, toolsUsed: res.toolsUsed, pendingAction: res.pendingAction ?? null };
+}
+
+export type ExecuteActionResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+/**
+ * Execute a write action the assistant proposed — the ONLY path where a write
+ * tool runs with confirm:true. Triggered by the user clicking "Confirm" in the
+ * UI card, never by the model. Re-validates tenant + role inside the tool.
+ */
+export async function executeAssistantActionAction(
+  tenantSlug: string,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<ExecuteActionResult> {
+  await requireUser();
+  const tenant = await getTenantBySlug(tenantSlug);
+  await requireTenantAccess(tenant.id);
+
+  if (!WRITE_TOOL_NAMES.has(name)) {
+    return { ok: false, error: "Acción no permitida." };
+  }
+
+  const result = (await dispatchTool(name, { ...(args ?? {}), confirm: true }, tenant.id)) as
+    | { error?: string; ok?: boolean; message?: string }
+    | null;
+
+  if (result && typeof result === "object" && result.error) {
+    return { ok: false, error: String(result.error) };
+  }
+  return { ok: true, message: (result && result.message) || "Hecho." };
 }

@@ -914,6 +914,10 @@
     "suggestion_1": "Quante prenotazioni sono state fatte nelle ultime 24 ore?",
     "suggestion_2": "Quanti crediti ho speso oggi solo su WhatsApp?",
     "suggestion_3": "Perché le prenotazioni sono diminuite la settimana scorsa?",
-    "suggestion_4": "Quanti nuovi lead ho questo mese?"
+    "suggestion_4": "Quanti nuovi lead ho questo mese?",
+    "confirm": "Conferma",
+    "cancel": "Annulla",
+    "confirm_generic": "Confermi questa azione?",
+    "action_cancelled": "Azione annullata."
   }
 }

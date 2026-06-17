@@ -1,32 +1,39 @@
 "use client";
 
 import { useState, useRef, useEffect, useTransition } from "react";
-import { Bot, Loader2, Send, Sparkles } from "lucide-react";
+import { Bot, Loader2, Send, Sparkles, AlertTriangle, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { askAssistantAction } from "@/lib/actions/assistant";
+import {
+  askAssistantAction,
+  executeAssistantActionAction,
+} from "@/lib/actions/assistant";
 import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string };
+type PendingAction = { name: string; args: Record<string, unknown>; summary: string };
 
 export function AssistantChat({ tenantSlug }: { tenantSlug: string }) {
   const t = useTranslations("assistant");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
+  const [proposed, setProposed] = useState<PendingAction | null>(null);
+  const [executing, setExecuting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, pending]);
+  }, [messages, pending, proposed]);
 
   const suggestions = [t("suggestion_1"), t("suggestion_2"), t("suggestion_3"), t("suggestion_4")];
 
   function ask(question: string) {
     const q = question.trim();
-    if (!q || pending) return;
+    if (!q || pending || executing) return;
+    setProposed(null); // a new question supersedes any pending proposal
     const next: Msg[] = [...messages, { role: "user", content: q }];
     setMessages(next);
     setInput("");
@@ -38,7 +45,31 @@ export function AssistantChat({ tenantSlug }: { tenantSlug: string }) {
         return;
       }
       setMessages((m) => [...m, { role: "assistant", content: res.answer }]);
+      if (res.pendingAction) setProposed(res.pendingAction);
     });
+  }
+
+  function confirmProposed() {
+    if (!proposed || executing) return;
+    const p = proposed;
+    setExecuting(true);
+    (async () => {
+      const res = await executeAssistantActionAction(tenantSlug, p.name, p.args);
+      setExecuting(false);
+      setProposed(null);
+      if (res.ok) {
+        toast.success(res.message);
+        setMessages((m) => [...m, { role: "assistant", content: "✅ " + res.message }]);
+      } else {
+        toast.error(res.error);
+        setMessages((m) => [...m, { role: "assistant", content: "⚠️ " + res.error }]);
+      }
+    })();
+  }
+
+  function cancelProposed() {
+    setProposed(null);
+    setMessages((m) => [...m, { role: "assistant", content: t("action_cancelled") }]);
   }
 
   return (
@@ -83,6 +114,29 @@ export function AssistantChat({ tenantSlug }: { tenantSlug: string }) {
             </div>
           ))
         )}
+
+        {/* Confirm card — the ONLY way a write action executes */}
+        {proposed ? (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 space-y-3">
+              <p className="text-sm flex items-start gap-2">
+                <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
+                <span>{proposed.summary || t("confirm_generic")}</span>
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={confirmProposed} disabled={executing} className="gap-1.5">
+                  {executing ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+                  {t("confirm")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={cancelProposed} disabled={executing} className="gap-1.5">
+                  <X className="size-3.5" />
+                  {t("cancel")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {pending ? (
           <div className="flex justify-start">
             <div className="bg-secondary rounded-2xl rounded-bl-sm px-4 py-3">
