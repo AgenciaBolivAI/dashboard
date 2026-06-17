@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   CheckCircle2,
-  ExternalLink,
   PlugZap,
   XCircle,
 } from "lucide-react";
@@ -17,6 +16,7 @@ import { getTranslations } from "next-intl/server";
 import { CopyField } from "./copy-field";
 import { GatewayConfigForm } from "@/components/integrations/gateway-config-form";
 import { GoogleConnection, type GoogleIntegration } from "@/components/integrations/google-connection";
+import { WhatsAppConnect } from "@/components/whatsapp/whatsapp-connect";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +79,6 @@ export default async function IntegrationsPage({
     };
   }
 
-  const evolutionBaseUrl = process.env.EVOLUTION_BASE_URL;
   const n8nBaseUrl = process.env.N8N_BASE_URL;
   const webhookPath = tenant.gateway === "meta_whatsapp" ? "meta-webhook" : "evolution-webhook";
   const webhookUrl = n8nBaseUrl
@@ -175,17 +174,9 @@ export default async function IntegrationsPage({
                 )
               }
             />
-            {evolutionBaseUrl ? (
-              <a
-                href={`${evolutionBaseUrl.replace(/\/+$/, "")}/manager`}
-                target="_blank"
-                rel="noopener"
-                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-              >
-                {t("open_evolution_manager")}
-                <ExternalLink className="size-3.5" />
-              </a>
-            ) : null}
+            {/* Self-serve connect: provision instance + scan QR, no admin needed */}
+            <Separator />
+            <WhatsAppConnect tenantId={tenant.id} initialState={gatewayStatus.state} />
           </CardContent>
         </Card>
       ) : null}

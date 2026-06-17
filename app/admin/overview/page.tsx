@@ -30,6 +30,9 @@ import {
   type PnlWindow,
 } from "@/lib/queries/admin-pnl";
 import { Sparkline } from "@/components/admin/sparkline";
+import { GrantCreditsPicker } from "@/components/admin/grant-credits-picker";
+import { createServiceClient } from "@/lib/supabase/service";
+import { Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +63,14 @@ export default async function AdminOverviewPage({
     getTenantPnlSummary(windowKey),
     getActionBreakdown(windowKey),
   ]);
+
+  // Every tenant (incl. brand-new ones with zero activity) for the credit gift
+  // picker — admin-gated page, service client is fine.
+  const { data: allTenants } = await createServiceClient()
+    .from("tenants")
+    .select("id, name, slug")
+    .order("name");
+  const tenantOptions = (allTenants ?? []) as { id: string; name: string; slug: string }[];
 
   const dailyRevenue = timeseries.map((d) => d.revenue_cents);
   const dailyCost = timeseries.map((d) => d.cost_micros / 1_000_000);
@@ -188,6 +199,23 @@ export default async function AdminOverviewPage({
             points={dailyMargin}
             color="text-primary"
           />
+        </div>
+      </Card>
+
+      {/* Gift / grant credits to any tenant */}
+      <Card className="mb-6">
+        <div className="p-4 border-b">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Gift className="size-4 text-primary" />
+            Regalar créditos
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Acredita saldo a cualquier negocio — cortesía de lanzamiento o créditos
+            de prueba. $1 = 100 créditos.
+          </p>
+        </div>
+        <div className="p-4">
+          <GrantCreditsPicker tenants={tenantOptions} />
         </div>
       </Card>
 

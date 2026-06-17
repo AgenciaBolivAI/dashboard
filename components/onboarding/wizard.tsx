@@ -342,8 +342,9 @@ function Step3({
       <div>
         <h2 className="text-2xl font-display font-bold">¿Qué número usará tu agente?</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          El número de WhatsApp que tus clientes ven. Después de crear el agente, te
-          mandamos las instrucciones para conectar este número a BolivAI (escaneo de QR).
+          El número de WhatsApp que tus clientes ven. Apenas creas el agente,
+          lo conectas tú mismo escaneando un código QR — en segundos, sin esperar
+          a nadie.
         </p>
       </div>
       <div className="space-y-1">
@@ -359,10 +360,10 @@ function Step3({
           tendrás que escanear el QR cada vez que cierres sesión.
         </p>
       </div>
-      <div className="rounded-md bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-xs text-amber-700 dark:text-amber-400">
-        <strong>Setup manual:</strong> El equipo de BolivAI te contactará en menos de
-        1 día hábil para conectar tu número. Mientras tanto, puedes preparar tu base
-        de conocimiento y tu marca.
+      <div className="rounded-md bg-primary/10 border border-primary/30 px-4 py-3 text-xs text-foreground">
+        <strong>Conexión instantánea:</strong> Después de crear el agente, ve a
+        Ajustes → Integraciones y toca “Conectar WhatsApp”. Escaneas el QR con el
+        WhatsApp del negocio (como WhatsApp Web) y queda activo al instante.
       </div>
     </Card>
   );

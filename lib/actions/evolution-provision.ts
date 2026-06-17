@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireBolivAIAdmin } from "@/lib/auth";
-import { createInstance, getInstanceQr, deleteInstance } from "@/lib/evolution";
+import {
+  createInstance,
+  getInstanceQr,
+  deleteInstance,
+  setInstanceWebhook,
+} from "@/lib/evolution";
 
 export type ProvisionState = {
   error: string | null;
@@ -51,11 +56,6 @@ export async function provisionEvolutionInstanceAction(
   // regex in onboarding enforces it).
   const instanceName = tenant.slug as string;
 
-  // Set webhook to the existing eva-template trigger so messages route in
-  // automatically. The single workflow serves all tenants, demuxed by the
-  // instance name in the payload.
-  const webhookUrl = `${process.env.N8N_BASE_URL}/webhook/whatsapp-in`;
-
   try {
     let qrBase64: string | undefined;
     let pairingCode: string | undefined;
@@ -67,7 +67,7 @@ export async function provisionEvolutionInstanceAction(
       } catch {
         // Ignore — instance probably doesn't exist yet
       }
-      const created = await createInstance(instanceName, { webhookUrl });
+      const created = await createInstance(instanceName);
       qrBase64 = created.qrcode?.base64;
       pairingCode = created.qrcode?.pairingCode;
     } else {
@@ -76,6 +76,10 @@ export async function provisionEvolutionInstanceAction(
       qrBase64 = qr.base64;
       pairingCode = qr.pairingCode;
     }
+
+    // Point the webhook at the live agent workflow (/webhook/evolution-webhook)
+    // so messages route to the bot. Previously hit /webhook/whatsapp-in (dead).
+    await setInstanceWebhook(instanceName);
 
     // Persist the real instance name + flip status if it was pending.
     // Spread-into-literal so the Supabase strict-update payload type matches.

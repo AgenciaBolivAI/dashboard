@@ -85,6 +85,42 @@ export async function createInstance(
   return res.json();
 }
 
+/**
+ * Point an instance's webhook at the LIVE agent workflow so the bot actually
+ * replies. Evolution must POST incoming messages to
+ * `${N8N_BASE_URL}/webhook/evolution-webhook` — the active n8n "Appointment
+ * Template" workflow that demuxes by instance → tenant and sends replies.
+ *
+ * Critical: earlier provisioning pointed instances at `/webhook/whatsapp-in`,
+ * which has NO active workflow — so freshly-connected numbers never replied.
+ * Verified format against the working `9703910466` instance (MESSAGES_UPSERT,
+ * webhookByEvents:false). Connection state is polled separately, so we don't
+ * need CONNECTION_UPDATE here.
+ */
+export async function setInstanceWebhook(instance: string): Promise<void> {
+  const base = (process.env.N8N_BASE_URL ?? "").replace(/\/+$/, "");
+  const url = `${base}/webhook/evolution-webhook`;
+  const res = await fetch(`${BASE}/webhook/set/${instance}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: KEY },
+    body: JSON.stringify({
+      webhook: {
+        enabled: true,
+        url,
+        webhookByEvents: false,
+        webhookBase64: false,
+        events: ["MESSAGES_UPSERT"],
+      },
+    }),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(
+      `Evolution webhook/set ${res.status}: ${(await res.text()).slice(0, 200)}`,
+    );
+  }
+}
+
 /** Fetch the QR code for an EXISTING instance (e.g. after restart). */
 export async function getInstanceQr(instance: string): Promise<{ base64?: string; pairingCode?: string }> {
   const res = await fetch(`${BASE}/instance/connect/${instance}`, {

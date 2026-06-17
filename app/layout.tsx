@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     template: "%s · BolivAI Cloud",
   },
   description:
-    "BolivAI Cloud: el panel para gestionar tu fuerza laboral de agentes de IA — ventas, atención al cliente, WhatsApp, generación de leads y marketing en un solo lugar.",
+    "El panel para gestionar tu fuerza laboral de agentes de IA: ventas, soporte, WhatsApp, leads y marketing en un solo lugar.",
   applicationName: "BolivAI Cloud",
   // Next.js auto-detects app/icon.svg and serves it as the favicon.
   openGraph: {
@@ -46,16 +46,14 @@ export const metadata: Metadata = {
       "Gestiona tus agentes de IA de ventas, soporte y marketing desde un solo panel.",
     url: "https://bolivai.cloud",
     locale: "es_ES",
-    // TODO: swap for a dedicated 1200×630 social card when one exists;
-    // logotype.png is a valid placeholder so previews aren't blank.
-    images: [{ url: "/branding/logotype.png", alt: "BolivAI" }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "BolivAI" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "BolivAI Cloud — Tu fuerza laboral de agentes de IA",
     description:
       "Gestiona tus agentes de IA de ventas, soporte y marketing desde un solo panel.",
-    images: ["/branding/logotype.png"],
+    images: ["/og.png"],
   },
 };
 

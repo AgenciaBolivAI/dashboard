@@ -7,6 +7,7 @@ import { MobileNav } from "@/components/shell/mobile-nav";
 import { UserMenu } from "@/components/shell/user-menu";
 import { BalanceWidget } from "@/components/billing/balance-widget";
 import { OutOfCreditsBanner } from "@/components/billing/out-of-credits-banner";
+import { WhatsAppSetupBanner } from "@/components/whatsapp/whatsapp-setup-banner";
 import { Separator } from "@/components/ui/separator";
 import { hslVar, readableForeground } from "@/lib/color";
 
@@ -154,6 +155,9 @@ export default async function TenantLayout({
           </div>
         </header>
 
+        {tenant.status === "pending_whatsapp_setup" ? (
+          <WhatsAppSetupBanner tenantSlug={tenant.slug} />
+        ) : null}
         <OutOfCreditsBanner tenantId={tenant.id} tenantSlug={tenant.slug} />
 
         <main className="flex-1 overflow-y-auto">{children}</main>
