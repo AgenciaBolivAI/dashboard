@@ -154,6 +154,22 @@ export const TOOLS: Record<string, Tool> = {
     run: async (_args, tenantId) => (await getBalanceWithService(tenantId)) ?? { balance_credits: 0 },
   },
 
+  get_pricing: {
+    description:
+      "The CURRENT price list (credits charged per action) — LIVE from the billing system, always up to date. Use this for ANY question about how much something costs / qué cuesta / precio / tarifa. 1 USD = 100 credits (so 5 credits = $0.05). NEVER quote prices from memory or the guide — they may be outdated.",
+    parameters: { type: "object", properties: {} },
+    run: async () => {
+      // Platform-wide pricing (same for every tenant). Only the customer-facing
+      // columns — never cost_per_unit_micros / vendor_cost (our margin).
+      const svc = createServiceClient();
+      const { data } = await svc
+        .from("credit_pricing")
+        .select("action_key, credits_per_unit, unit_label, description")
+        .order("action_key");
+      return { currency_note: "1 USD = 100 credits", prices: data ?? [] };
+    },
+  },
+
   get_spend_by_action: {
     description:
       "Credits spent broken down by what they were spent on (action_key), over a window. Use action_key 'whatsapp.agent_turn' for WhatsApp-only spend, 'voice.*' for calls, 'content.*' for CCAVAI, 'marketing.*' for AIMA/leads.",
@@ -396,6 +412,7 @@ export const TOOLS: Record<string, Tool> = {
         window: w,
         count: rows.length,
         conversations: rows.map((r) => ({
+          user_id: r.user_id, // needed to act on the customer (e.g. mark VIP)
           contact: (r.user_id && umap.get(r.user_id)?.name) || "—",
           phone: (r.user_id && umap.get(r.user_id)?.whatsapp_number) || null,
           status: r.status,
@@ -420,7 +437,7 @@ export const TOOLS: Record<string, Tool> = {
       const limit = Math.min(50, Math.max(1, Number(args.limit) || 20));
       const { data } = await svcAny()
         .from("users")
-        .select("name, whatsapp_number, email, created_at")
+        .select("id, name, whatsapp_number, email, is_vip, created_at")
         .eq("tenant_id", tenantId)
         .gte("created_at", startOf(w).toISOString())
         .order("created_at", { ascending: false })
@@ -446,7 +463,7 @@ export const TOOLS: Record<string, Tool> = {
       const limit = Math.min(50, Math.max(1, Number(args.limit) || 20));
       let q = svcAny()
         .from("leads")
-        .select("name, whatsapp_number, email, status, intent, source, created_at")
+        .select("id, name, whatsapp_number, email, status, intent, source, created_at")
         .eq("tenant_id", tenantId)
         .gte("created_at", startOf(w).toISOString());
       if (args.status) q = q.eq("status", args.status);
@@ -474,7 +491,7 @@ export const TOOLS: Record<string, Tool> = {
       const limit = Math.min(50, Math.max(1, Number(args.limit) || 20));
       let q = svcAny()
         .from("reservations")
-        .select("customer_name, customer_phone, status, start_at, created_at")
+        .select("id, customer_name, customer_phone, status, start_at, service_id, created_at")
         .eq("tenant_id", tenantId)
         .gte(tsCol, startOf(w).toISOString());
       if (args.status) q = q.eq("status", args.status);

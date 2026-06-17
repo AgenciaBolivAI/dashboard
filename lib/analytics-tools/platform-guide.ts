@@ -28,30 +28,29 @@ design — no surprise charges). Top up and they resume instantly.
 ## Features & where to find them
 - **WhatsApp agent** — auto-replies to your customers. Edit its persona/prompt in
   **Ajustes → Agente**. Connect/reconnect the number in **Ajustes → Integraciones**.
-  ~5 credits per reply.
+  (For the per-reply price, call get_pricing.)
 - **Asistente (this chat)** — ask about your own business data + how the platform works.
 - **Calendar / reservations** — **Calendario**. Generate availability with "Generar
   slots." Cancel a booking by clicking its tile → "Cancelar reserva." If bookings show
-  on the wrong day, check **Ajustes → General → Zona horaria**. ~5 credits per booking.
+  on the wrong day, check **Ajustes → General → Zona horaria**.
 - **Services** — **Servicios → Nueva** (name, duration, price). Agents pick them up automatically.
 - **Customers (CRM)** — **Clientes**. Click a customer for private notes + "Marcar como VIP."
 - **Voice agents** — **Ajustes → Voz**. Attach a Twilio number (Account SID + Auth Token +
-  number). Pick a voice (multilingual; uses the language in Ajustes → General). Inbound
-  ~70 credits/min, outbound ~100 credits/min.
+  number). Pick a voice (multilingual; uses the language in Ajustes → General). Inbound and
+  outbound calls are billed per minute — call get_pricing for the current rates.
 - **Invoicing** — **Facturas → Nueva**, or from a reservation → "Crear factura." Online
   payments via Stripe Connect; where Stripe isn't available you can still issue invoices
-  and mark them paid manually. ~10 credits per invoice sent. Refunds: contact support.
+  and mark them paid manually. Refunds: contact support.
 - **Marketing / AIMA (lead sourcing)** — **Marketing**. Scrapes Google Maps for verified
   business phone numbers in the verticals + cities you choose. Needs YOUR Google Maps
   Places API key (Google Cloud Console → Credentials → enable "Places API (New)"). Toggle
   it ON, pick verticals + cities, "Empezar ahora" or wait for the daily run. Then export
-  leads or queue them for Sandra to cold-call. ~5 credits per lead found. See run history
-  under "Corridas recientes."
+  leads or queue them for Sandra to cold-call. See run history under "Corridas recientes."
 - **Content / CCAVAI** — **Contenido**. Generates daily social drafts (LinkedIn/Instagram/
   Facebook) with branded images. Choose the mode: **Noticias** (reacts to news from your
   RSS feeds), **Marca** (purely your business/persona), or **Mixta**. Review drafts
   (pending/approved/posted/rejected); "Regenerar imagen" re-creates an image. Publishing is
-  manual today (you copy/post). ~5 credits per draft, ~25 per branded image.
+  manual today (you copy/post).
 - **Video shorts / VIRA** — **Shorts**. Paste a YouTube/Vimeo/mp4 link; it transcribes,
   finds the best moments, and cuts vertical clips. Billed per input minute + output second.
 - **Knowledge base** — **Conocimiento**. Upload FAQ/info docs that both the WhatsApp and
@@ -73,8 +72,9 @@ design — no surprise charges). Top up and they resume instantly.
   chosen, cities chosen.
 
 ## Honesty rules
-- Pricing figures above are approximate references; the exact, current table is on
-  **Facturación**. For a customer's actual spend, use the data tools.
+- PRICES: this guide intentionally has NO price numbers. For any "how much" question call
+  get_pricing (live, always current); the full table is also on **Facturación**. For a
+  customer's actual spend, use the data tools. Never state a price from memory.
 - If something is genuinely not self-serve yet (refunds, double-charge disputes, native
   social publishing, multiple WhatsApp numbers per account), say so plainly and tell them
   to contact BolivAI support rather than promising it.
