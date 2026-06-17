@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { renderBrandedDataUri } from "@/lib/content/brand-render";
+import { uploadCcavaiImage, decodeDataUri } from "@/lib/content/ccavai-storage";
 
 export type CcavaiState = { error: string | null; success?: boolean };
 
@@ -179,6 +180,7 @@ export async function replaceCcavaiSubjectAction(
     .from("ccavai_drafts")
     .select("branded_headline, accent_phrases, story_title")
     .eq("id", draftId)
+    .eq("tenant_id", tenantId)
     .single();
   if (readErr || !existingRow) {
     return { error: readErr?.message ?? "Draft no encontrado" };
@@ -237,13 +239,27 @@ export async function replaceCcavaiSubjectAction(
     return { error: `No se pudo brandear la imagen: ${msg}` };
   }
 
+  // Upload both images to Storage; persist URLs (not multi-MB base64) so the
+  // DB stays slim and thumbnail renders don't ship 3MB of Postgres egress.
+  let subjectUrl = subjectDataUri;
+  let brandedUrl = brandedDataUri;
+  try {
+    const subjDec = decodeDataUri(subjectDataUri);
+    if (subjDec) subjectUrl = await uploadCcavaiImage(tenantId, "subject", subjDec.buf, subjDec.contentType);
+    const brandDec = decodeDataUri(brandedDataUri);
+    if (brandDec) brandedUrl = await uploadCcavaiImage(tenantId, "branded", brandDec.buf, brandDec.contentType);
+  } catch (e) {
+    return { error: `No se pudo subir la imagen: ${e instanceof Error ? e.message : "error"}` };
+  }
+
   const { error: updErr } = await svc
     .from("ccavai_drafts")
     .update({
-      subject_image_url: subjectDataUri,
-      image_url: brandedDataUri,
+      subject_image_url: subjectUrl,
+      image_url: brandedUrl,
     })
-    .eq("id", draftId);
+    .eq("id", draftId)
+    .eq("tenant_id", tenantId);
   if (updErr) return { error: updErr.message };
 
   revalidatePath("/dashboard", "layout");

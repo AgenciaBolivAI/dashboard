@@ -15,6 +15,7 @@
  */
 import { NextResponse } from "next/server";
 import { renderBrandedPng, type BrandRenderInput } from "@/lib/content/brand-render";
+import { uploadCcavaiImage, decodeDataUri } from "@/lib/content/ccavai-storage";
 import { checkBearer } from "@/lib/security/bearer";
 
 export const runtime = "nodejs";   // needs node:fs for font loading
@@ -32,7 +33,10 @@ export async function POST(req: Request) {
     return unauthorized();
   }
 
-  let body: Partial<BrandRenderInput> & { return_format?: "png" | "json" } = {};
+  let body: Partial<BrandRenderInput> & {
+    return_format?: "png" | "json" | "storage";
+    tenant_id?: string;
+  } = {};
   try {
     body = await req.json();
   } catch {
@@ -57,6 +61,31 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "render failed";
     return NextResponse.json({ error: msg }, { status: 500 });
+  }
+
+  // Storage mode: upload both the subject + branded PNG to the ccavai bucket
+  // and return their public URLs. Keeps the multi-MB base64 OUT of Postgres
+  // (was bloating ccavai_drafts to ~680MB + huge egress per render).
+  if (body.return_format === "storage") {
+    if (!body.tenant_id) {
+      return NextResponse.json({ error: "tenant_id required for storage mode" }, { status: 400 });
+    }
+    try {
+      const subjDecoded = decodeDataUri(body.subject_image);
+      const subjectUrl = subjDecoded
+        ? await uploadCcavaiImage(body.tenant_id, "subject", subjDecoded.buf, subjDecoded.contentType)
+        : body.subject_image; // already a URL — pass through
+      const brandedUrl = await uploadCcavaiImage(body.tenant_id, "branded", png, "image/png");
+      return NextResponse.json({
+        ok: true,
+        image_url: brandedUrl,
+        subject_image_url: subjectUrl,
+        bytes: png.length,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "upload failed";
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
   }
 
   if (body.return_format === "json") {
