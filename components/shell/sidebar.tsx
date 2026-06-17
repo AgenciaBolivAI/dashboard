@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   BarChart3,
+  Bot,
   CalendarDays,
   Coins,
   Contact,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "overview", key: "overview", icon: BarChart3 },
+  { href: "assistant", key: "assistant", icon: Bot },
   { href: "conversations", key: "conversations", icon: MessagesSquare },
   { href: "leads", key: "leads", icon: UserPlus },
   { href: "customers", key: "customers", icon: Contact },

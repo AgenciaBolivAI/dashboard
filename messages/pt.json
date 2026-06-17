@@ -14,7 +14,8 @@
     "shorts": "Shorts (VIRA)",
     "billing": "Faturação",
     "settings": "Configurações",
-    "sandra_queue": "Fila da Sandra"
+    "sandra_queue": "Fila da Sandra",
+    "assistant": "Assistente"
   },
   "userMenu": {
     "signedIn": "Sessão iniciada",
@@ -902,5 +903,17 @@
     "accept_invitation_title": "Aceitar convite",
     "accept_invitation_description": "Você foi convidado para entrar em <strong>{tenant}</strong> como <em>{role}</em>.",
     "accept_and_enter": "Aceitar e entrar"
+  },
+  "assistant": {
+    "page_title": "Assistente",
+    "page_subtitle": "Pergunte à IA sobre o seu negócio — reservas, créditos, leads e mais.",
+    "empty_title": "O que você quer saber sobre o seu negócio?",
+    "empty_subtitle": "Pergunte em linguagem natural. Respondo com os seus dados reais, ao vivo.",
+    "placeholder": "Escreva a sua pergunta…",
+    "error_reply": "Tive um problema ao consultar os seus dados. Tente novamente.",
+    "suggestion_1": "Quantas reservas foram feitas nas últimas 24 horas?",
+    "suggestion_2": "Quantos créditos gastei hoje só no WhatsApp?",
+    "suggestion_3": "Por que as reservas caíram na semana passada?",
+    "suggestion_4": "Quantos leads novos tenho este mês?"
   }
 }

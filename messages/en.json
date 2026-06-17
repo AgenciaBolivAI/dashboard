@@ -14,7 +14,8 @@
     "shorts": "Shorts (VIRA)",
     "billing": "Billing",
     "settings": "Settings",
-    "sandra_queue": "Sandra's queue"
+    "sandra_queue": "Sandra's queue",
+    "assistant": "Assistant"
   },
   "userMenu": {
     "signedIn": "Signed in",
@@ -902,5 +903,17 @@
     "accept_invitation_title": "Accept invitation",
     "accept_invitation_description": "You've been invited to join <strong>{tenant}</strong> as <em>{role}</em>.",
     "accept_and_enter": "Accept and enter"
+  },
+  "assistant": {
+    "page_title": "Assistant",
+    "page_subtitle": "Ask the AI about your business — reservations, credits, leads and more.",
+    "empty_title": "What do you want to know about your business?",
+    "empty_subtitle": "Ask in plain language. I answer from your real data, live.",
+    "placeholder": "Type your question…",
+    "error_reply": "I had a problem fetching your data. Please try again.",
+    "suggestion_1": "How many reservations were made in the last 24 hours?",
+    "suggestion_2": "How many credits did I spend today on WhatsApp only?",
+    "suggestion_3": "Why did reservations drop last week?",
+    "suggestion_4": "How many new leads do I have this month?"
   }
 }
