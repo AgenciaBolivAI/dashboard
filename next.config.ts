@@ -70,13 +70,15 @@ const config: NextConfig = {
       { protocol: "https", hostname: "bolivai.com" },
     ],
   },
-  // The Supabase generated types occasionally lag behind schema migrations,
-  // producing spurious "not assignable to never" errors on .update()/.insert().
-  // We rely on dev-time type checking + the Postgres schema as the source of
-  // truth, so production builds skip strict type checking to ship reliably.
+  // Type errors now FAIL the build (production safety net — regressions can't
+  // ship silently). Supabase type lag on .update()/.insert() is handled with
+  // narrow `as never` casts at the call site; run `npm run db:types` after a
+  // schema migration to keep the generated types current.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
+  // ESLint stays non-blocking for builds (warnings shouldn't fail a deploy);
+  // lint runs in CI instead.
   eslint: {
     ignoreDuringBuilds: true,
   },

@@ -1,0 +1,26 @@
+name: CI
+
+# Smoke test: blocks merges/pushes that introduce type errors (the regressions
+# that `typescript.ignoreBuildErrors` used to hide). The full production build
+# is gated separately by Vercel (which now type-checks too).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Typecheck (hard gate)
+        run: npm run typecheck
+      - name: Lint (informational)
+        run: npm run lint
+        continue-on-error: true
