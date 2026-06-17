@@ -4,6 +4,7 @@ import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { getTenantBySlug } from "@/lib/tenant";
 import { runAssistant, type ChatMsg, type PendingAction } from "@/lib/analytics-tools/run";
 import { dispatchTool, WRITE_TOOL_NAMES } from "@/lib/analytics-tools/index";
+import { getBalanceWithService, debitCredits } from "@/lib/billing/credits";
 
 export type AskAssistantResult =
   | { ok: true; answer: string; toolsUsed: string[]; pendingAction?: PendingAction | null }
@@ -32,6 +33,16 @@ export async function askAssistantAction(
     return { ok: false, error: "No hay pregunta que responder." };
   }
 
+  // Metering: 1 credit / answered question. Pause at zero like every agent —
+  // refuse upfront if the tenant can't afford it (no free answer at 0 balance).
+  const bal = await getBalanceWithService(tenant.id);
+  if (!bal || bal.available_credits < 1) {
+    return {
+      ok: false,
+      error: "Necesitas al menos 1 crédito para usar el asistente. Recárgalo en Facturación.",
+    };
+  }
+
   const res = await runAssistant({
     tenantId: tenant.id,
     tenantName: tenant.name,
@@ -39,7 +50,10 @@ export async function askAssistantAction(
     history: trimmed,
   });
 
+  // Only charge for a successful answer (not for OpenAI errors). Best-effort —
+  // the pre-check above already gated affordability.
   if (res.error) return { ok: false, error: res.error };
+  await debitCredits({ tenantId: tenant.id, actionKey: "assistant.query", units: 1 }).catch(() => {});
   return { ok: true, answer: res.answer, toolsUsed: res.toolsUsed, pendingAction: res.pendingAction ?? null };
 }
 
