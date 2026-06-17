@@ -156,7 +156,7 @@ export const TOOLS: Record<string, Tool> = {
 
   get_pricing: {
     description:
-      "The CURRENT price list (credits charged per action) — LIVE from the billing system, always up to date. Use this for ANY question about how much something costs / qué cuesta / precio / tarifa. 1 USD = 100 credits (so 5 credits = $0.05). NEVER quote prices from memory or the guide — they may be outdated.",
+      "The CURRENT price list (credits charged per action) — LIVE from the billing system, always up to date. Use this for ANY question about how much something costs / qué cuesta / precio / tarifa. Quote prices in CREDITS ONLY (never dollars/USD). NEVER quote prices from memory or the guide — they may be outdated.",
     parameters: { type: "object", properties: {} },
     run: async () => {
       // Platform-wide pricing (same for every tenant). Only the customer-facing
@@ -166,7 +166,7 @@ export const TOOLS: Record<string, Tool> = {
         .from("credit_pricing")
         .select("action_key, credits_per_unit, unit_label, description")
         .order("action_key");
-      return { currency_note: "1 USD = 100 credits", prices: data ?? [] };
+      return { currency_note: "Prices are in credits. Quote in credits only — do not convert to USD.", prices: data ?? [] };
     },
   },
 
