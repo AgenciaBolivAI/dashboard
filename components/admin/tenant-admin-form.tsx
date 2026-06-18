@@ -12,7 +12,7 @@ import {
 
 const initial: AdminState = { error: null };
 
-const PLANS = ["starter", "pro", "business", "enterprise", "whitelabel"] as const;
+const PLANS = ["starter", "pro", "business", "enterprise"] as const;
 const STATUSES = ["active", "paused", "cancelled"] as const;
 
 export function TenantAdminForm({

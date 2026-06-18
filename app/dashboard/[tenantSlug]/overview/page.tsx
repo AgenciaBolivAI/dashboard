@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
-import { getPlan, isOverConversationsCap } from "@/lib/plans";
 import { getTenantOverviewMetrics } from "@/lib/queries/metrics";
 import { getRevenueSummary } from "@/lib/queries/invoices";
 import { formatMoney } from "@/lib/format";
@@ -15,7 +13,6 @@ export default async function OverviewPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
-  const plan = getPlan(tenant.plan);
   const [m, revenue, t, locale] = await Promise.all([
     getTenantOverviewMetrics(tenant.id),
     getRevenueSummary(tenant.id, tenant.invoice_default_currency),
@@ -23,12 +20,9 @@ export default async function OverviewPage({
     getLocale(),
   ]);
 
-  const overCap = isOverConversationsCap(plan, m.conversations);
   // Use BCP-47-ish locale for number formatting so "1,234" vs "1.234"
   // matches the active language. Spanish + Italian use "1.234", English uses "1,234", etc.
   const numFmt = (n: number) => n.toLocaleString(locale);
-  const capDisplay =
-    plan.conversationsCap === -1 ? "∞" : numFmt(plan.conversationsCap);
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
@@ -38,23 +32,16 @@ export default async function OverviewPage({
             {t("title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {t("plan_tag")} {plan.name} · {tenant.industry ?? "general"} · {tenant.language}
+            {t("plan_tag")} · {tenant.industry ?? "general"} · {tenant.language}
           </p>
         </div>
-        {overCap ? (
-          <Badge variant="warning">Cap</Badge>
-        ) : null}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label={t("metric_conversations_month")}
           value={numFmt(m.conversations)}
-          hint={
-            plan.conversationsCap === -1
-              ? "∞"
-              : `${numFmt(m.conversations)} / ${capDisplay}`
-          }
+          hint={t("metric_leads_period")}
         />
         <KpiCard
           label={t("metric_leads_captured")}
