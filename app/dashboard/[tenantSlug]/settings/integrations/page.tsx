@@ -1,11 +1,14 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  Instagram,
   PlugZap,
   XCircle,
 } from "lucide-react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { getTenantBySlug } from "@/lib/tenant";
 import { getInstanceStatus } from "@/lib/evolution";
@@ -99,6 +102,21 @@ export default async function IntegrationsPage({
     googleIntegration = (data as GoogleIntegration | null) ?? null;
   }
 
+  // Connected Instagram / Messenger channels (tenant_channels — not yet in the
+  // generated DB types, so use a loosely-typed client).
+  const svcChannels = createServiceClient() as unknown as SupabaseClient;
+  const { data: metaRows } = await svcChannels
+    .from("tenant_channels")
+    .select("channel, external_id, config, status")
+    .eq("tenant_id", tenant.id)
+    .in("channel", ["instagram", "facebook_messenger"]);
+  const metaChannels = (metaRows ?? []) as {
+    channel: string;
+    external_id: string;
+    config: Record<string, unknown>;
+    status: string;
+  }[];
+
   return (
     <div className="space-y-4">
       {/* Template + gateway summary */}
@@ -180,6 +198,49 @@ export default async function IntegrationsPage({
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Instagram + Messenger channels */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("meta_title")}</CardTitle>
+          <CardDescription>{t("meta_description")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {metaChannels.length > 0 ? (
+            <div className="space-y-2">
+              {metaChannels.map((c) => (
+                <Row
+                  key={`${c.channel}:${c.external_id}`}
+                  label={
+                    c.channel === "instagram"
+                      ? t("meta_channel_instagram")
+                      : t("meta_channel_messenger")
+                  }
+                  value={
+                    (c.config?.ig_username as string) ||
+                    (c.config?.page_name as string) ||
+                    c.external_id
+                  }
+                  badge={
+                    <Badge variant={c.status === "active" ? "success" : "muted"}>
+                      {c.status === "active" ? t("meta_status_active") : t("meta_status_paused")}
+                    </Badge>
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("meta_none")}</p>
+          )}
+          <Button asChild>
+            <a href={`/api/meta/connect?tenant=${tenantSlug}`}>
+              <Instagram className="size-4" />
+              {metaChannels.length > 0 ? t("meta_reconnect_btn") : t("meta_connect_btn")}
+            </a>
+          </Button>
+          <p className="text-xs text-muted-foreground">{t("meta_pending_note")}</p>
+        </CardContent>
+      </Card>
 
       {/* n8n */}
       <Card>

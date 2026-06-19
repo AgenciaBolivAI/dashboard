@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -25,9 +27,10 @@ export async function inviteUserAction(
   _prev: TeamState,
   formData: FormData,
 ): Promise<TeamState> {
+  const t = await getTranslations("team");
   const parsed = inviteSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: t("err_invalid") };
   }
 
   const user = await requireUser();
@@ -88,7 +91,7 @@ export async function updateMemberRoleAction(
   role: (typeof ROLES)[number],
 ): Promise<TeamState> {
   const parsed = roleUpdateSchema.safeParse({ tenant_id: tenantId, user_id: userId, role });
-  if (!parsed.success) return { error: "Datos inválidos" };
+  if (!parsed.success) return { error: (await getTranslations("team"))("err_invalid") };
 
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });
@@ -113,7 +116,7 @@ export async function removeMemberAction(
 ): Promise<TeamState> {
   const me = await requireUser();
   if (me.id === userId) {
-    return { error: "No puedes quitarte a ti mismo" };
+    return { error: (await getTranslations("team"))("err_cannot_remove_self") };
   }
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
@@ -190,4 +193,258 @@ export async function loadTeam(tenantId: string): Promise<{
     members,
     invitations: (invitations ?? []) as PendingInvitation[],
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Employee groups + credit budgets (schema-step32)
+// ═══════════════════════════════════════════════════════════════════════
+// These tables aren't in the generated Database types until `npm run db:types`
+// runs after the migration is applied — use a loosely-typed service client.
+function looseSvc(): SupabaseClient {
+  return createServiceClient() as unknown as SupabaseClient;
+}
+
+export type EmployeeGroup = {
+  id: string;
+  name: string;
+  description: string | null;
+  member_ids: string[];
+};
+
+export type CreditBudget = {
+  id: string;
+  scope_type: "user" | "group";
+  scope_id: string;
+  period: "monthly" | "one_time";
+  allocated_credits: number;
+  spent_credits: number;
+  enabled: boolean;
+};
+
+/** Groups (with their member ids) + budgets for the team page. Admin-gated. */
+export async function loadTeamBudgets(tenantId: string): Promise<{
+  groups: EmployeeGroup[];
+  budgets: CreditBudget[];
+}> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+  const svc = looseSvc();
+
+  const [{ data: groups }, { data: gm }, { data: budgets }] = await Promise.all([
+    svc.from("employee_groups").select("id, name, description").eq("tenant_id", tenantId).order("name"),
+    svc.from("employee_group_members").select("group_id, user_id").eq("tenant_id", tenantId),
+    svc
+      .from("credit_budgets")
+      .select("id, scope_type, scope_id, period, allocated_credits, spent_credits, enabled")
+      .eq("tenant_id", tenantId),
+  ]);
+
+  const byGroup = new Map<string, string[]>();
+  for (const m of (gm ?? []) as { group_id: string; user_id: string }[]) {
+    const arr = byGroup.get(m.group_id) ?? [];
+    arr.push(m.user_id);
+    byGroup.set(m.group_id, arr);
+  }
+
+  return {
+    groups: ((groups ?? []) as { id: string; name: string; description: string | null }[]).map((g) => ({
+      ...g,
+      member_ids: byGroup.get(g.id) ?? [],
+    })),
+    budgets: (budgets ?? []) as CreditBudget[],
+  };
+}
+
+// ─── Create / delete a group ─────────────────────────────────────────
+const groupSchema = z.object({
+  tenant_id: z.string().uuid(),
+  name: z.string().trim().min(1, "Nombre requerido").max(60),
+  description: z.string().trim().max(200).optional(),
+});
+
+export async function createGroupAction(_prev: TeamState, formData: FormData): Promise<TeamState> {
+  const t = await getTranslations("team");
+  const parsed = groupSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: t("err_invalid") };
+  await requireUser();
+  await requireTenantAccess(parsed.data.tenant_id, { minRole: "admin" });
+
+  const { error } = await looseSvc().from("employee_groups").insert({
+    tenant_id: parsed.data.tenant_id,
+    name: parsed.data.name,
+    description: parsed.data.description || null,
+  });
+  if (error) {
+    return {
+      error: /duplicate|unique/i.test(error.message) ? t("err_group_name_taken") : error.message,
+    };
+  }
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+export async function deleteGroupAction(tenantId: string, groupId: string): Promise<TeamState> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+  const svc = looseSvc();
+  // Drop the group's budget first; member rows cascade with the group.
+  await svc
+    .from("credit_budgets")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("scope_type", "group")
+    .eq("scope_id", groupId);
+  const { error } = await svc.from("employee_groups").delete().eq("id", groupId).eq("tenant_id", tenantId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+// ─── Assign / unassign a member to a group (a user is in <= 1 group) ──
+export async function assignMemberAction(
+  tenantId: string,
+  groupId: string,
+  userId: string,
+): Promise<TeamState> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+  const { error } = await looseSvc()
+    .from("employee_group_members")
+    .upsert(
+      { tenant_id: tenantId, group_id: groupId, user_id: userId },
+      { onConflict: "tenant_id,user_id" },
+    );
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+export async function unassignMemberAction(tenantId: string, userId: string): Promise<TeamState> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+  const { error } = await looseSvc()
+    .from("employee_group_members")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+// ─── Set / remove a budget (user OR group; never both) ───────────────
+const budgetSchema = z.object({
+  tenant_id: z.string().uuid(),
+  scope_type: z.enum(["user", "group"]),
+  scope_id: z.string().uuid(),
+  period: z.enum(["monthly", "one_time"]),
+  allocated_credits: z.coerce.number().int().min(0).max(100_000_000),
+});
+
+export async function setBudgetAction(input: {
+  tenantId: string;
+  scopeType: "user" | "group";
+  scopeId: string;
+  period: "monthly" | "one_time";
+  allocatedCredits: number;
+}): Promise<TeamState> {
+  const parsed = budgetSchema.safeParse({
+    tenant_id: input.tenantId,
+    scope_type: input.scopeType,
+    scope_id: input.scopeId,
+    period: input.period,
+    allocated_credits: input.allocatedCredits,
+  });
+  const t = await getTranslations("team");
+  if (!parsed.success) return { error: t("err_invalid") };
+  await requireUser();
+  await requireTenantAccess(input.tenantId, { minRole: "admin" });
+  const svc = looseSvc();
+
+  // Enforce "never both": a member can't have a personal budget AND sit in a
+  // budgeted group.
+  if (input.scopeType === "user") {
+    const { data: gm } = await svc
+      .from("employee_group_members")
+      .select("group_id")
+      .eq("tenant_id", input.tenantId)
+      .eq("user_id", input.scopeId)
+      .maybeSingle();
+    const groupId = (gm as { group_id: string } | null)?.group_id;
+    if (groupId) {
+      const { data: gb } = await svc
+        .from("credit_budgets")
+        .select("id")
+        .eq("tenant_id", input.tenantId)
+        .eq("scope_type", "group")
+        .eq("scope_id", groupId)
+        .eq("enabled", true)
+        .maybeSingle();
+      if (gb) {
+        return { error: t("err_personal_in_budgeted_team") };
+      }
+    }
+  } else {
+    const { data: gm } = await svc
+      .from("employee_group_members")
+      .select("user_id")
+      .eq("tenant_id", input.tenantId)
+      .eq("group_id", input.scopeId);
+    const ids = ((gm ?? []) as { user_id: string }[]).map((x) => x.user_id);
+    if (ids.length) {
+      const { data: pb } = await svc
+        .from("credit_budgets")
+        .select("id")
+        .eq("tenant_id", input.tenantId)
+        .eq("scope_type", "user")
+        .eq("enabled", true)
+        .in("scope_id", ids)
+        .limit(1);
+      if (pb && (pb as unknown[]).length) {
+        return { error: t("err_team_member_has_personal") };
+      }
+    }
+  }
+
+  // Update if a budget already exists (preserve spent_credits mid-period),
+  // otherwise insert a fresh one.
+  const { data: existing } = await svc
+    .from("credit_budgets")
+    .select("id")
+    .eq("tenant_id", input.tenantId)
+    .eq("scope_type", input.scopeType)
+    .eq("scope_id", input.scopeId)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await svc
+      .from("credit_budgets")
+      .update({ period: input.period, allocated_credits: input.allocatedCredits, enabled: true })
+      .eq("id", (existing as { id: string }).id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await svc.from("credit_budgets").insert({
+      tenant_id: input.tenantId,
+      scope_type: input.scopeType,
+      scope_id: input.scopeId,
+      period: input.period,
+      allocated_credits: input.allocatedCredits,
+    });
+    if (error) return { error: error.message };
+  }
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+export async function removeBudgetAction(tenantId: string, budgetId: string): Promise<TeamState> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+  const { error } = await looseSvc()
+    .from("credit_budgets")
+    .delete()
+    .eq("id", budgetId)
+    .eq("tenant_id", tenantId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
 }

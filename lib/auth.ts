@@ -24,6 +24,17 @@ export async function getUser() {
 }
 
 /**
+ * The auth provider the current user signed in with ("email", "google",
+ * "facebook", …) or null if not signed in. OAuth-only users have no password,
+ * so password-change UI should be hidden when this is not "email".
+ */
+export async function getAuthProvider(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return (user?.app_metadata?.provider as string | undefined) ?? null;
+}
+
+/**
  * Returns true if the current user is in the bolivai_admins table.
  */
 export async function isBolivAIAdmin() {

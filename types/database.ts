@@ -428,6 +428,7 @@ export type Database = {
       }
       chat_history: {
         Row: {
+          channel: string
           content: string
           conversation_id: string
           created_at: string
@@ -435,11 +436,13 @@ export type Database = {
           id: number
           is_pending: boolean
           metadata: Json
+          provider_message_id: string | null
           role: string
           tenant_id: string
           user_id: string
         }
         Insert: {
+          channel?: string
           content: string
           conversation_id: string
           created_at?: string
@@ -447,11 +450,13 @@ export type Database = {
           id?: number
           is_pending?: boolean
           metadata?: Json
+          provider_message_id?: string | null
           role: string
           tenant_id: string
           user_id: string
         }
         Update: {
+          channel?: string
           content?: string
           conversation_id?: string
           created_at?: string
@@ -459,6 +464,7 @@ export type Database = {
           id?: number
           is_pending?: boolean
           metadata?: Json
+          provider_message_id?: string | null
           role?: string
           tenant_id?: string
           user_id?: string
@@ -489,6 +495,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          channel: string
           created_at: string
           hitl_operator_id: string | null
           hitl_taken_over: boolean
@@ -500,6 +507,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          channel?: string
           created_at?: string
           hitl_operator_id?: string | null
           hitl_taken_over?: boolean
@@ -511,6 +519,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          channel?: string
           created_at?: string
           hitl_operator_id?: string | null
           hitl_taken_over?: boolean
@@ -597,6 +606,56 @@ export type Database = {
           },
         ]
       }
+      credit_budgets: {
+        Row: {
+          allocated_credits: number
+          created_at: string
+          enabled: boolean
+          id: string
+          period: string
+          period_start: string
+          scope_id: string
+          scope_type: string
+          spent_credits: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          allocated_credits: number
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          period: string
+          period_start?: string
+          scope_id: string
+          scope_type: string
+          spent_credits?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          allocated_credits?: number
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          period?: string
+          period_start?: string
+          scope_id?: string
+          scope_type?: string
+          spent_credits?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_pricing: {
         Row: {
           action_key: string
@@ -630,7 +689,9 @@ export type Database = {
       credit_transactions: {
         Row: {
           action_key: string | null
+          actor_user_id: string | null
           balance_after: number
+          budget_id: string | null
           created_at: string
           credits_delta: number
           id: string
@@ -641,7 +702,9 @@ export type Database = {
         }
         Insert: {
           action_key?: string | null
+          actor_user_id?: string | null
           balance_after: number
+          budget_id?: string | null
           created_at?: string
           credits_delta: number
           id?: string
@@ -652,7 +715,9 @@ export type Database = {
         }
         Update: {
           action_key?: string | null
+          actor_user_id?: string | null
           balance_after?: number
+          budget_id?: string | null
           created_at?: string
           credits_delta?: number
           id?: string
@@ -743,6 +808,84 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_group_members: {
+        Row: {
+          added_at: string
+          group_id: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          group_id: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          group_id?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "employee_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_group_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_group_members_user_id_tenant_id_fkey"
+            columns: ["user_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_users"
+            referencedColumns: ["user_id", "tenant_id"]
+          },
+        ]
+      }
+      employee_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_groups_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1547,6 +1690,47 @@ export type Database = {
           },
         ]
       }
+      tenant_channels: {
+        Row: {
+          channel: string
+          config: Json
+          created_at: string
+          external_id: string
+          id: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          config?: Json
+          created_at?: string
+          external_id: string
+          id?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          config?: Json
+          created_at?: string
+          external_id?: string
+          id?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_channels_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_integrations: {
         Row: {
           access_token: string | null
@@ -1640,15 +1824,16 @@ export type Database = {
           updated_at: string
           voice_agent_created_at: string | null
           voice_agent_updated_at: string | null
+          voice_elevenlabs_outbound_phone_id: string | null
           voice_enabled: boolean
           voice_greeting: string | null
           voice_id: string | null
           voice_kb_doc_id: string | null
           voice_kb_synced_at: string | null
           voice_languages: string[]
+          voice_persona: Json
           voice_phone_account_sid: string | null
           voice_phone_auth_token: string | null
-          voice_phone_elevenlabs_id: string | null
           voice_phone_number: string | null
           voice_phone_provider: string | null
           whatsapp_number: string | null
@@ -1699,15 +1884,16 @@ export type Database = {
           updated_at?: string
           voice_agent_created_at?: string | null
           voice_agent_updated_at?: string | null
+          voice_elevenlabs_outbound_phone_id?: string | null
           voice_enabled?: boolean
           voice_greeting?: string | null
           voice_id?: string | null
           voice_kb_doc_id?: string | null
           voice_kb_synced_at?: string | null
           voice_languages?: string[]
+          voice_persona?: Json
           voice_phone_account_sid?: string | null
           voice_phone_auth_token?: string | null
-          voice_phone_elevenlabs_id?: string | null
           voice_phone_number?: string | null
           voice_phone_provider?: string | null
           whatsapp_number?: string | null
@@ -1758,15 +1944,16 @@ export type Database = {
           updated_at?: string
           voice_agent_created_at?: string | null
           voice_agent_updated_at?: string | null
+          voice_elevenlabs_outbound_phone_id?: string | null
           voice_enabled?: boolean
           voice_greeting?: string | null
           voice_id?: string | null
           voice_kb_doc_id?: string | null
           voice_kb_synced_at?: string | null
           voice_languages?: string[]
+          voice_persona?: Json
           voice_phone_account_sid?: string | null
           voice_phone_auth_token?: string | null
-          voice_phone_elevenlabs_id?: string | null
           voice_phone_number?: string | null
           voice_phone_provider?: string | null
           whatsapp_number?: string | null
@@ -1805,6 +1992,9 @@ export type Database = {
       }
       users: {
         Row: {
+          business_name: string | null
+          channel: string
+          channel_user_id: string | null
           created_at: string
           email: string | null
           facts: string | null
@@ -1812,13 +2002,17 @@ export type Database = {
           is_vip: boolean
           metadata: Json
           name: string | null
+          point_of_contact: string | null
           tenant_id: string
           tenant_notes: string | null
           updated_at: string
-          whatsapp_number: string
+          whatsapp_number: string | null
           zep_session_id: string | null
         }
         Insert: {
+          business_name?: string | null
+          channel?: string
+          channel_user_id?: string | null
           created_at?: string
           email?: string | null
           facts?: string | null
@@ -1826,13 +2020,17 @@ export type Database = {
           is_vip?: boolean
           metadata?: Json
           name?: string | null
+          point_of_contact?: string | null
           tenant_id: string
           tenant_notes?: string | null
           updated_at?: string
-          whatsapp_number: string
+          whatsapp_number?: string | null
           zep_session_id?: string | null
         }
         Update: {
+          business_name?: string | null
+          channel?: string
+          channel_user_id?: string | null
           created_at?: string
           email?: string | null
           facts?: string | null
@@ -1840,10 +2038,11 @@ export type Database = {
           is_vip?: boolean
           metadata?: Json
           name?: string | null
+          point_of_contact?: string | null
           tenant_id?: string
           tenant_notes?: string | null
           updated_at?: string
-          whatsapp_number?: string
+          whatsapp_number?: string | null
           zep_session_id?: string | null
         }
         Relationships: [
@@ -2158,23 +2357,38 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      aima_stats: {
-        Args:
-          | { p_window?: string }
-          | { p_tenant_id: string; p_window?: string }
-        Returns: {
-          cold_email_enabled: boolean
-          demos_booked: number
-          emails_opened: number
-          emails_replied: number
-          emails_sent: number
-          in_sandra_queue: number
-          last_scrape_at: string
-          leads_sourced: number
-          scraper_enabled: boolean
-          window_start: string
-        }[]
-      }
+      _t_probe2: { Args: never; Returns: number }
+      aima_stats:
+        | {
+            Args: { p_tenant_id: string; p_window?: string }
+            Returns: {
+              cold_email_enabled: boolean
+              demos_booked: number
+              emails_opened: number
+              emails_replied: number
+              emails_sent: number
+              in_sandra_queue: number
+              last_scrape_at: string
+              leads_sourced: number
+              scraper_enabled: boolean
+              window_start: string
+            }[]
+          }
+        | {
+            Args: { p_window?: string }
+            Returns: {
+              cold_email_enabled: boolean
+              demos_booked: number
+              emails_opened: number
+              emails_replied: number
+              emails_sent: number
+              in_sandra_queue: number
+              last_scrape_at: string
+              leads_sourced: number
+              scraper_enabled: boolean
+              window_start: string
+            }[]
+          }
       book_slot: {
         Args: {
           p_customer_email: string
@@ -2262,6 +2476,23 @@ export type Database = {
         }
         Returns: {
           balance_after: number
+          credits_debited: number
+          ok: boolean
+          reason: string
+        }[]
+      }
+      debit_credits_as_user: {
+        Args: {
+          p_action_key: string
+          p_actor_user_id: string
+          p_metadata?: Json
+          p_reference_id?: string
+          p_tenant_id: string
+          p_units?: number
+        }
+        Returns: {
+          balance_after: number
+          budget_remaining: number
           credits_debited: number
           ok: boolean
           reason: string
@@ -2432,6 +2663,7 @@ export type Database = {
           reserved_after: number
         }[]
       }
+      reset_due_budgets: { Args: never; Returns: number }
       role_on_tenant: { Args: { p_tenant_id: string }; Returns: string }
       search_slots_day: {
         Args: {

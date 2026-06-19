@@ -20,7 +20,7 @@ export async function askAssistantAction(
   tenantSlug: string,
   history: ChatMsg[],
 ): Promise<AskAssistantResult> {
-  await requireUser();
+  const user = await requireUser();
   const tenant = await getTenantBySlug(tenantSlug);
   await requireTenantAccess(tenant.id);
 
@@ -53,7 +53,13 @@ export async function askAssistantAction(
   // Only charge for a successful answer (not for OpenAI errors). Best-effort —
   // the pre-check above already gated affordability.
   if (res.error) return { ok: false, error: res.error };
-  await debitCredits({ tenantId: tenant.id, actionKey: "assistant.query", units: 1 }).catch(() => {});
+  // Attribute the spend to the asking employee + enforce their budget (if any).
+  await debitCredits({
+    tenantId: tenant.id,
+    actionKey: "assistant.query",
+    units: 1,
+    actorUserId: user.id,
+  }).catch(() => {});
   return { ok: true, answer: res.answer, toolsUsed: res.toolsUsed, pendingAction: res.pendingAction ?? null };
 }
 

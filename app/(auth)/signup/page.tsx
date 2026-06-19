@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createServiceClient } from "@/lib/supabase/service";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { SignUpForm } from "./signup-form";
 
 export async function generateMetadata() {
@@ -52,6 +53,13 @@ export default async function SignUpPage({
           invitationToken={token}
           prefilledEmail={invitation?.email}
         />
+        {/* OAuth only for self-serve signup. Invited signups MUST use the
+            password form so the invitation token attaches the tenant. */}
+        {!token ? (
+          <div className="mt-6">
+            <OAuthButtons next="/onboarding" />
+          </div>
+        ) : null}
         <div className="mt-6 text-xs text-muted-foreground">
           {t("already_have_account")}{" "}
           <Link href="/login" className="text-foreground hover:underline">

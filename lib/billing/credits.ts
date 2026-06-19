@@ -79,12 +79,23 @@ export async function listTransactions(
   return (data ?? []) as CreditTransaction[];
 }
 
+// Generated Database types don't yet know about debit_credits_as_user
+// (added in schema-step32; run `npm run db:types` after applying it). Until
+// then, route through this narrow raw-rpc shape instead of the typed union.
+type RawRpc = (
+  fn: string,
+  args: Record<string, unknown>,
+) => Promise<{ data: unknown; error: { message: string } | null }>;
+
 /**
- * Atomically debit credits for an action. Returns {ok:false} if the
- * tenant doesn't have enough — caller MUST refuse the action when false.
+ * Atomically debit credits for an action. Returns {ok:false} if the tenant
+ * doesn't have enough — caller MUST refuse the action when false.
  *
- * Use the service client because agents (n8n, voice webhooks) call this
- * without a user session.
+ * Pass `actorUserId` for DASHBOARD-initiated actions (an employee triggered
+ * it): the spend is attributed to that user and their governing budget
+ * (personal else group) is enforced as a hard cap before the tenant pool is
+ * touched. Leave it undefined for agent/customer-driven spend (n8n, voice
+ * webhooks) so it draws from the tenant pool, unbudgeted.
  */
 export async function debitCredits(input: {
   tenantId: string;
@@ -92,13 +103,39 @@ export async function debitCredits(input: {
   units?: number;
   referenceId?: string | null;
   metadata?: Record<string, unknown>;
+  actorUserId?: string | null;
 }): Promise<{
   ok: boolean;
   balance_after: number;
   credits_debited: number;
+  budget_remaining?: number | null;
   reason: string | null;
 }> {
   const svc = createServiceClient();
+
+  if (input.actorUserId) {
+    const rawRpc = svc.rpc as unknown as RawRpc;
+    const { data, error } = await rawRpc("debit_credits_as_user", {
+      p_tenant_id: input.tenantId,
+      p_action_key: input.actionKey,
+      p_actor_user_id: input.actorUserId,
+      p_units: input.units ?? 1,
+      p_reference_id: input.referenceId ?? null,
+      p_metadata: input.metadata ?? {},
+    });
+    if (error) {
+      return { ok: false, balance_after: 0, credits_debited: 0, budget_remaining: null, reason: error.message };
+    }
+    const row = (Array.isArray(data) ? data[0] : data) as {
+      ok: boolean;
+      balance_after: number;
+      credits_debited: number;
+      budget_remaining: number | null;
+      reason: string | null;
+    } | null;
+    return row ?? { ok: false, balance_after: 0, credits_debited: 0, budget_remaining: null, reason: "no row" };
+  }
+
   const { data, error } = await svc.rpc("debit_credits", {
     p_tenant_id: input.tenantId,
     p_action_key: input.actionKey,

@@ -78,6 +78,10 @@ export async function POST(req: Request) {
           body.metadata && typeof body.metadata === "object"
             ? (body.metadata as Record<string, unknown>)
             : {},
+        // Optional: when n8n forwards the employee who triggered a dashboard
+        // action, the spend is attributed + their budget is enforced as a
+        // hard cap. Omitted for customer/agent-driven spend → tenant pool.
+        actorUserId: typeof body.actor_user_id === "string" ? body.actor_user_id : null,
       });
       return NextResponse.json(result);
     }
