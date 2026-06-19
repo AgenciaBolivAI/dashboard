@@ -52,9 +52,14 @@ export async function provisionEvolutionInstanceAction(
     return { error: `Este tenant usa gateway '${tenant.gateway}', no Evolution.` };
   }
 
-  // Use the tenant slug as the instance name. DNS-safe by construction (Zod
-  // regex in onboarding enforces it).
-  const instanceName = tenant.slug as string;
+  // Operate on the tenant's REAL instance. Use the already-provisioned name from
+  // gateway_config — it may have been set up manually (e.g. the phone number),
+  // not as the slug. Only fall back to the slug for a brand-new instance (the
+  // `pending_<slug>` placeholder onboarding writes, or nothing on file).
+  const existingInstance = (tenant.gateway_config as Record<string, unknown> | null)
+    ?.instance as string | undefined;
+  const isPlaceholder = !existingInstance || existingInstance.startsWith("pending_");
+  const instanceName = isPlaceholder ? (tenant.slug as string) : existingInstance;
 
   try {
     let qrBase64: string | undefined;
@@ -71,10 +76,28 @@ export async function provisionEvolutionInstanceAction(
       qrBase64 = created.qrcode?.base64;
       pairingCode = created.qrcode?.pairingCode;
     } else {
-      // Re-issue QR for existing instance (e.g. operator lost the previous one)
-      const qr = await getInstanceQr(instanceName);
-      qrBase64 = qr.base64;
-      pairingCode = qr.pairingCode;
+      // Re-issue QR for an existing instance (e.g. operator lost the previous
+      // one). If the instance no longer exists on the Evolution server
+      // (deleted/reset), create it instead of returning a 404.
+      try {
+        const qr = await getInstanceQr(instanceName);
+        qrBase64 = qr.base64;
+        pairingCode = qr.pairingCode;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/not found|does not exist|404/i.test(msg)) {
+          try {
+            await deleteInstance(instanceName);
+          } catch {
+            // ignore — nothing to delete
+          }
+          const created = await createInstance(instanceName);
+          qrBase64 = created.qrcode?.base64;
+          pairingCode = created.qrcode?.pairingCode;
+        } else {
+          throw e;
+        }
+      }
     }
 
     // Point the webhook at the live agent workflow (/webhook/evolution-webhook)

@@ -18,15 +18,20 @@ const APP_SECRET = () => process.env.META_APP_SECRET!;
 const REDIRECT_PATH = "/api/meta/callback";
 const redirectUri = () => `${process.env.NEXT_PUBLIC_APP_URL}${REDIRECT_PATH}`;
 
-// Advanced-Access permissions for Page + Instagram messaging. Granted via App
-// Review; usable for the app's own test pages while review is pending.
+// Advanced-Access permissions for Page + Instagram messaging AND publishing.
+// Granted via App Review; usable for the app's own test pages while review is
+// pending. The posting scopes (pages_manage_posts, instagram_content_publish)
+// power native publishing (CCAVAI auto-post + manual publish).
 export const META_SCOPES = [
   "pages_show_list",
   "pages_messaging",
   "pages_manage_metadata",
+  "pages_read_engagement",
+  "pages_manage_posts",
   "business_management",
   "instagram_basic",
   "instagram_manage_messages",
+  "instagram_content_publish",
 ];
 
 // Webhook message fields we subscribe each page to.
@@ -118,6 +123,73 @@ export async function sendMessage(args: {
     }),
   });
   if (!res.ok) throw new Error(`Meta send failed: ${res.status} ${await res.text()}`);
+}
+
+// ─── Publishing (Facebook Page + Instagram) ─────────────────────────
+/**
+ * Publish to a Facebook Page. With an image it's a photo post (the image must
+ * be a public URL Meta can fetch); without, a plain text feed post. Uses the
+ * Page access token. Returns the new post id + a permalink.
+ */
+export async function postToPage(args: {
+  pageId: string;
+  pageToken: string;
+  message: string;
+  imageUrl?: string | null;
+}): Promise<{ id: string; url: string }> {
+  const g = GRAPH();
+  const endpoint = args.imageUrl ? "photos" : "feed";
+  const body: Record<string, unknown> = args.imageUrl
+    ? { url: args.imageUrl, caption: args.message, access_token: args.pageToken }
+    : { message: args.message, access_token: args.pageToken };
+  const res = await fetch(`https://graph.facebook.com/${g}/${args.pageId}/${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Facebook post failed: ${res.status} ${await res.text()}`);
+  const j = (await res.json()) as { id: string; post_id?: string };
+  const postId = j.post_id ?? j.id;
+  return { id: postId, url: `https://www.facebook.com/${postId}` };
+}
+
+/**
+ * Publish a single image to an Instagram Business/Creator account. Two-step:
+ * create a media container (image_url must be a PUBLIC JPEG), then publish it.
+ */
+export async function postToInstagram(args: {
+  igId: string;
+  pageToken: string;
+  imageUrl: string;
+  caption: string;
+}): Promise<{ id: string; url: string }> {
+  const g = GRAPH();
+  const cr = await fetch(`https://graph.facebook.com/${g}/${args.igId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image_url: args.imageUrl, caption: args.caption, access_token: args.pageToken }),
+  });
+  if (!cr.ok) throw new Error(`Instagram container failed: ${cr.status} ${await cr.text()}`);
+  const containerId = ((await cr.json()) as { id: string }).id;
+
+  const pub = await fetch(`https://graph.facebook.com/${g}/${args.igId}/media_publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creation_id: containerId, access_token: args.pageToken }),
+  });
+  if (!pub.ok) throw new Error(`Instagram publish failed: ${pub.status} ${await pub.text()}`);
+  const mediaId = ((await pub.json()) as { id: string }).id;
+
+  let url = "https://www.instagram.com/";
+  try {
+    const pl = await fetch(
+      `https://graph.facebook.com/${g}/${mediaId}?fields=permalink&access_token=${encodeURIComponent(args.pageToken)}`,
+    );
+    if (pl.ok) url = ((await pl.json()) as { permalink?: string }).permalink ?? url;
+  } catch {
+    /* permalink is best-effort */
+  }
+  return { id: mediaId, url };
 }
 
 // ─── Webhook signature (X-Hub-Signature-256) ────────────────────────

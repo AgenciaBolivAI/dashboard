@@ -7,8 +7,26 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { renderBrandedDataUri } from "@/lib/content/brand-render";
 import { uploadCcavaiImage, decodeDataUri } from "@/lib/content/ccavai-storage";
+import { publishDraft, type PublishTarget } from "@/lib/content/publish";
 
 export type CcavaiState = { error: string | null; success?: boolean };
+
+/**
+ * Publish a draft natively to the tenant's connected Facebook Page or
+ * Instagram account (operator+). Marks the draft posted on success.
+ */
+export async function publishCcavaiDraftAction(
+  tenantId: string,
+  draftId: string,
+  target: PublishTarget,
+): Promise<CcavaiState & { url?: string; code?: string }> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "operator" });
+  const r = await publishDraft({ tenantId, draftId, target });
+  if (!r.ok) return { error: r.error ?? "publish_failed", code: r.error };
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true, url: r.url };
+}
 
 const STATUS_VALUES = ["pending", "approved", "rejected", "posted", "archived"] as const;
 const statusSchema = z.enum(STATUS_VALUES);

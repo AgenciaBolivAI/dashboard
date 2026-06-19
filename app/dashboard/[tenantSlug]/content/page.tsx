@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles, Clock, CheckCircle2, Send, XCircle, Settings } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +65,20 @@ export default async function ContentPage({
     getCcavaiStats("today"),
     getCcavaiStats("7d"),
   ]);
+
+  // Which Meta channels are connected → drives the native "Publish" buttons.
+  const supabase = await createClient();
+  const { data: channelRows } = await supabase
+    .from("tenant_channels")
+    .select("channel, status")
+    .eq("tenant_id", tenant.id)
+    .in("channel", ["facebook_messenger", "instagram"])
+    .eq("status", "active");
+  const channels = (channelRows ?? []) as { channel: string; status: string }[];
+  const connected = {
+    facebook: channels.some((c) => c.channel === "facebook_messenger"),
+    instagram: channels.some((c) => c.channel === "instagram"),
+  };
 
   // Group drafts by run so each generation batch displays together.
   const byRun = new Map<string, CcavaiDraft[]>();
@@ -248,7 +263,7 @@ export default async function ContentPage({
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                           {variants.map((d) => (
-                            <DraftCard key={d.id} tenantId={tenant.id} draft={d} />
+                            <DraftCard key={d.id} tenantId={tenant.id} draft={d} connected={connected} />
                           ))}
                         </div>
                       </div>
