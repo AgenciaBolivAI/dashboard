@@ -1000,5 +1000,22 @@
     "err_group_name_taken": "Já existe uma equipe com esse nome",
     "err_personal_in_budgeted_team": "Este membro já está coberto pelo orçamento da equipe. Remova-o da equipe ou ajuste o orçamento da equipe.",
     "err_team_member_has_personal": "Um membro da equipe tem um orçamento pessoal. Remova-o antes de atribuir um à equipe."
+  },
+  "lifetime": {
+    "title": "Torne-se Membro Fundador",
+    "subtitle": "Desbloqueie a BolivAI com um pagamento único — acesso vitalício, sem mensalidades, nunca.",
+    "once": "uma vez",
+    "headline": "Acesso vitalício a toda a plataforma",
+    "b1": "Bloqueado para sempre — sem mensalidades, nunca.",
+    "b2": "Todos os recursos: WhatsApp, Instagram, Messenger, voz, leads e conteúdo.",
+    "b3": "Depois você só paga pelo que seus agentes usam. Os créditos não expiram.",
+    "cta": "Obter acesso vitalício — $30",
+    "processing": "Redirecionando para o pagamento seguro…",
+    "scarcity": "Oferta de fundadores para os primeiros {cap} membros — você seria o #{next}.",
+    "secure": "Pagamento único seguro via Stripe · sem assinatura",
+    "canceled": "Pagamento cancelado. Você pode tentar novamente quando quiser.",
+    "non_admin": "Peça ao proprietário ou admin deste espaço para ativar o acesso vitalício.",
+    "signout": "Sair",
+    "error": "Não foi possível iniciar o pagamento. Tente novamente."
   }
 }

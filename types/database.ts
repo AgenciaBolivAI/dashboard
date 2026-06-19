@@ -1790,6 +1790,7 @@ export type Database = {
           created_at: string
           custom_domain: string | null
           elevenlabs_agent_id: string | null
+          founding_member_number: number | null
           gateway: string
           gateway_config: Json
           id: string
@@ -1798,6 +1799,10 @@ export type Database = {
           invoice_footer: string | null
           language: string
           legal_name: string | null
+          lifetime_access: boolean
+          lifetime_access_at: string | null
+          lifetime_paid_cents: number | null
+          lifetime_stripe_pi: string | null
           logo_url: string | null
           metadata: Json
           name: string
@@ -1850,6 +1855,7 @@ export type Database = {
           created_at?: string
           custom_domain?: string | null
           elevenlabs_agent_id?: string | null
+          founding_member_number?: number | null
           gateway?: string
           gateway_config?: Json
           id?: string
@@ -1858,6 +1864,10 @@ export type Database = {
           invoice_footer?: string | null
           language?: string
           legal_name?: string | null
+          lifetime_access?: boolean
+          lifetime_access_at?: string | null
+          lifetime_paid_cents?: number | null
+          lifetime_stripe_pi?: string | null
           logo_url?: string | null
           metadata?: Json
           name: string
@@ -1910,6 +1920,7 @@ export type Database = {
           created_at?: string
           custom_domain?: string | null
           elevenlabs_agent_id?: string | null
+          founding_member_number?: number | null
           gateway?: string
           gateway_config?: Json
           id?: string
@@ -1918,6 +1929,10 @@ export type Database = {
           invoice_footer?: string | null
           language?: string
           legal_name?: string | null
+          lifetime_access?: boolean
+          lifetime_access_at?: string | null
+          lifetime_paid_cents?: number | null
+          lifetime_stripe_pi?: string | null
           logo_url?: string | null
           metadata?: Json
           name?: string
@@ -2496,6 +2511,18 @@ export type Database = {
           credits_debited: number
           ok: boolean
           reason: string
+        }[]
+      }
+      grant_lifetime_access: {
+        Args: {
+          p_paid_cents?: number
+          p_stripe_pi?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          founding_number: number
+          ok: boolean
+          was_already: boolean
         }[]
       }
       is_admin_of: { Args: { p_tenant_id: string }; Returns: boolean }

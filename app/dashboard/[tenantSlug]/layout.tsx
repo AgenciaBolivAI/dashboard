@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { requireUser, requireTenantAccess, isBolivAIAdmin } from "@/lib/auth";
+import { requireUser, requireTenantAccess, isBolivAIAdmin, getRoleOnTenant } from "@/lib/auth";
 import { getTenantBySlug, getMyTenants } from "@/lib/tenant";
+import { getFoundingCount, FOUNDING_CAP } from "@/lib/billing/lifetime";
+import { LifetimeGate } from "@/components/billing/lifetime-gate";
 import { Sidebar } from "@/components/shell/sidebar";
 import { TenantSwitcher, type TenantOption } from "@/components/shell/tenant-switcher";
 import { MobileNav } from "@/components/shell/mobile-nav";
@@ -40,6 +42,25 @@ export default async function TenantLayout({
   const tenant = await getTenantBySlug(tenantSlug);
   await requireTenantAccess(tenant.id);
   const isAdmin = await isBolivAIAdmin();
+
+  // Founding Member gate: a tenant must hold lifetime access (the one-time $30)
+  // to use the platform. BolivAI staff always pass; existing tenants were
+  // grandfathered in schema-step35.
+  if (!tenant.lifetime_access && !isAdmin) {
+    const [foundingCount, role] = await Promise.all([
+      getFoundingCount(),
+      getRoleOnTenant(tenant.id),
+    ]);
+    const canPay = role === "owner" || role === "admin" || role === "bolivai_admin";
+    return (
+      <LifetimeGate
+        tenantSlug={tenant.slug}
+        foundingCount={foundingCount}
+        cap={FOUNDING_CAP}
+        canPay={canPay}
+      />
+    );
+  }
 
   const memberships = await getMyTenants();
   const tenantOptions: TenantOption[] = memberships

@@ -1000,5 +1000,22 @@
     "err_group_name_taken": "Esiste già un team con questo nome",
     "err_personal_in_budgeted_team": "Questo membro è già coperto dal budget del suo team. Rimuovilo dal team o modifica il budget del team.",
     "err_team_member_has_personal": "Un membro del team ha un budget personale. Rimuovilo prima di assegnarne uno al team."
+  },
+  "lifetime": {
+    "title": "Diventa Membro Fondatore",
+    "subtitle": "Sblocca BolivAI con un pagamento unico — accesso a vita, senza canoni mensili, mai.",
+    "once": "una volta",
+    "headline": "Accesso a vita a tutta la piattaforma",
+    "b1": "Bloccato per sempre — nessun canone mensile, mai.",
+    "b2": "Tutte le funzioni: WhatsApp, Instagram, Messenger, voce, lead e contenuti.",
+    "b3": "Poi paghi solo per ciò che i tuoi agenti usano. I crediti non scadono.",
+    "cta": "Ottieni l'accesso a vita — $30",
+    "processing": "Reindirizzamento al pagamento sicuro…",
+    "scarcity": "Offerta fondatori per i primi {cap} membri — saresti il #{next}.",
+    "secure": "Pagamento unico sicuro tramite Stripe · nessun abbonamento",
+    "canceled": "Pagamento annullato. Puoi riprovare quando vuoi.",
+    "non_admin": "Chiedi a un proprietario o admin di questo spazio di attivare l'accesso a vita.",
+    "signout": "Esci",
+    "error": "Impossibile avviare il pagamento. Riprova."
   }
 }

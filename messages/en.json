@@ -1000,5 +1000,22 @@
     "err_group_name_taken": "A team with that name already exists",
     "err_personal_in_budgeted_team": "This member is already covered by their team’s budget. Remove them from the team or adjust the team budget.",
     "err_team_member_has_personal": "A team member has a personal budget. Remove it before assigning one to the team."
+  },
+  "lifetime": {
+    "title": "Become a Founding Member",
+    "subtitle": "Unlock BolivAI with a one-time payment — lifetime access, no monthly fees, ever.",
+    "once": "one time",
+    "headline": "Lifetime access to the entire platform",
+    "b1": "Locked in forever — no monthly fees, ever.",
+    "b2": "Every feature: WhatsApp, Instagram, Messenger, voice, leads and content.",
+    "b3": "Then just pay-as-you-go for what your agents use. Credits never expire.",
+    "cta": "Get lifetime access — $30",
+    "processing": "Redirecting to secure checkout…",
+    "scarcity": "Founding offer for the first {cap} members — you'd be #{next}.",
+    "secure": "Secure one-time payment via Stripe · no subscription",
+    "canceled": "Payment canceled. You can try again whenever you're ready.",
+    "non_admin": "Ask an owner or admin of this workspace to activate lifetime access.",
+    "signout": "Log out",
+    "error": "Couldn't start checkout. Please try again."
   }
 }

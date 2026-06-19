@@ -8,6 +8,7 @@ import {
 } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { applyTopupFromStripe } from "@/lib/billing/credits";
+import { grantLifetimeFromStripe } from "@/lib/billing/lifetime";
 
 /**
  * Fire-and-forget POST to the n8n Invoice Notify webhook. We don't await
@@ -125,10 +126,31 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        // Credit top-up flow: bolivai_purpose=credit_topup in metadata.
-        // Other checkout sessions (none today, but Connect onboarding
-        // may use this event in the future) get ignored.
         const session = event.data.object as Stripe.Checkout.Session;
+
+        // Founding Member lifetime-access purchase ($30, one-time).
+        if (session.metadata?.bolivai_purpose === "lifetime_access") {
+          const tenantId = session.metadata.bolivai_tenant_id;
+          const pi =
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent?.id ?? null;
+          if (tenantId && pi && session.payment_status === "paid") {
+            const r = await grantLifetimeFromStripe({
+              tenantId,
+              paidCents: session.amount_total ?? 3000,
+              stripePaymentIntentId: pi,
+            });
+            console.log(
+              `[stripe webhook] lifetime granted ${tenantId} #${r.foundingNumber} (already=${r.wasAlready})`,
+            );
+          } else {
+            console.warn("[stripe webhook] lifetime missing metadata/paid", session.id);
+          }
+          break;
+        }
+
+        // Credit top-up flow: bolivai_purpose=credit_topup in metadata.
         if (session.metadata?.bolivai_purpose !== "credit_topup") break;
 
         const tenantId = session.metadata.bolivai_tenant_id;
