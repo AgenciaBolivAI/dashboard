@@ -54,20 +54,21 @@ export async function provisionTenantWhatsAppAction(
     };
   }
 
-  // Tenant slug is DNS-safe by construction (onboarding zod regex).
-  const instanceName = tenant.slug as string;
-  const hasInstance = Boolean(
-    (tenant.gateway_config as Record<string, unknown> | null)?.instance,
-  );
-  const stubInstance =
-    (tenant.gateway_config as Record<string, unknown> | null)?.instance ===
-    `pending_${instanceName}`;
+  // Operate on the tenant's REAL instance. Prefer the already-provisioned name
+  // from gateway_config — it may have been set up manually (e.g. as the phone
+  // number), NOT as the slug. Only fall back to the slug for a brand-new
+  // connection (the `pending_<slug>` placeholder onboarding writes, or nothing).
+  const existingInstance = (tenant.gateway_config as Record<string, unknown> | null)
+    ?.instance as string | undefined;
+  const isPlaceholder = !existingInstance || existingInstance.startsWith("pending_");
+  const instanceName = isPlaceholder ? (tenant.slug as string) : existingInstance;
+  const freshConnect = isPlaceholder || tenant.status === "pending_whatsapp_setup";
 
   try {
     let qrBase64: string | undefined;
     let pairingCode: string | undefined;
 
-    if (!hasInstance || stubInstance || tenant.status === "pending_whatsapp_setup") {
+    if (freshConnect) {
       // First connection — drop any stale stub, then create fresh + QR.
       try {
         await deleteInstance(instanceName);
@@ -78,10 +79,27 @@ export async function provisionTenantWhatsAppAction(
       qrBase64 = created.qrcode?.base64;
       pairingCode = created.qrcode?.pairingCode;
     } else {
-      // Re-issue a QR for the existing instance (lost session / re-link).
-      const qr = await getInstanceQr(instanceName);
-      qrBase64 = qr.base64;
-      pairingCode = qr.pairingCode;
+      // Re-issue a QR for the existing instance (lost session / re-link). If it
+      // no longer exists on the Evolution server, create it instead of 404ing.
+      try {
+        const qr = await getInstanceQr(instanceName);
+        qrBase64 = qr.base64;
+        pairingCode = qr.pairingCode;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/not found|does not exist|404/i.test(msg)) {
+          try {
+            await deleteInstance(instanceName);
+          } catch {
+            // ignore — nothing to delete
+          }
+          const created = await createInstance(instanceName);
+          qrBase64 = created.qrcode?.base64;
+          pairingCode = created.qrcode?.pairingCode;
+        } else {
+          throw e;
+        }
+      }
     }
 
     // Always (re)point the webhook at the live agent workflow so the bot

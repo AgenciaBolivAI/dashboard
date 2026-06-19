@@ -18,21 +18,35 @@ const APP_SECRET = () => process.env.META_APP_SECRET!;
 const REDIRECT_PATH = "/api/meta/callback";
 const redirectUri = () => `${process.env.NEXT_PUBLIC_APP_URL}${REDIRECT_PATH}`;
 
-// Advanced-Access permissions for Page + Instagram messaging AND publishing.
-// Granted via App Review; usable for the app's own test pages while review is
-// pending. The posting scopes (pages_manage_posts, instagram_content_publish)
-// power native publishing (CCAVAI auto-post + manual publish).
-export const META_SCOPES = [
+// Core scopes for connecting a Page + linked Instagram and running the DM
+// agents. These are valid as soon as the Messenger + Instagram products are
+// added — usable on the app's own test assets while App Review is pending.
+export const META_MESSAGING_SCOPES = [
   "pages_show_list",
   "pages_messaging",
   "pages_manage_metadata",
   "pages_read_engagement",
-  "pages_manage_posts",
   "business_management",
   "instagram_basic",
   "instagram_manage_messages",
-  "instagram_content_publish",
 ];
+
+// Publishing scopes (native CCAVAI auto-post + manual publish). Facebook treats
+// these as "Invalid Scopes" and rejects the ENTIRE OAuth dialog until the app
+// is configured + approved for content publishing — so they're gated behind an
+// env flag. Connecting messaging works today; flip META_ENABLE_PUBLISHING=1
+// once the app is approved to start requesting them (no code change).
+export const META_PUBLISHING_SCOPES = ["pages_manage_posts", "instagram_content_publish"];
+
+const publishingEnabled = () =>
+  process.env.META_ENABLE_PUBLISHING === "1" || process.env.META_ENABLE_PUBLISHING === "true";
+
+/** The scope set to request in the connect dialog, given current app status. */
+export function metaScopes(): string[] {
+  return publishingEnabled()
+    ? [...META_MESSAGING_SCOPES, ...META_PUBLISHING_SCOPES]
+    : META_MESSAGING_SCOPES;
+}
 
 // Webhook message fields we subscribe each page to.
 export const SUBSCRIBED_FIELDS = ["messages", "messaging_postbacks", "message_reactions"];
@@ -43,7 +57,7 @@ export function buildMetaAuthUrl(state: string): string {
     client_id: APP_ID(),
     redirect_uri: redirectUri(),
     response_type: "code",
-    scope: META_SCOPES.join(","),
+    scope: metaScopes().join(","),
     state,
   });
   return `https://www.facebook.com/${GRAPH()}/dialog/oauth?${params.toString()}`;
