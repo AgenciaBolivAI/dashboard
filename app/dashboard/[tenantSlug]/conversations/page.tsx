@@ -15,12 +15,12 @@ export default async function ConversationsPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; channel?: string }>;
 }) {
   const { tenantSlug } = await params;
-  const { status } = await searchParams;
+  const { status, channel } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
-  const items = await listConversations(tenant.id, { status, limit: 100 });
+  const items = await listConversations(tenant.id, { status, channel, limit: 100 });
   const t = await getTranslations("conversations");
 
   const FILTERS = [
@@ -29,6 +29,25 @@ export default async function ConversationsPage({
     { id: "hitl", label: t("filter_hitl") },
     { id: "closed", label: t("filter_closed") },
   ];
+
+  const CHANNEL_FILTERS = [
+    { id: "all", label: t("channel_all") },
+    { id: "whatsapp", label: t("channel_whatsapp") },
+    { id: "instagram", label: t("channel_instagram") },
+    { id: "facebook_messenger", label: t("channel_messenger") },
+  ];
+
+  // Build an href that flips one filter while preserving the other (status +
+  // channel are orthogonal).
+  function buildHref(next: { status?: string; channel?: string }): string {
+    const s = next.status ?? status;
+    const c = next.channel ?? channel;
+    const sp = new URLSearchParams();
+    if (s && s !== "all") sp.set("status", s);
+    if (c && c !== "all") sp.set("channel", c);
+    const qs = sp.toString();
+    return `/dashboard/${tenantSlug}/conversations${qs ? "?" + qs : ""}`;
+  }
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
@@ -46,19 +65,38 @@ export default async function ConversationsPage({
         </div>
       </div>
 
-      <div className="mb-4 flex gap-1.5 flex-wrap">
+      <div className="mb-3 flex gap-1.5 flex-wrap">
         {FILTERS.map((f) => {
           const active = (status ?? "all") === f.id;
-          const href =
-            f.id === "all"
-              ? `/dashboard/${tenantSlug}/conversations`
-              : `/dashboard/${tenantSlug}/conversations?status=${f.id}`;
           return (
             <Link
               key={f.id}
-              href={href}
+              href={buildHref({ status: f.id })}
               className={cn(
                 "px-3 py-1.5 rounded-md text-xs font-medium transition",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+              )}
+            >
+              {f.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="mb-4 flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs text-muted-foreground uppercase tracking-wider mr-1">
+          {t("channel_label")}
+        </span>
+        {CHANNEL_FILTERS.map((f) => {
+          const active = (channel ?? "all") === f.id;
+          return (
+            <Link
+              key={f.id}
+              href={buildHref({ channel: f.id })}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-medium transition",
                 active
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground",

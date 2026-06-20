@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { MessageCircle, Instagram, MessageSquare, type LucideIcon } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { ConversationStatusBadge } from "@/components/conversations/status-badge";
 import { cn, formatRelative } from "@/lib/utils";
@@ -11,9 +12,21 @@ export type ConversationRowItem = {
   id: string;
   last_message_at: string;
   status: string;
+  channel: string;
   hitl_taken_over: boolean;
-  user: { id: string | null; name: string | null; whatsapp_number: string | null } | null;
+  user: {
+    id: string | null;
+    name: string | null;
+    whatsapp_number: string | null;
+    channel_user_id?: string | null;
+  } | null;
   last_message: { role: string; content: string } | null;
+};
+
+const CHANNEL_META: Record<string, { icon: LucideIcon; key: string }> = {
+  whatsapp: { icon: MessageCircle, key: "channel_whatsapp" },
+  instagram: { icon: Instagram, key: "channel_instagram" },
+  facebook_messenger: { icon: MessageSquare, key: "channel_messenger" },
 };
 
 /**
@@ -37,6 +50,16 @@ export function ConversationRow({
   const router = useRouter();
   const t = useTranslations("conversations");
   const locale = useLocale();
+  const channelMeta = CHANNEL_META[item.channel] ?? CHANNEL_META.whatsapp!;
+  const ChannelIcon = channelMeta.icon;
+  // WhatsApp shows the phone; Meta channels show the channel name (the PSID is
+  // an opaque id, not human-readable).
+  const subline =
+    item.channel === "whatsapp"
+      ? item.user?.whatsapp_number
+        ? `+${item.user.whatsapp_number}`
+        : "—"
+      : t(channelMeta.key as never);
   const conversationHref = `/dashboard/${tenantSlug}/conversations/${item.id}`;
   const customerHref = item.user?.id
     ? `/dashboard/${tenantSlug}/customers/${item.user.id}`
@@ -65,8 +88,9 @@ export function ConversationRow({
         ) : (
           <span className="font-medium">{item.user?.name ?? t("no_name")}</span>
         )}
-        <div className="text-xs text-muted-foreground">
-          +{item.user?.whatsapp_number ?? "—"}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <ChannelIcon className="size-3 shrink-0" />
+          <span>{subline}</span>
         </div>
       </TableCell>
       <TableCell className="max-w-md">

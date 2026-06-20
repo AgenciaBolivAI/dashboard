@@ -318,7 +318,12 @@
     "field_last_message": "Ultimo messaggio",
     "field_messages": "Messaggi",
     "operator_mode_title": "Modalità operatore attiva",
-    "operator_mode_description": "Il bot è in pausa. I tuoi messaggi andranno direttamente al cliente. Ridai il controllo quando hai finito."
+    "operator_mode_description": "Il bot è in pausa. I tuoi messaggi andranno direttamente al cliente. Ridai il controllo quando hai finito.",
+    "channel_label": "Canale",
+    "channel_all": "Tutti",
+    "channel_whatsapp": "WhatsApp",
+    "channel_instagram": "Instagram",
+    "channel_messenger": "Messenger"
   },
   "leads": {
     "title": "Lead",

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { sendText } from "@/lib/evolution";
+import { sendMessage as sendMetaMessage } from "@/lib/meta";
 
 export type HitlState = { error: string | null; success?: boolean; clearForm?: boolean };
 
@@ -14,9 +15,9 @@ async function loadConversationContext(conversationId: string) {
   const { data, error } = await svc
     .from("conversations")
     .select(
-      `id, tenant_id, user_id, hitl_taken_over,
+      `id, tenant_id, user_id, channel, hitl_taken_over,
        tenants:tenant_id ( id, slug, gateway, gateway_config ),
-       users:user_id ( id, whatsapp_number )`,
+       users:user_id ( id, whatsapp_number, channel_user_id )`,
     )
     .eq("id", conversationId)
     .maybeSingle();
@@ -28,6 +29,7 @@ async function loadConversationContext(conversationId: string) {
     id: string;
     tenant_id: string;
     user_id: string;
+    channel: string;
     hitl_taken_over: boolean;
     tenants: {
       id: string;
@@ -35,7 +37,7 @@ async function loadConversationContext(conversationId: string) {
       gateway: string | null;
       gateway_config: Record<string, unknown> | null;
     };
-    users: { id: string; whatsapp_number: string };
+    users: { id: string; whatsapp_number: string | null; channel_user_id: string | null };
   };
 
   // Pull the Evolution instance out of gateway_config (the new home for it).
@@ -143,15 +145,45 @@ export async function sendOperatorMessageAction(
       };
     }
 
-    const instance = ctx.tenants.evolution_instance;
-    if (!instance) {
-      return {
-        error: "Esta empresa aún no tiene una instancia de Evolution API configurada.",
-      };
+    // Send on the SAME channel the customer wrote in. WhatsApp → Evolution;
+    // Instagram / Messenger → Meta Graph Send API (reply to the user's PSID
+    // with the page token). Without this branch, taking over a Meta chat would
+    // leave the operator unable to reply.
+    const svcSend = createServiceClient();
+    if (ctx.channel === "instagram" || ctx.channel === "facebook_messenger") {
+      const { data: tc } = await svcSend
+        .from("tenant_channels")
+        .select("external_id, config")
+        .eq("tenant_id", ctx.tenant_id)
+        .eq("channel", ctx.channel)
+        .maybeSingle();
+      const chan = tc as { external_id: string; config: Record<string, unknown> } | null;
+      const pageToken = chan?.config?.page_access_token as string | undefined;
+      if (!chan?.external_id || !pageToken) {
+        return { error: "El canal de Meta no está conectado. Reconéctalo en Ajustes → Integraciones." };
+      }
+      if (!ctx.users.channel_user_id) {
+        return { error: "No se encontró el destinatario de este canal." };
+      }
+      await sendMetaMessage({
+        externalId: chan.external_id,
+        pageToken,
+        recipientId: ctx.users.channel_user_id,
+        text: parsed.data.text,
+      });
+    } else {
+      // WhatsApp (default)
+      const instance = ctx.tenants.evolution_instance;
+      if (!instance) {
+        return {
+          error: "Esta empresa aún no tiene una instancia de Evolution API configurada.",
+        };
+      }
+      if (!ctx.users.whatsapp_number) {
+        return { error: "Este contacto no tiene un número de WhatsApp." };
+      }
+      await sendText(instance, ctx.users.whatsapp_number, parsed.data.text);
     }
-
-    // Send via Evolution
-    await sendText(instance, ctx.users.whatsapp_number, parsed.data.text);
 
     // Persist to chat_history (service role — auth already verified above)
     const svc = createServiceClient();

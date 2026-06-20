@@ -3,12 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 export type ConversationListItem = {
   id: string;
   status: string;
+  channel: string; // "whatsapp" | "instagram" | "facebook_messenger"
   hitl_taken_over: boolean;
   last_message_at: string;
   user: {
     id: string;
     name: string | null;
-    whatsapp_number: string;
+    whatsapp_number: string | null;
+    channel_user_id: string | null;
   };
   last_message: {
     role: string;
@@ -19,15 +21,15 @@ export type ConversationListItem = {
 
 export async function listConversations(
   tenantId: string,
-  opts: { status?: string; limit?: number; offset?: number } = {},
+  opts: { status?: string; channel?: string; limit?: number; offset?: number } = {},
 ): Promise<ConversationListItem[]> {
   const supabase = await createClient();
 
   let q = supabase
     .from("conversations")
     .select(
-      `id, status, hitl_taken_over, last_message_at,
-       users:user_id ( id, name, whatsapp_number )`,
+      `id, status, channel, hitl_taken_over, last_message_at,
+       users:user_id ( id, name, whatsapp_number, channel_user_id )`,
     )
     .eq("tenant_id", tenantId)
     .order("last_message_at", { ascending: false })
@@ -36,6 +38,9 @@ export async function listConversations(
   if (opts.status === "active") q = q.eq("status", "active").eq("hitl_taken_over", false);
   else if (opts.status === "hitl") q = q.eq("hitl_taken_over", true);
   else if (opts.status === "closed") q = q.eq("status", "closed");
+
+  // Channel filter (orthogonal to status) — lets the inbox be sorted per channel.
+  if (opts.channel) q = q.eq("channel", opts.channel);
 
   const { data: rows } = await q;
   if (!rows || rows.length === 0) return [];
@@ -68,13 +73,20 @@ export async function listConversations(
     const row = r as unknown as {
       id: string;
       status: string;
+      channel: string;
       hitl_taken_over: boolean;
       last_message_at: string;
-      users: { id: string; name: string | null; whatsapp_number: string };
+      users: {
+        id: string;
+        name: string | null;
+        whatsapp_number: string | null;
+        channel_user_id: string | null;
+      };
     };
     return {
       id: row.id,
       status: row.status,
+      channel: row.channel,
       hitl_taken_over: row.hitl_taken_over,
       last_message_at: row.last_message_at,
       user: row.users,
@@ -86,6 +98,7 @@ export async function listConversations(
 export type ConversationDetail = {
   id: string;
   status: string;
+  channel: string;
   hitl_taken_over: boolean;
   hitl_operator_id: string | null;
   last_message_at: string;
@@ -93,7 +106,8 @@ export type ConversationDetail = {
   user: {
     id: string;
     name: string | null;
-    whatsapp_number: string;
+    whatsapp_number: string | null;
+    channel_user_id: string | null;
     email: string | null;
   };
   messages: Array<{
@@ -113,8 +127,8 @@ export async function getConversationDetail(
   const { data: convo } = await supabase
     .from("conversations")
     .select(
-      `id, status, hitl_taken_over, hitl_operator_id, last_message_at, created_at,
-       users:user_id ( id, name, whatsapp_number, email )`,
+      `id, status, channel, hitl_taken_over, hitl_operator_id, last_message_at, created_at,
+       users:user_id ( id, name, whatsapp_number, channel_user_id, email )`,
     )
     .eq("id", conversationId)
     .eq("tenant_id", tenantId)
@@ -131,16 +145,24 @@ export async function getConversationDetail(
   const c = convo as unknown as {
     id: string;
     status: string;
+    channel: string;
     hitl_taken_over: boolean;
     hitl_operator_id: string | null;
     last_message_at: string;
     created_at: string;
-    users: { id: string; name: string | null; whatsapp_number: string; email: string | null };
+    users: {
+      id: string;
+      name: string | null;
+      whatsapp_number: string | null;
+      channel_user_id: string | null;
+      email: string | null;
+    };
   };
 
   return {
     id: c.id,
     status: c.status,
+    channel: c.channel,
     hitl_taken_over: c.hitl_taken_over,
     hitl_operator_id: c.hitl_operator_id,
     last_message_at: c.last_message_at,

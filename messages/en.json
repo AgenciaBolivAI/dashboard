@@ -318,7 +318,12 @@
     "field_last_message": "Last message",
     "field_messages": "Messages",
     "operator_mode_title": "Operator mode active",
-    "operator_mode_description": "The bot is paused. Your messages will go straight to the customer. Hand control back when you're done."
+    "operator_mode_description": "The bot is paused. Your messages will go straight to the customer. Hand control back when you're done.",
+    "channel_label": "Channel",
+    "channel_all": "All",
+    "channel_whatsapp": "WhatsApp",
+    "channel_instagram": "Instagram",
+    "channel_messenger": "Messenger"
   },
   "leads": {
     "title": "Leads",

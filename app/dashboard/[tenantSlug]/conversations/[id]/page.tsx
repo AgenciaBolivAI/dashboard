@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { ArrowLeft, Mail, Phone } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Instagram, MessageSquare, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ConversationStatusBadge } from "@/components/conversations/status-badge";
@@ -24,6 +24,21 @@ export default async function ConversationDetailPage({
   const t = await getTranslations("conversations");
   const locale = await getLocale();
 
+  // Channel-aware contact display: WhatsApp shows the phone; Meta channels show
+  // the channel name (the PSID isn't human-readable, and whatsapp_number is null).
+  const CHANNEL_META: Record<string, { key: string; Icon: LucideIcon }> = {
+    whatsapp: { key: "channel_whatsapp", Icon: Phone },
+    instagram: { key: "channel_instagram", Icon: Instagram },
+    facebook_messenger: { key: "channel_messenger", Icon: MessageSquare },
+  };
+  const cm = CHANNEL_META[convo.channel] ?? CHANNEL_META.whatsapp!;
+  const contactSubline =
+    convo.channel === "whatsapp"
+      ? convo.user.whatsapp_number
+        ? `+${convo.user.whatsapp_number}`
+        : "—"
+      : t(cm.key as never);
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Thread */}
@@ -37,7 +52,10 @@ export default async function ConversationDetailPage({
             </Button>
             <div>
               <p className="font-medium">{convo.user.name ?? t("no_name")}</p>
-              <p className="text-xs text-muted-foreground">+{convo.user.whatsapp_number}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <cm.Icon className="size-3 shrink-0" />
+                {contactSubline}
+              </p>
             </div>
             <ConversationStatusBadge
               status={convo.status}
@@ -59,11 +77,19 @@ export default async function ConversationDetailPage({
         <h3 className="font-display font-semibold mb-4">{t("sidebar_customer")}</h3>
         <div className="space-y-3 text-sm">
           <Field label={t("field_name")} value={convo.user.name ?? "—"} />
-          <Field
-            label={t("field_whatsapp")}
-            value={`+${convo.user.whatsapp_number}`}
-            icon={<Phone className="size-3.5" />}
-          />
+          {convo.channel === "whatsapp" ? (
+            <Field
+              label={t("field_whatsapp")}
+              value={convo.user.whatsapp_number ? `+${convo.user.whatsapp_number}` : "—"}
+              icon={<Phone className="size-3.5" />}
+            />
+          ) : (
+            <Field
+              label={t("channel_label")}
+              value={t(cm.key as never)}
+              icon={<cm.Icon className="size-3.5" />}
+            />
+          )}
           {convo.user.email ? (
             <Field
               label={t("field_email")}
