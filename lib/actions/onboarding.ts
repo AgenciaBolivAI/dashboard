@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { transliterate } from "transliteration";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser } from "@/lib/auth";
@@ -56,16 +57,18 @@ const provisionSchema = z.object({
 
 /**
  * Generate a tenant slug from the company name: lowercase, ASCII-only,
- * hyphens. If taken, append a numeric suffix until unique.
+ * hyphens. Transliterates first so non-Latin names (北京按摩 → "bei-jing-an-mo",
+ * Москва → "moskva", مطعم → "mtaam") become readable slugs instead of collapsing
+ * to the "agente" fallback — BolivAI serves worldwide markets. If taken, the
+ * caller appends a numeric suffix until unique.
  */
 function baseSlug(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+  return transliterate(name)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 40) || "agente";
+    .slice(0, 40)
+    .replace(/-+$/g, "") || "agente";
 }
 
 async function findUniqueSlug(seed: string): Promise<string> {
@@ -113,41 +116,62 @@ export async function provisionTenantAction(
   const template = TEMPLATES.find((t) => t.id === DEFAULT_TEMPLATE_ID);
   if (!template) return { error: "Configuración base no disponible — contacta a soporte." };
 
-  const slug = await findUniqueSlug(baseSlug(parsed.data.company_name));
+  const seed = baseSlug(parsed.data.company_name);
 
-  // Build the tenant payload. Sensible defaults wherever the wizard didn't ask.
-  const { data: tenantRow, error: insertErr } = await svc
-    .from("tenants")
-    .insert({
-      slug,
-      name: parsed.data.company_name,
-      industry: parsed.data.industry,
-      address_country: parsed.data.country,
-      timezone: parsed.data.timezone,
-      language: parsed.data.language,
-      workflow_template: template.id,
-      gateway: "evolution",
-      gateway_config: { instance: `pending_${slug}` },
-      whatsapp_number: parsed.data.whatsapp_number,
-      prompt_template: template.promptTemplate,
-      prompt_variables: {
-        ...template.promptVariables,
-        company_name: parsed.data.company_name,
+  // findUniqueSlug is a check-then-insert, so two near-simultaneous signups of
+  // the same name can both read "free" and race for the same slug. The DB
+  // `slug unique` constraint is the real guard: on a 23505 (unique_violation)
+  // we regenerate the slug and retry, so the race self-heals instead of
+  // surfacing a raw "duplicate key" error to the loser. Sensible defaults
+  // wherever the wizard didn't ask.
+  let tenantRow: { id: string; slug: string } | null = null;
+  let insertErr: { code?: string; message?: string } | null = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const slug =
+      attempt === 0
+        ? await findUniqueSlug(seed)
+        : await findUniqueSlug(`${seed}-${Math.random().toString(36).slice(2, 6)}`);
+    const res = await svc
+      .from("tenants")
+      .insert({
+        slug,
+        name: parsed.data.company_name,
         industry: parsed.data.industry,
-      },
-      primary_color: parsed.data.primary_color,
-      accent_color: parsed.data.accent_color,
-      logo_url: parsed.data.logo_url ?? null,
-      plan: "credits",
-      status: "pending_whatsapp_setup",
-      notification_email: user.email ?? null,
-      notify_on_new_reservation: true,
-      notify_on_reschedule: true,
-      notify_on_cancel: true,
-      invoice_default_currency: "USD",
-    })
-    .select("id, slug")
-    .single();
+        address_country: parsed.data.country,
+        timezone: parsed.data.timezone,
+        language: parsed.data.language,
+        workflow_template: template.id,
+        gateway: "evolution",
+        gateway_config: { instance: `pending_${slug}` },
+        whatsapp_number: parsed.data.whatsapp_number,
+        prompt_template: template.promptTemplate,
+        prompt_variables: {
+          ...template.promptVariables,
+          company_name: parsed.data.company_name,
+          industry: parsed.data.industry,
+        },
+        primary_color: parsed.data.primary_color,
+        accent_color: parsed.data.accent_color,
+        logo_url: parsed.data.logo_url ?? null,
+        plan: "credits",
+        status: "pending_whatsapp_setup",
+        notification_email: user.email ?? null,
+        notify_on_new_reservation: true,
+        notify_on_reschedule: true,
+        notify_on_cancel: true,
+        invoice_default_currency: "USD",
+      })
+      .select("id, slug")
+      .single();
+    if (!res.error && res.data) {
+      tenantRow = res.data as { id: string; slug: string };
+      insertErr = null;
+      break;
+    }
+    insertErr = res.error;
+    // Only a slug collision is retryable; any other error is real → stop.
+    if (res.error?.code !== "23505") break;
+  }
 
   if (insertErr || !tenantRow) {
     return { error: insertErr?.message ?? "No se pudo crear el agente" };
