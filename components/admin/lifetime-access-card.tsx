@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Gift, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -28,6 +29,7 @@ export function LifetimeAccessCard({
   paidCents: number | null;
 }) {
   const router = useRouter();
+  const t = useTranslations("admin_tenant_detail");
   const [pending, startTransition] = useTransition();
   const [pct, setPct] = useState(String(discountPct ?? 0));
 
@@ -37,7 +39,7 @@ export function LifetimeAccessCard({
       const r = await setLifetimeDiscountAction(tenantId, n);
       if (r.error) toast.error(r.error);
       else {
-        toast.success(`Descuento guardado: ${n}%`);
+        toast.success(t("lifetime_discount_saved", { pct: n }));
         router.refresh();
       }
     });
@@ -48,7 +50,7 @@ export function LifetimeAccessCard({
       const r = await waiveLifetimeAction(tenantId);
       if (r.error) toast.error(r.error);
       else {
-        toast.success("Acceso de por vida otorgado (gratis)");
+        toast.success(t("lifetime_granted_free"));
         router.refresh();
       }
     });
@@ -58,24 +60,30 @@ export function LifetimeAccessCard({
     <Card className="p-5">
       <div className="mb-2 flex items-center gap-2">
         <Gift className="size-4 text-primary" />
-        <h3 className="font-display font-semibold">Acceso de por vida (Founding Member)</h3>
+        <h3 className="font-display font-semibold">{t("lifetime_card_title")}</h3>
       </div>
 
       {lifetimeAccess ? (
         <p className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
-          <Check className="size-4" /> Activo · Miembro #{foundingNumber ?? "—"} · pagó{" "}
-          {paidCents != null ? `$${(paidCents / 100).toFixed(2)}` : "—"}
+          <Check className="size-4" />{" "}
+          {t("lifetime_active", {
+            number: foundingNumber ?? "—",
+            paid: paidCents != null ? `$${(paidCents / 100).toFixed(2)}` : "—",
+          })}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Aún no activo. Se aplica la tarifa de $40 con el descuento actual de <strong>{discountPct}%</strong>.
+          {t.rich("lifetime_inactive", {
+            pct: discountPct,
+            strong: (c) => <strong>{c}</strong>,
+          })}
         </p>
       )}
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
           <label className="text-xs uppercase tracking-wider text-muted-foreground">
-            Descuento del tenant (0–100%)
+            {t("lifetime_discount_label")}
           </label>
           <div className="mt-1.5 flex gap-2">
             <Input
@@ -88,18 +96,18 @@ export function LifetimeAccessCard({
               disabled={pending}
             />
             <Button variant="outline" size="sm" onClick={saveDiscount} disabled={pending}>
-              Guardar
+              {t("save")}
             </Button>
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            100% = gratis al activar. Aplica al checkout de este tenant.
+            {t("lifetime_discount_hint")}
           </p>
         </div>
 
         <div className="flex items-end">
           {!lifetimeAccess ? (
             <Button onClick={grantFree} disabled={pending} className="gap-1.5">
-              <Gift className="size-4" /> Otorgar gratis ahora
+              <Gift className="size-4" /> {t("lifetime_grant_free")}
             </Button>
           ) : null}
         </div>

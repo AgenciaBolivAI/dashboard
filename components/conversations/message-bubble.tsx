@@ -8,7 +8,13 @@ export type Message = {
   created_at: string;
 };
 
-export function MessageBubble({ message }: { message: Message }) {
+export function MessageBubble({
+  message,
+  locale,
+}: {
+  message: Message;
+  locale: string;
+}) {
   const fromUser = message.role === "user";
   const fromAgent = message.role === "assistant";
   const fromOperator = message.role === "operator";
@@ -30,7 +36,7 @@ export function MessageBubble({ message }: { message: Message }) {
         ) : null}
         <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
         <p className="mt-1 text-[10px] text-muted-foreground/70">
-          {formatRelative(message.created_at)}
+          {formatRelative(message.created_at, locale)}
         </p>
       </div>
     </div>

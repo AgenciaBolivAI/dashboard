@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export function GatewayConfigForm({
   currentGateway: string;
   currentConfig: Record<string, unknown>;
 }) {
+  const t = useTranslations("settings_integrations");
   const [state, action, pending] = useActionState(updateGatewayConfigAction, initial);
   const [gatewayId, setGatewayId] = useState(currentGateway);
   const gateway = useMemo(() => getGateway(gatewayId), [gatewayId]);
@@ -47,8 +49,8 @@ export function GatewayConfigForm({
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
-    if (state.success) toast.success("Gateway actualizado");
-  }, [state]);
+    if (state.success) toast.success(t("gateway_saved"));
+  }, [state, t]);
 
   const configJson = JSON.stringify(config);
 
@@ -60,7 +62,7 @@ export function GatewayConfigForm({
 
       {/* Gateway picker */}
       <div className="space-y-2">
-        <Label>Canal</Label>
+        <Label>{t("gateway_channel_label")}</Label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {GATEWAYS.map((g) => {
             const disabled = g.status === "coming_soon";
@@ -83,7 +85,7 @@ export function GatewayConfigForm({
                   <p className="text-sm font-medium">{g.short}</p>
                   {disabled ? (
                     <Badge variant="muted" className="text-[10px] shrink-0">
-                      Pronto
+                      {t("gateway_coming_soon")}
                     </Badge>
                   ) : null}
                 </div>
@@ -124,7 +126,7 @@ export function GatewayConfigForm({
       ) : null}
 
       <Button type="submit" disabled={pending || gateway.status === "coming_soon"}>
-        {pending ? "Guardando…" : "Guardar configuración"}
+        {pending ? t("gateway_saving") : t("gateway_save_config")}
       </Button>
     </form>
   );

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { getTenantBySlug } from "@/lib/tenant";
 import {
@@ -24,6 +24,7 @@ export default async function KnowledgePage({
   const type: KnowledgeType = typeParam === "pain" ? "pain" : "documents";
 
   const t = await getTranslations("knowledge");
+  const locale = await getLocale();
 
   const TABS: { id: KnowledgeType; label: string; sub: string }[] = [
     { id: "documents", label: t("tab_faq_label"), sub: t("tab_faq_sub") },
@@ -49,12 +50,13 @@ export default async function KnowledgePage({
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <StatCard label={t("stat_faq_chunks")} value={stats.documentsCount} />
-        <StatCard label={t("stat_clinical_chunks")} value={stats.painCount} />
+        <StatCard label={t("stat_faq_chunks")} value={stats.documentsCount} locale={locale} />
+        <StatCard label={t("stat_clinical_chunks")} value={stats.painCount} locale={locale} />
         <StatCard
           label={t("stat_unique_sources")}
           value={stats.sourcesCount}
           href="#sources"
+          locale={locale}
         />
       </div>
 
@@ -101,10 +103,12 @@ function StatCard({
   label,
   value,
   href,
+  locale,
 }: {
   label: string;
   value: number;
   href?: string;
+  locale: string;
 }) {
   const inner = (
     <Card
@@ -118,7 +122,7 @@ function StatCard({
           {label}
         </p>
         <p className="mt-1 font-display text-2xl font-extrabold">
-          {value.toLocaleString("es")}
+          {value.toLocaleString(locale)}
         </p>
       </CardContent>
     </Card>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { listLifetimeCodes } from "@/lib/billing/lifetime-codes";
@@ -10,17 +11,23 @@ export const dynamic = "force-dynamic";
 
 const usd = (cents: number | null) => (cents != null ? `$${(cents / 100).toFixed(2)}` : "—");
 const day = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("es", { dateStyle: "medium" }) : "—";
+  iso ? new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" }) : "—";
 
-function source(m: FoundingMember): { label: string; variant: "default" | "success" | "warning" | "muted" } {
-  if (m.code) return { label: `Código ${m.code}`, variant: "default" };
-  if (m.paidCents === 0) return { label: "Gratis / waive", variant: "warning" };
-  if (m.paidCents != null && m.paidCents < 4000) return { label: "Descuento", variant: "muted" };
-  return { label: "Directo", variant: "success" };
+type SourceT = (key: string, vars?: Record<string, string | number>) => string;
+
+function source(
+  m: FoundingMember,
+  t: SourceT,
+): { label: string; variant: "default" | "success" | "warning" | "muted" } {
+  if (m.code) return { label: t("source_code", { code: m.code }), variant: "default" };
+  if (m.paidCents === 0) return { label: t("source_free"), variant: "warning" };
+  if (m.paidCents != null && m.paidCents < 4000) return { label: t("source_discount"), variant: "muted" };
+  return { label: t("source_direct"), variant: "success" };
 }
 
 export default async function AdminCodesPage() {
   // Access is gated by the /admin layout (requireBolivAIAdmin).
+  const t = await getTranslations("admin_codes");
   const [codes, founders] = await Promise.all([listLifetimeCodes(), getFoundingMembers()]);
 
   // Roll up founders by redeemed code (our DB attribution).
@@ -46,36 +53,35 @@ export default async function AdminCodesPage() {
   return (
     <div className="p-6 md:p-8 max-w-5xl space-y-6">
       <div>
-        <h1 className="mb-1 text-2xl font-display font-extrabold tracking-tight">Códigos de descuento</h1>
+        <h1 className="mb-1 text-2xl font-display font-extrabold tracking-tight">{t("page_title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Tarifa de Miembro Fundador ($40). Códigos nativos de Stripe (cupón + código promocional);
-          el reporte de uso se atribuye por tenant desde nuestra base.
+          {t("page_description")}
         </p>
       </div>
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Miembros fundadores" value={founders.length.toLocaleString("es")} />
-        <Stat label="Ingresos de acceso" value={usd(revenue)} />
-        <Stat label="Vía código" value={viaCode.toLocaleString("es")} />
-        <Stat label="Gratis / waive" value={free.toLocaleString("es")} />
+        <Stat label={t("stat_founding_members")} value={founders.length.toLocaleString()} />
+        <Stat label={t("stat_access_revenue")} value={usd(revenue)} />
+        <Stat label={t("stat_via_code")} value={viaCode.toLocaleString()} />
+        <Stat label={t("stat_free")} value={free.toLocaleString()} />
       </div>
 
       <LifetimeCodesManager codes={codes} />
 
       {/* Per-code usage rollup */}
       <Card className="p-5">
-        <h2 className="mb-3 font-display font-semibold">Uso por código</h2>
+        <h2 className="mb-3 font-display font-semibold">{t("usage_by_code_title")}</h2>
         {codeRollup.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aún no se ha canjeado ningún código.</p>
+          <p className="text-sm text-muted-foreground">{t("usage_by_code_empty")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="py-2">Código</th>
-                  <th>Canjes</th>
-                  <th>Ingresos</th>
+                  <th className="py-2">{t("col_code")}</th>
+                  <th>{t("col_redemptions")}</th>
+                  <th>{t("col_revenue")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -91,31 +97,30 @@ export default async function AdminCodesPage() {
           </div>
         )}
         <p className="mt-3 text-xs text-muted-foreground">
-          Atribución por tenant para canjes hechos en el paywall. El contador de Stripe (arriba) también
-          incluye canjes hechos en la página de Stripe.
+          {t("usage_by_code_footer")}
         </p>
       </Card>
 
       {/* Founders ledger */}
       <Card className="p-5">
-        <h2 className="mb-3 font-display font-semibold">Miembros fundadores</h2>
+        <h2 className="mb-3 font-display font-semibold">{t("founders_title")}</h2>
         {founders.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aún no hay miembros fundadores.</p>
+          <p className="text-sm text-muted-foreground">{t("founders_empty")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
                   <th className="py-2">#</th>
-                  <th>Tenant</th>
-                  <th>Origen</th>
-                  <th>Pagó</th>
-                  <th>Fecha</th>
+                  <th>{t("col_tenant")}</th>
+                  <th>{t("col_source")}</th>
+                  <th>{t("col_paid")}</th>
+                  <th>{t("col_date")}</th>
                 </tr>
               </thead>
               <tbody>
                 {founders.map((m) => {
-                  const s = source(m);
+                  const s = source(m, t);
                   return (
                     <tr key={m.tenantId} className="border-b border-border/60">
                       <td className="py-2 tabular-nums text-muted-foreground">{m.foundingNumber ?? "—"}</td>

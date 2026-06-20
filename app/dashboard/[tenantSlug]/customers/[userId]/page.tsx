@@ -11,7 +11,7 @@ import {
   Star,
   Video,
 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import {
   Card,
   CardContent,
@@ -54,6 +54,7 @@ export default async function CustomerDetailPage({
   const customer = await getCustomer360(tenant.id, userId);
   if (!customer) notFound();
   const t = await getTranslations("customers");
+  const locale = await getLocale();
 
   const RESV_STATUS: Record<string, { label: string; variant: StatusVariant }> = {
     confirmed: { label: t("resv_confirmed"), variant: RESV_STATUS_VARIANT.confirmed },
@@ -130,7 +131,7 @@ export default async function CustomerDetailPage({
           ) : null}
           <span>
             {t("customer_since", {
-              date: new Date(customer.created_at).toLocaleDateString("es"),
+              date: new Date(customer.created_at).toLocaleDateString(locale),
             })}
           </span>
         </div>
@@ -140,7 +141,7 @@ export default async function CustomerDetailPage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat
           label={t("stat_reservations")}
-          value={customer.reservations.length.toLocaleString("es")}
+          value={customer.reservations.length.toLocaleString(locale)}
         />
         <Stat
           label={t("stat_total_spent")}
@@ -152,7 +153,7 @@ export default async function CustomerDetailPage({
         />
         <Stat
           label={t("stat_subscriptions")}
-          value={customer.active_subscriptions.toLocaleString("es")}
+          value={customer.active_subscriptions.toLocaleString(locale)}
         />
       </div>
 
@@ -192,7 +193,7 @@ export default async function CustomerDetailPage({
                           className="border-t border-border hover:bg-secondary/30"
                         >
                           <td className="px-4 py-2">
-                            {new Date(r.start_at).toLocaleString("es", {
+                            {new Date(r.start_at).toLocaleString(locale, {
                               timeZone: tenant.timezone,
                               day: "2-digit",
                               month: "short",
@@ -282,7 +283,7 @@ export default async function CustomerDetailPage({
                             {formatMoney(inv.total_cents, inv.currency)}
                           </td>
                           <td className="px-4 py-2 text-muted-foreground">
-                            {new Date(inv.created_at).toLocaleDateString("es")}
+                            {new Date(inv.created_at).toLocaleDateString(locale)}
                           </td>
                         </tr>
                       );

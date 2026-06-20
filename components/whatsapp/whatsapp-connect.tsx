@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Smartphone, RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,6 +24,7 @@ type Props = {
  * (state === "open"), at which point the page refreshes as connected.
  */
 export function WhatsAppConnect({ tenantId, initialState }: Props) {
+  const t = useTranslations("settings_integrations");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [qr, setQr] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function WhatsAppConnect({ tenantId, initialState }: Props) {
         stopPolling();
         setQr(null);
         setPairing(null);
-        toast.success("¡WhatsApp conectado! 🎉");
+        toast.success(t("wa_connected_toast"));
         router.refresh();
       }
     }, 3000);
@@ -76,10 +78,10 @@ export function WhatsAppConnect({ tenantId, initialState }: Props) {
       <div className="flex items-center gap-2 text-sm">
         <Badge variant="success" className="gap-1.5">
           <CheckCircle2 className="size-3.5" />
-          WhatsApp conectado
+          {t("wa_connected_badge")}
         </Badge>
         <span className="text-muted-foreground">
-          Tu agente ya responde mensajes.
+          {t("wa_connected_subtitle")}
         </span>
       </div>
     );
@@ -89,9 +91,7 @@ export function WhatsAppConnect({ tenantId, initialState }: Props) {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <p className="text-sm text-muted-foreground max-w-md">
-          Conecta el WhatsApp de tu negocio escaneando un código QR, igual que
-          WhatsApp Web. Toma menos de un minuto y no necesitas a nadie del equipo
-          de BolivAI.
+          {t("wa_connect_intro")}
         </p>
         <Button onClick={connect} disabled={pending} className="gap-1.5">
           {pending ? (
@@ -101,29 +101,30 @@ export function WhatsAppConnect({ tenantId, initialState }: Props) {
           ) : (
             <Smartphone className="size-4" />
           )}
-          {qr ? "Regenerar QR" : "Conectar WhatsApp"}
+          {qr ? t("wa_regenerate_qr") : t("wa_connect_btn")}
         </Button>
       </div>
 
       {qr ? (
         <div className="border-t pt-4 space-y-3">
           <div>
-            <p className="text-sm font-medium">Escanea con el WhatsApp del negocio</p>
+            <p className="text-sm font-medium">{t("wa_scan_title")}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              En tu teléfono: WhatsApp → <strong>Dispositivos vinculados</strong> →
-              Vincular un dispositivo → escanea este código.
+              {t.rich("wa_scan_instructions", {
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg w-fit shadow-sm">
             <img
               src={qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`}
-              alt="Código QR de WhatsApp"
+              alt={t("wa_qr_alt")}
               className="size-64 object-contain"
             />
           </div>
           {pairing ? (
             <div className="text-xs text-muted-foreground">
-              ¿No escanea? Código de emparejamiento:{" "}
+              {t("wa_pairing_label")}{" "}
               <code className="font-mono bg-secondary px-2 py-1 rounded">
                 {pairing}
               </code>
@@ -132,8 +133,7 @@ export function WhatsAppConnect({ tenantId, initialState }: Props) {
           {waiting ? (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Loader2 className="size-3.5 animate-spin" />
-              Esperando a que escanees… el QR caduca en ~60s. Si expira, toca
-              “Regenerar QR”.
+              {t("wa_waiting")}
             </p>
           ) : null}
         </div>

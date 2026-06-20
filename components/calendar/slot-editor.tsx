@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -92,24 +93,26 @@ function SlotEditDialog({
   tenantTimezone: string;
   staff: StaffOption[];
 }) {
+  const t = useTranslations("calendar");
   const [state, action, pending] = useActionState(updateSlotAction, initial);
   const [deleting, startDelete] = useTransition();
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
     if (state.success) {
-      toast.success("Slot actualizado");
+      toast.success(t("slot_updated"));
       onClose();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, onClose]);
 
   function handleDelete() {
-    if (!confirm("¿Eliminar este slot?")) return;
+    if (!confirm(t("delete_slot_confirm"))) return;
     startDelete(async () => {
       const res = await deleteSlotAction(tenantId, slot.id);
       if (res.error) toast.error(res.error);
       else {
-        toast.success("Slot eliminado");
+        toast.success(t("slot_deleted"));
         onClose();
       }
     });
@@ -123,10 +126,9 @@ function SlotEditDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar slot</DialogTitle>
+          <DialogTitle>{t("edit_slot_title")}</DialogTitle>
           <DialogDescription>
-            Cambia el horario, el personal asignado, o márcalo como no
-            disponible para sacarlo del calendario sin borrarlo.
+            {t("edit_slot_desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -135,7 +137,7 @@ function SlotEditDialog({
           <input type="hidden" name="slot_id" value={slot.id} />
 
           <div className="space-y-2">
-            <Label htmlFor="staff_id">Personal asignado</Label>
+            <Label htmlFor="staff_id">{t("assigned_staff")}</Label>
             <select
               id="staff_id"
               name="staff_id"
@@ -151,7 +153,7 @@ function SlotEditDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="date">Fecha</Label>
+            <Label htmlFor="date">{t("date")}</Label>
             <Input
               id="date"
               name="date"
@@ -163,7 +165,7 @@ function SlotEditDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="start_time">Inicio</Label>
+              <Label htmlFor="start_time">{t("start")}</Label>
               <Input
                 id="start_time"
                 name="start_time"
@@ -173,7 +175,7 @@ function SlotEditDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end_time">Fin</Label>
+              <Label htmlFor="end_time">{t("end")}</Label>
               <Input
                 id="end_time"
                 name="end_time"
@@ -191,7 +193,7 @@ function SlotEditDialog({
               defaultChecked={slot.is_available}
               className="rounded border-input"
             />
-            Disponible para reservas
+            {t("available_for_booking")}
           </label>
 
           <DialogFooter className="flex justify-between sm:justify-between gap-2">
@@ -203,7 +205,7 @@ function SlotEditDialog({
               className="text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-4" />
-              {deleting ? "Eliminando…" : "Eliminar"}
+              {deleting ? t("deleting") : t("delete")}
             </Button>
             <div className="flex gap-2">
               <Button
@@ -212,10 +214,10 @@ function SlotEditDialog({
                 onClick={onClose}
                 disabled={pending || deleting}
               >
-                Cancelar
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={pending || deleting}>
-                {pending ? "Guardando…" : "Guardar"}
+                {pending ? t("saving") : t("save")}
               </Button>
             </div>
           </DialogFooter>

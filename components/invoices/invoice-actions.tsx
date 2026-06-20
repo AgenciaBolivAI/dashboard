@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ export function InvoiceActions({
   tenantId: string;
   invoice: Invoice;
 }) {
+  const t = useTranslations("invoices");
   const router = useRouter();
   const [pending, start] = useTransition();
   const canMarkPaid = invoice.status === "open" || invoice.status === "past_due";
@@ -47,12 +49,12 @@ export function InvoiceActions({
           variant="outline"
           disabled={pending}
           onClick={() => {
-            if (!confirm("¿Marcar como pagada manualmente? Útil para cobros en efectivo o transferencia.")) return;
-            run(() => markPaidManuallyAction(tenantId, invoice.id), "Marcada como pagada");
+            if (!confirm(t("mark_paid_confirm"))) return;
+            run(() => markPaidManuallyAction(tenantId, invoice.id), t("marked_paid"));
           }}
         >
           <CheckCircle2 className="size-4" />
-          Marcar pagada
+          {t("mark_paid")}
         </Button>
       ) : null}
       {canVoid ? (
@@ -62,12 +64,12 @@ export function InvoiceActions({
           disabled={pending}
           className="text-muted-foreground hover:text-destructive"
           onClick={() => {
-            if (!confirm("¿Anular esta factura? También se anulará en Stripe si fue enviada.")) return;
-            run(() => voidInvoiceAction(tenantId, invoice.id), "Factura anulada");
+            if (!confirm(t("void_confirm"))) return;
+            run(() => voidInvoiceAction(tenantId, invoice.id), t("invoice_voided"));
           }}
         >
           <XCircle className="size-4" />
-          Anular
+          {t("void")}
         </Button>
       ) : null}
       {canCancelSub ? (
@@ -77,17 +79,12 @@ export function InvoiceActions({
           disabled={pending}
           className="text-muted-foreground hover:text-destructive"
           onClick={() => {
-            if (
-              !confirm(
-                "¿Cancelar la suscripción? El cliente dejará de recibir facturas recurrentes. Las facturas ya emitidas no se anulan.",
-              )
-            )
-              return;
-            run(() => cancelSubscriptionAction(tenantId, invoice.id), "Suscripción cancelada");
+            if (!confirm(t("cancel_sub_confirm"))) return;
+            run(() => cancelSubscriptionAction(tenantId, invoice.id), t("sub_cancelled"));
           }}
         >
           <StopCircle className="size-4" />
-          Cancelar suscripción
+          {t("cancel_subscription")}
         </Button>
       ) : null}
     </>

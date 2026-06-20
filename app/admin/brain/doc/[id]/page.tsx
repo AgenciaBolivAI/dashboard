@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowLeft, FileText, Network, Calendar, Tag } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,7 @@ export default async function BrainDocPage({
   await requireBolivAIAdmin();
 
   const t = await getTranslations("admin_brain");
+  const locale = await getLocale();
 
   const { id } = await params;
   const data = await getDocFull(id);
@@ -80,7 +81,7 @@ export default async function BrainDocPage({
           <span className="font-mono">{doc.source_path}</span>
           <span className="flex items-center gap-1">
             <Calendar className="size-3" />
-            {t("indexed_on", { date: new Date(doc.indexed_at).toLocaleDateString("es-BO") })}
+            {t("indexed_on", { date: new Date(doc.indexed_at).toLocaleDateString(locale) })}
           </span>
           <span>{t("chars_count", { count: doc.content.length })}</span>
         </div>

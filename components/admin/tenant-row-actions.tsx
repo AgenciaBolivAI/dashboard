@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Pause, Play, Pencil, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ export function TenantRowActions({
   tenantSlug: string;
   status: string;
 }) {
+  const t = useTranslations("admin_tenants");
   const [pending, startTransition] = useTransition();
   const isPaused = status === "paused";
 
@@ -23,7 +25,7 @@ export function TenantRowActions({
     startTransition(async () => {
       const res = await suspendTenantAction(tenantId, !isPaused);
       if (res.error) toast.error(res.error);
-      else toast.success(isPaused ? "Tenant reanudado" : "Tenant pausado");
+      else toast.success(isPaused ? t("toast_resumed") : t("toast_paused"));
     });
   }
 
@@ -34,7 +36,7 @@ export function TenantRowActions({
         size="icon"
         onClick={handleSuspend}
         disabled={pending}
-        title={isPaused ? "Reanudar" : "Pausar"}
+        title={isPaused ? t("action_resume") : t("action_pause")}
       >
         {isPaused ? (
           <Play className="size-4 text-primary" />
@@ -42,12 +44,12 @@ export function TenantRowActions({
           <Pause className="size-4 text-muted-foreground" />
         )}
       </Button>
-      <Button asChild variant="ghost" size="icon" title="Editar">
+      <Button asChild variant="ghost" size="icon" title={t("action_edit")}>
         <Link href={`/admin/tenants/${tenantId}`}>
           <Pencil className="size-4" />
         </Link>
       </Button>
-      <Button asChild variant="ghost" size="icon" title="Ver como tenant">
+      <Button asChild variant="ghost" size="icon" title={t("action_view_as_tenant")}>
         <Link href={`/dashboard/${tenantSlug}/overview`}>
           <ArrowRight className="size-4" />
         </Link>

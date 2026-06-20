@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Sparkles, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ function slugify(s: string): string {
 }
 
 export function NewTenantForm() {
+  const t = useTranslations("admin_tenant_new");
   const [state, action, pending] = useActionState(createTenantAction, initial);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -66,18 +68,18 @@ export function NewTenantForm() {
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="size-4 text-primary" />
-          <h3 className="font-display font-semibold">Tipo de agente</h3>
+          <h3 className="font-display font-semibold">{t("agent_type")}</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {TEMPLATES.map((t) => {
-            const active = t.id === templateId;
-            const disabled = t.status === "coming_soon";
+          {TEMPLATES.map((tpl) => {
+            const active = tpl.id === templateId;
+            const disabled = tpl.status === "coming_soon";
             return (
               <button
-                key={t.id}
+                key={tpl.id}
                 type="button"
                 disabled={disabled}
-                onClick={() => setTemplateId(t.id)}
+                onClick={() => setTemplateId(tpl.id)}
                 className={cn(
                   "text-left rounded-lg border p-4 transition relative",
                   active
@@ -87,18 +89,18 @@ export function NewTenantForm() {
                 )}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="font-medium">{t.name}</p>
+                  <p className="font-medium">{tpl.name}</p>
                   {disabled ? (
                     <Badge variant="muted" className="shrink-0">
-                      Próximamente
+                      {t("coming_soon")}
                     </Badge>
                   ) : null}
                 </div>
                 <p className="text-xs text-muted-foreground mb-3">
-                  {t.description}
+                  {tpl.description}
                 </p>
                 <div className="flex flex-wrap gap-1">
-                  {t.features.map((f) => (
+                  {tpl.features.map((f) => (
                     <Badge key={f.id} variant="outline" className="text-[10px]">
                       {f.label}
                     </Badge>
@@ -116,7 +118,7 @@ export function NewTenantForm() {
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Plug className="size-4 text-primary" />
-          <h3 className="font-display font-semibold">Canal de mensajería</h3>
+          <h3 className="font-display font-semibold">{t("messaging_channel")}</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {GATEWAYS.map((g) => {
@@ -141,7 +143,7 @@ export function NewTenantForm() {
                   <p className="text-sm font-medium">{g.name}</p>
                   {g.status === "coming_soon" ? (
                     <Badge variant="muted" className="text-[10px] shrink-0">
-                      Pronto
+                      {t("soon")}
                     </Badge>
                   ) : null}
                 </div>
@@ -158,7 +160,7 @@ export function NewTenantForm() {
       {gateway.configFields.length > 0 ? (
         <section className="space-y-3">
           <h3 className="font-display font-semibold">
-            Configuración de {gateway.short}
+            {t("gateway_config", { gateway: gateway.short })}
           </h3>
           {gateway.configFields.map((f) => (
             <div key={f.key} className="space-y-2">
@@ -188,10 +190,10 @@ export function NewTenantForm() {
 
       {/* ── Step 4: Tenant details ───────────────────────────────── */}
       <section className="space-y-5">
-        <h3 className="font-display font-semibold">Datos del negocio</h3>
+        <h3 className="font-display font-semibold">{t("business_details")}</h3>
 
         <div className="space-y-2">
-          <Label htmlFor="name">Nombre</Label>
+          <Label htmlFor="name">{t("name")}</Label>
           <Input
             id="name"
             name="name"
@@ -201,12 +203,12 @@ export function NewTenantForm() {
               setName(e.target.value);
               if (!slugManual) setSlug(slugify(e.target.value));
             }}
-            placeholder="Clínica Cervantes"
+            placeholder={t("name_placeholder")}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="slug">Slug</Label>
+          <Label htmlFor="slug">{t("slug")}</Label>
           <Input
             id="slug"
             name="slug"
@@ -225,24 +227,27 @@ export function NewTenantForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="industry">Industria (opcional)</Label>
+          <Label htmlFor="industry">{t("industry")}</Label>
           <Input
             id="industry"
             name="industry"
             placeholder={template.vertical}
           />
           <p className="text-xs text-muted-foreground">
-            Si lo dejas vacío usaremos <code>{template.vertical}</code>.
+            {t.rich("industry_hint", {
+              vertical: template.vertical,
+              code: (c) => <code>{c}</code>,
+            })}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="language">Idioma</Label>
+            <Label htmlFor="language">{t("language")}</Label>
             <Input id="language" name="language" defaultValue="es" required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="timezone">Zona horaria</Label>
+            <Label htmlFor="timezone">{t("timezone")}</Label>
             <Input
               id="timezone"
               name="timezone"
@@ -254,7 +259,7 @@ export function NewTenantForm() {
       </section>
 
       <Button type="submit" disabled={pending}>
-        {pending ? "Creando…" : "Crear tenant"}
+        {pending ? t("creating") : t("create_tenant")}
       </Button>
     </form>
   );

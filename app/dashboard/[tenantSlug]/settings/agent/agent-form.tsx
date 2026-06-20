@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ export function AgentForm({
   promptTemplate: string;
   promptVariables: Record<string, unknown>;
 }) {
+  const t = useTranslations("settings_agent");
   const [state, action, pending] = useActionState(updateTenantAgentAction, initial);
   const [variables, setVariables] = useState<Variable[]>(
     objectToList(promptVariables),
@@ -43,8 +45,8 @@ export function AgentForm({
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
-    if (state.success) toast.success("Prompt actualizado");
-  }, [state]);
+    if (state.success) toast.success(t("toast_saved"));
+  }, [state, t]);
 
   function updateVar(idx: number, field: "key" | "value", val: string) {
     setVariables((prev) =>
@@ -70,47 +72,51 @@ export function AgentForm({
       />
 
       <div className="space-y-2">
-        <Label htmlFor="prompt_template">Plantilla del prompt</Label>
+        <Label htmlFor="prompt_template">{t("field_prompt_template")}</Label>
         <textarea
           id="prompt_template"
           name="prompt_template"
           rows={20}
           defaultValue={promptTemplate}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          placeholder="# Rol&#10;Eres {{agent_name}}, recepcionista de {{company_name}}..."
+          placeholder={t("prompt_template_placeholder")}
         />
         <p className="text-xs text-muted-foreground">
-          Tip: empieza con un bloque <code>## Personalidad</code> y otro{" "}
-          <code>## Reglas</code>. Define la lengua, el tono, qué nunca decir.
+          {t.rich("prompt_template_hint", {
+            personality: () => <code>## Personalidad</code>,
+            rules: () => <code>## Reglas</code>,
+          })}
         </p>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Variables del prompt</Label>
+          <Label>{t("variables_title")}</Label>
           <Button type="button" variant="ghost" size="sm" onClick={addVar}>
             <Plus className="size-4" />
-            Añadir
+            {t("add_variable")}
           </Button>
         </div>
 
         {variables.length === 0 ? (
           <p className="text-xs text-muted-foreground italic py-3">
-            Sin variables. Usa el botón de arriba para añadir{" "}
-            <code>company_name</code>, <code>agent_name</code>, etc.
+            {t.rich("no_variables", {
+              code1: () => <code>company_name</code>,
+              code2: () => <code>agent_name</code>,
+            })}
           </p>
         ) : (
           <div className="space-y-2">
             {variables.map((v, i) => (
               <div key={i} className="flex items-center gap-2">
                 <Input
-                  placeholder="nombre"
+                  placeholder={t("var_name_placeholder")}
                   value={v.key}
                   onChange={(e) => updateVar(i, "key", e.target.value)}
                   className="font-mono w-44 shrink-0"
                 />
                 <Input
-                  placeholder="valor"
+                  placeholder={t("var_value_placeholder")}
                   value={v.value}
                   onChange={(e) => updateVar(i, "value", e.target.value)}
                   className="flex-1"
@@ -131,7 +137,7 @@ export function AgentForm({
       </div>
 
       <Button type="submit" disabled={pending}>
-        {pending ? "Guardando…" : "Guardar prompt"}
+        {pending ? t("saving") : t("save_prompt")}
       </Button>
     </form>
   );

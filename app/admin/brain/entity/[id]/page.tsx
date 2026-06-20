@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import {
   ArrowLeft,
   ArrowRight,
@@ -57,6 +57,7 @@ export default async function EntityDetailPage({
   await requireBolivAIAdmin();
 
   const t = await getTranslations("admin_brain");
+  const locale = await getLocale();
 
   const { id } = await params;
   const data = await getEntityFull(id);
@@ -103,8 +104,8 @@ export default async function EntityDetailPage({
               strong: (chunks) => <strong className="text-foreground">{chunks}</strong>,
             })}
           </span>
-          <span>{t("first_seen", { date: new Date(entity.first_seen).toLocaleDateString("es-BO") })}</span>
-          <span>{t("last_seen", { date: new Date(entity.last_seen).toLocaleDateString("es-BO") })}</span>
+          <span>{t("first_seen", { date: new Date(entity.first_seen).toLocaleDateString(locale) })}</span>
+          <span>{t("last_seen", { date: new Date(entity.last_seen).toLocaleDateString(locale) })}</span>
           <span>
             {t("relations_summary", {
               outgoing: outgoing.length,

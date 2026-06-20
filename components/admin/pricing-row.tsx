@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { Save, Loader2, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ type Row = {
 };
 
 export function PricingRow({ row }: { row: Row }) {
+  const t = useTranslations("admin_pricing");
   const [expanded, setExpanded] = useState(false);
   const [state, action, pending] = useActionState(updateCreditPricingAction, initial);
   const [credits, setCredits] = useState(row.credits_per_unit);
@@ -64,7 +66,7 @@ export function PricingRow({ row }: { row: Row }) {
             type="button"
             onClick={() => setExpanded((e) => !e)}
             className="text-muted-foreground hover:text-foreground"
-            aria-label={expanded ? "Colapsar" : "Expandir"}
+            aria-label={expanded ? t("aria_collapse") : t("aria_expand")}
           >
             {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
           </button>
@@ -74,7 +76,7 @@ export function PricingRow({ row }: { row: Row }) {
           {credits} cr
           {dirty && (
             <span className="text-xs text-amber-600 ml-1">
-              (antes {row.credits_per_unit})
+              {t("before_value", { value: row.credits_per_unit })}
             </span>
           )}
         </td>
@@ -125,8 +127,8 @@ export function PricingRow({ row }: { row: Row }) {
                     step={1}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Ingreso por unidad: <strong>${(credits / 100).toFixed(2)}</strong> ·
-                    Revenue micros: <strong>{liveRevenueMicros.toLocaleString()}</strong>
+                    {t("revenue_per_unit_label")}: <strong>${(credits / 100).toFixed(2)}</strong> ·
+                    {" "}{t("revenue_micros_label")}: <strong>{liveRevenueMicros.toLocaleString()}</strong>
                   </p>
                 </div>
 
@@ -141,12 +143,12 @@ export function PricingRow({ row }: { row: Row }) {
                     step={1000}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Nuestro costo: <strong>${(costMicros / 1_000_000).toFixed(4)}</strong>
+                    {t("our_cost_label")}: <strong>${(costMicros / 1_000_000).toFixed(4)}</strong>
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs">Margen calculado</Label>
+                  <Label className="text-xs">{t("calculated_margin_label")}</Label>
                   <div
                     className={cn(
                       "h-9 px-3 rounded-md border border-border flex items-center font-mono text-sm",
@@ -162,12 +164,12 @@ export function PricingRow({ row }: { row: Row }) {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Descripción</Label>
+                <Label className="text-xs">{t("description_label")}</Label>
                 <Input
                   name="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="(opcional)"
+                  placeholder={t("description_placeholder")}
                 />
               </div>
 
@@ -182,11 +184,11 @@ export function PricingRow({ row }: { row: Row }) {
                   placeholder='{"openai": 50000, "twilio": 10000}'
                 />
                 <p className="text-xs text-muted-foreground">
-                  Suma actual: {row.vendor_sum_micros.toLocaleString()} micros = $
+                  {t("current_sum_label")}: {row.vendor_sum_micros.toLocaleString()} micros = $
                   {(row.vendor_sum_micros / 1_000_000).toFixed(4)}
                   {!row.vendor_sum_matches && (
                     <span className="ml-2 text-amber-600 font-semibold">
-                      (no coincide con cost_per_unit_micros: {row.cost_per_unit_micros.toLocaleString()})
+                      {t("vendor_mismatch_note", { value: row.cost_per_unit_micros.toLocaleString() })}
                     </span>
                   )}
                 </p>
@@ -199,10 +201,10 @@ export function PricingRow({ row }: { row: Row }) {
               <div className="flex gap-2 items-center">
                 <Button type="submit" disabled={!dirty || pending} className="gap-1.5">
                   {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                  Guardar
+                  {t("save")}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Última actualización: {new Date(row.updated_at).toLocaleString("es-BO")}
+                  {t("last_updated_label")}: {new Date(row.updated_at).toLocaleString()}
                 </p>
               </div>
             </form>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { UserSearch, Star } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
@@ -18,6 +18,7 @@ export default async function CustomersPage({
   const { q, vip } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("customers");
+  const locale = await getLocale();
 
   // Toggle VIP while preserving the active search. Built with URLSearchParams so
   // the "?" is never dropped — the old string-concat produced "...customers&q=..."
@@ -110,7 +111,7 @@ export default async function CustomersPage({
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {c.last_seen_at
-                        ? new Date(c.last_seen_at).toLocaleDateString("es")
+                        ? new Date(c.last_seen_at).toLocaleDateString(locale)
                         : "—"}
                     </td>
                   </tr>

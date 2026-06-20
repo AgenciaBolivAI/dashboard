@@ -160,7 +160,7 @@ export async function getTenantDailyTimeseries(
   start.setUTCHours(0, 0, 0, 0);
   const { data } = await svc
     .from("credit_transactions")
-    .select("created_at, type, credits_delta, action_key")
+    .select("created_at, type, credits_delta, action_key, metadata")
     .eq("tenant_id", tenantId)
     .gte("created_at", start.toISOString());
 
@@ -178,12 +178,16 @@ export async function getTenantDailyTimeseries(
     type: string;
     credits_delta: number;
     action_key: string | null;
+    metadata: Record<string, unknown> | null;
   }>) {
     const day = row.created_at.slice(0, 10);
     const bucket = byDay.get(day);
     if (!bucket) continue;
     if (row.type === "top_up") {
-      bucket.revenue_cents += row.credits_delta;
+      // Real money paid is metadata.paid_cents — credits_delta is a CREDIT
+      // count, not cents (a top-up grants ~100 credits per $1 + bonuses).
+      const paidCents = Number(row.metadata?.paid_cents) || 0;
+      bucket.revenue_cents += paidCents;
     } else if (row.type === "usage" || row.type === "release") {
       bucket.usage_credits += -row.credits_delta;
       if (row.action_key) {

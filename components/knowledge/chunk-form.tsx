@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ export function ChunkFormDialog({
   chunk: AnyChunk | null;
 }) {
   const isEdit = !!chunk;
+  const t = useTranslations("knowledge");
   const [state, action, pending] = useActionState(
     isEdit ? updateChunkAction : addManualChunkAction,
     initial,
@@ -45,22 +47,22 @@ export function ChunkFormDialog({
   useEffect(() => {
     if (state.error) toast.error(state.error);
     if (state.success) {
-      toast.success(isEdit ? "Chunk actualizado" : "Chunk añadido");
+      toast.success(isEdit ? t("chunk_updated_toast") : t("chunk_added_toast"));
       onClose();
     }
-  }, [state, isEdit, onClose]);
+  }, [state, isEdit, onClose, t]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Editar chunk" : "Agregar chunk manualmente"}
+            {isEdit ? t("dialog_title_edit") : t("dialog_title_add")}
           </DialogTitle>
           <DialogDescription>
             {type === "documents"
-              ? "Información que el agente recupera para responder preguntas (precios, horarios, políticas)."
-              : "Conocimiento clínico que el agente usa para sugerir diagnósticos y orientar al paciente."}
+              ? t("dialog_desc_documents")
+              : t("dialog_desc_clinical")}
           </DialogDescription>
         </DialogHeader>
 
@@ -70,7 +72,7 @@ export function ChunkFormDialog({
           {chunk ? <input type="hidden" name="id" value={chunk.id} /> : null}
 
           <div className="space-y-2">
-            <Label htmlFor="source">Fuente</Label>
+            <Label htmlFor="source">{t("field_source")}</Label>
             <Input
               id="source"
               name="source"
@@ -82,66 +84,66 @@ export function ChunkFormDialog({
           {type === "documents" ? (
             <>
               <Field
-                label="Pregunta"
+                label={t("field_question")}
                 name="question"
                 defaultValue={(chunk as FaqChunk | null)?.question ?? ""}
-                placeholder="¿Cuánto cuesta una limpieza dental?"
+                placeholder={t("field_question_placeholder")}
               />
               <FieldArea
-                label="Respuesta"
+                label={t("field_answer")}
                 name="answer"
                 defaultValue={(chunk as FaqChunk | null)?.answer ?? ""}
-                placeholder="Bs. 150, incluye revisión"
+                placeholder={t("field_answer_placeholder")}
                 rows={2}
               />
               <FieldArea
-                label="Plantilla de respuesta del agente"
+                label={t("field_response_template")}
                 name="response_template"
                 defaultValue={(chunk as FaqChunk | null)?.response_template ?? ""}
-                placeholder="Una limpieza tiene un costo de Bs. 150 e incluye revisión general 😊"
+                placeholder={t("field_response_template_placeholder")}
                 rows={2}
               />
             </>
           ) : (
             <>
               <Field
-                label="Síntoma"
+                label={t("field_symptom")}
                 name="symptom"
                 defaultValue={(chunk as PainChunk | null)?.symptom ?? ""}
-                placeholder="Dolor lumbar bajo prolongado"
+                placeholder={t("field_symptom_placeholder")}
               />
               <FieldArea
-                label="Diagnóstico probable"
+                label={t("field_diagnosis")}
                 name="diagnosis"
                 defaultValue={(chunk as PainChunk | null)?.diagnosis ?? ""}
-                placeholder="Lumbalgia mecánica"
+                placeholder={t("field_diagnosis_placeholder")}
                 rows={2}
               />
               <FieldArea
-                label="Recomendación"
+                label={t("field_recommendation")}
                 name="recommendation"
                 defaultValue={(chunk as PainChunk | null)?.recommendation ?? ""}
-                placeholder="Sesión de fisio + corrección postural"
+                placeholder={t("field_recommendation_placeholder")}
                 rows={2}
               />
             </>
           )}
 
           <FieldArea
-            label="Contenido (texto que se va a vectorizar)"
+            label={t("field_content")}
             name="content"
             defaultValue={chunk?.content ?? ""}
-            placeholder="El texto completo de este chunk. Esto es lo que se busca por similitud."
+            placeholder={t("field_content_placeholder")}
             rows={5}
             required
           />
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>
-              Cancelar
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Guardando…" : isEdit ? "Guardar" : "Crear"}
+              {pending ? t("saving") : isEdit ? t("save") : t("create")}
             </Button>
           </DialogFooter>
         </form>

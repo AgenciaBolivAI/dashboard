@@ -42,9 +42,13 @@ export async function updateSession(request: NextRequest) {
   const isProtected = path.startsWith("/dashboard") || path.startsWith("/admin");
 
   if (isProtected && !user) {
+    // Preserve the full requested URL (path + query) so the user lands back on
+    // the exact page — previously the query string was dropped on login.
+    const next = path + request.nextUrl.search;
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", path);
+    url.search = ""; // drop the original page's params; keep only `next`
+    url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
 

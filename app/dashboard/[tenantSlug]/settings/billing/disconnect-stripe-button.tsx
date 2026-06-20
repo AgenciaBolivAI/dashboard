@@ -2,25 +2,23 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { disconnectStripeAction } from "@/lib/actions/billing";
 
 export function DisconnectStripeButton({ tenantId }: { tenantId: string }) {
+  const t = useTranslations("settings_billing");
   const [pending, start] = useTransition();
 
   function handleClick() {
-    if (
-      !confirm(
-        "¿Desconectar tu cuenta de Stripe? Dejarás de poder cobrar facturas hasta que vuelvas a conectar. Las facturas ya emitidas siguen activas en Stripe.",
-      )
-    ) {
+    if (!confirm(t("confirm_disconnect"))) {
       return;
     }
     start(async () => {
       const res = await disconnectStripeAction(tenantId);
       if (res.error) toast.error(res.error);
-      else toast.success("Stripe desconectado");
+      else toast.success(t("stripe_disconnected"));
     });
   }
 
@@ -33,7 +31,7 @@ export function DisconnectStripeButton({ tenantId }: { tenantId: string }) {
       className="text-muted-foreground hover:text-destructive"
     >
       <Unlink className="size-4" />
-      {pending ? "Desconectando…" : "Desconectar Stripe"}
+      {pending ? t("disconnecting") : t("disconnect_stripe")}
     </Button>
   );
 }

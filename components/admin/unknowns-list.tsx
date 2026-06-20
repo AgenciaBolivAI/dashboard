@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { HelpCircle, Loader2, Plus, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import {
 
 export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
   const router = useRouter();
+  const t = useTranslations("admin_brain");
   const [open, setOpen] = useState(false);
   const [pending, startSave] = useTransition();
   const [resolving, startResolve] = useTransition();
@@ -25,7 +27,7 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
 
   function handleAdd() {
     if (question.trim().length < 5) {
-      toast.error("La pregunta es muy corta");
+      toast.error(t("unknown_too_short"));
       return;
     }
     startSave(async () => {
@@ -37,7 +39,7 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
         toast.error(res.error);
         return;
       }
-      toast.success("Pregunta registrada");
+      toast.success(t("unknown_recorded"));
       setQuestion("");
       setContext("");
       setOpen(false);
@@ -46,7 +48,7 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
   }
 
   function handleResolve(id: string) {
-    const answer = window.prompt("Resumen de la respuesta:");
+    const answer = window.prompt(t("unknown_answer_prompt"));
     if (!answer || answer.trim().length < 5) return;
     startResolve(async () => {
       const res = await resolveUnknownAction({ id, answer_summary: answer.trim() });
@@ -54,7 +56,7 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
         toast.error(res.error);
         return;
       }
-      toast.success("Marcada como resuelta");
+      toast.success(t("unknown_resolved"));
       router.refresh();
     });
   }
@@ -65,17 +67,16 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
         <div>
           <p className="text-sm font-medium flex items-center gap-2">
             <HelpCircle className="size-4 text-rose-500" />
-            Preguntas abiertas ({unknowns.length})
+            {t("unknowns_title", { count: unknowns.length })}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Cosas que no sabemos todavía. Cuando una pregunta tenga respuesta,
-            marcala como resuelta + el brain la cierra.
+            {t("unknowns_desc")}
           </p>
         </div>
         {!open && (
           <Button onClick={() => setOpen(true)} size="sm" variant="outline" className="gap-1.5">
             <Plus className="size-4" />
-            Nueva
+            {t("unknowns_new")}
           </Button>
         )}
       </div>
@@ -83,35 +84,35 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
       {open && (
         <div className="space-y-3 mb-4 p-3 rounded-lg border border-dashed border-rose-500/30 bg-rose-500/5">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Anotar pregunta abierta</p>
+            <p className="text-sm font-medium">{t("unknowns_form_title")}</p>
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
               <X className="size-4" />
             </Button>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Pregunta</Label>
+            <Label className="text-xs">{t("unknowns_question_label")}</Label>
             <Input
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="¿Cómo manejamos facturación multi-moneda?"
+              placeholder={t("unknowns_question_placeholder")}
               autoFocus
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Contexto (opcional) — por qué importa</Label>
+            <Label className="text-xs">{t("unknowns_context_label")}</Label>
             <textarea
               value={context}
               onChange={(e) => setContext(e.target.value)}
               rows={2}
               maxLength={2000}
-              placeholder="Nos preguntó un tenant brasileño si Stripe Connect soporta BRL…"
+              placeholder={t("unknowns_context_placeholder")}
               className="w-full text-sm px-3 py-2 rounded-md border border-border bg-background"
             />
           </div>
           <div className="flex justify-end">
             <Button onClick={handleAdd} disabled={pending} size="sm" className="gap-1.5">
               {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-              Registrar
+              {t("unknowns_submit")}
             </Button>
           </div>
         </div>
@@ -119,7 +120,7 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
 
       {unknowns.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">
-          Sin preguntas abiertas. (Esto casi nunca es verdad — anotá lo que no sabés)
+          {t("unknowns_empty")}
         </p>
       ) : (
         <div className="space-y-2">
@@ -134,7 +135,7 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{u.context}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(u.raised_at).toLocaleDateString("es-BO")}
+                  {new Date(u.raised_at).toLocaleDateString()}
                 </p>
               </div>
               <Button
@@ -143,7 +144,7 @@ export function UnknownsList({ unknowns }: { unknowns: UnknownRow[] }) {
                 onClick={() => handleResolve(u.id)}
                 disabled={resolving}
                 className="shrink-0 gap-1"
-                title="Marcar como resuelta"
+                title={t("unknowns_mark_resolved")}
               >
                 <CheckCircle2 className="size-4 text-primary" />
               </Button>

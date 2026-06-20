@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Loader2, Sparkles, CreditCard } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ export function TopupPicker({
   tenantId: string;
   tenantSlug: string;
 }) {
+  const t = useTranslations("billing");
   const [pending, startTransition] = useTransition();
   const [customDollars, setCustomDollars] = useState("");
 
@@ -28,7 +30,7 @@ export function TopupPicker({
     startTransition(async () => {
       const res = await startTopupAction(tenantId, tenantSlug, cents);
       if (res.error || !res.url) {
-        toast.error(res.error ?? "No se pudo abrir el checkout");
+        toast.error(res.error ?? t("err_checkout_open"));
         return;
       }
       // Stripe-hosted checkout. Browser leaves bolivai.cloud → returns
@@ -40,7 +42,7 @@ export function TopupPicker({
   function goCustom() {
     const dollars = parseFloat(customDollars);
     if (!Number.isFinite(dollars) || dollars < MIN_DOLLARS || dollars > MAX_DOLLARS) {
-      toast.error(`Monto válido: $${MIN_DOLLARS} - $${MAX_DOLLARS.toLocaleString()}`);
+      toast.error(t("err_amount_range", { min: MIN_DOLLARS, max: MAX_DOLLARS.toLocaleString() }));
       return;
     }
     go(Math.round(dollars * 100));
@@ -58,9 +60,9 @@ export function TopupPicker({
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-display font-semibold text-base flex items-center gap-2">
           <CreditCard className="size-4 text-primary" />
-          Recargar créditos
+          {t("topup_credits_title")}
         </h3>
-        <span className="text-xs text-muted-foreground">$1 = 100 créditos</span>
+        <span className="text-xs text-muted-foreground">{t("topup_rate")}</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
@@ -77,7 +79,7 @@ export function TopupPicker({
           >
             <span className="text-lg font-display font-bold">{p.label}</span>
             <span className="text-xs text-muted-foreground">
-              {p.cents} créditos
+              {t("credits_count", { count: p.cents })}
               {p.bonus > 0 && (
                 <span className="ml-1 inline-flex items-center gap-0.5 text-primary">
                   <Sparkles className="size-3" />+{p.bonus}
@@ -90,7 +92,7 @@ export function TopupPicker({
 
       <div className="border-t pt-4">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-          Monto personalizado
+          {t("custom_amount_label")}
         </Label>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-muted-foreground">$</span>
@@ -107,25 +109,33 @@ export function TopupPicker({
           />
           <Button onClick={goCustom} disabled={pending || !customDollars} className="gap-1.5">
             {pending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
-            Pagar
+            {t("pay_button")}
           </Button>
         </div>
         {customCents >= MIN_DOLLARS * 100 && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Recibirás <span className="text-foreground font-medium">{customCents.toLocaleString()} créditos</span>
+            {t.rich("receipt_base", {
+              credits: customCents.toLocaleString(),
+              strong: (chunks) => <span className="text-foreground font-medium">{chunks}</span>,
+            })}
             {customBonus > 0 && (
               <>
-                {" "}+ <span className="text-primary font-medium">{customBonus.toLocaleString()} de bono</span>
+                {" "}
+                {t.rich("receipt_bonus", {
+                  bonus: customBonus.toLocaleString(),
+                  accent: (chunks) => <span className="text-primary font-medium">{chunks}</span>,
+                })}
               </>
             )}
-            {" "}= <span className="text-foreground font-bold">
-              {(customCents + customBonus).toLocaleString()} créditos
-            </span>
+            {" "}
+            {t.rich("receipt_total", {
+              total: (customCents + customBonus).toLocaleString(),
+              strong: (chunks) => <span className="text-foreground font-bold">{chunks}</span>,
+            })}
           </p>
         )}
         <p className="mt-3 text-xs text-muted-foreground">
-          Pago seguro vía Stripe. Los créditos aparecen en tu balance
-          inmediatamente después del pago.
+          {t("secure_payment_note")}
         </p>
       </div>
     </Card>

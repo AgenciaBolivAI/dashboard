@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, Upload, Sparkles, Wand2, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,7 +29,7 @@ function fileToDataUri(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Lectura del archivo falló"));
+    reader.onerror = () => reject(new Error("file_read_failed"));
     reader.readAsDataURL(file);
   });
 }
@@ -45,6 +46,7 @@ export function EditDraftDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("content");
   const [savingText, startSaveText] = useTransition();
   const [savingSubject, startSaveSubject] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +78,7 @@ export function EditDraftDialog({
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
       toast.error(
-        `Archivo muy grande (${Math.round(file.size / 1024 / 1024)} MB). Máximo 8 MB.`,
+        t("edit_file_too_large", { size: Math.round(file.size / 1024 / 1024) }),
       );
       e.target.value = "";
       return;
@@ -85,8 +87,8 @@ export function EditDraftDialog({
       const dataUri = await fileToDataUri(file);
       setUploadDataUri(dataUri);
       setUploadFilename(file.name);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al leer archivo");
+    } catch {
+      toast.error(t("edit_file_read_error"));
     }
   }
 
@@ -112,7 +114,7 @@ export function EditDraftDialog({
         toast.error(res.error);
         return;
       }
-      toast.success("Cambios guardados");
+      toast.success(t("edit_changes_saved"));
       router.refresh();
       onOpenChange(false);
     });
@@ -120,7 +122,7 @@ export function EditDraftDialog({
 
   function handleUploadAndBrand() {
     if (!uploadDataUri) {
-      toast.error("Primero elige un archivo");
+      toast.error(t("edit_pick_file_first"));
       return;
     }
     startSaveSubject(async () => {
@@ -132,7 +134,7 @@ export function EditDraftDialog({
         toast.error(res.error);
         return;
       }
-      toast.success("Imagen subida y brandeada — actualizando…");
+      toast.success(t("edit_image_uploaded"));
       reset();
       // Close the dialog so the user re-opens against the new image. Keeping
       // the dialog open would show the STALE preview from initial mount.
@@ -143,7 +145,7 @@ export function EditDraftDialog({
 
   function handleRegenerate() {
     if (!imagePrompt.trim()) {
-      toast.error("Describe la imagen que quieres");
+      toast.error(t("edit_describe_image"));
       return;
     }
     startSaveSubject(async () => {
@@ -155,7 +157,7 @@ export function EditDraftDialog({
         toast.error(res.error);
         return;
       }
-      toast.success("Imagen regenerada con IA y brandeada — actualizando…");
+      toast.success(t("edit_image_regenerated"));
       onOpenChange(false);
       router.refresh();
     });
@@ -167,7 +169,7 @@ export function EditDraftDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar draft — {draft.platform}</DialogTitle>
+          <DialogTitle>{t("edit_dialog_title", { platform: draft.platform })}</DialogTitle>
           <DialogDescription className="line-clamp-1">
             {draft.story_title}
           </DialogDescription>
@@ -180,7 +182,7 @@ export function EditDraftDialog({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={draft.image_url}
-                alt="Imagen actual"
+                alt={t("edit_current_image_alt")}
                 className="w-full max-h-[320px] object-contain"
               />
             </div>
@@ -189,17 +191,17 @@ export function EditDraftDialog({
           {/* Image source tabs */}
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              Cambiar imagen
+              {t("edit_change_image")}
             </Label>
             <Tabs defaultValue="upload">
               <TabsList className="grid grid-cols-2 w-full">
                 <TabsTrigger value="upload" className="gap-1.5">
                   <Upload className="size-3.5" />
-                  Subir foto
+                  {t("edit_upload_photo")}
                 </TabsTrigger>
                 <TabsTrigger value="ai" className="gap-1.5">
                   <Sparkles className="size-3.5" />
-                  Regenerar con IA
+                  {t("edit_regenerate_ai")}
                 </TabsTrigger>
               </TabsList>
 
@@ -213,8 +215,10 @@ export function EditDraftDialog({
                 />
                 {uploadFilename && (
                   <p className="text-xs text-muted-foreground">
-                    Listo: <span className="text-foreground">{uploadFilename}</span> — al
-                    guardar se brandea automáticamente con el overlay actual.
+                    {t.rich("edit_file_ready", {
+                      filename: uploadFilename,
+                      name: (chunks) => <span className="text-foreground">{chunks}</span>,
+                    })}
                   </p>
                 )}
                 <Button
@@ -228,7 +232,7 @@ export function EditDraftDialog({
                   ) : (
                     <Wand2 className="size-3.5" />
                   )}
-                  Subir y brandear
+                  {t("edit_upload_and_brand")}
                 </Button>
               </TabsContent>
 
@@ -237,12 +241,11 @@ export function EditDraftDialog({
                   value={imagePrompt}
                   onChange={(e) => setImagePrompt(e.target.value)}
                   rows={3}
-                  placeholder="Describe la foto que quieres que genere la IA…"
+                  placeholder={t("edit_ai_prompt_placeholder")}
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <p className="text-xs text-muted-foreground">
-                  La IA genera solo el fondo fotográfico. El headline y el logo se aplican
-                  automáticamente encima.
+                  {t("edit_ai_background_hint")}
                 </p>
                 <Button
                   size="sm"
@@ -255,7 +258,7 @@ export function EditDraftDialog({
                   ) : (
                     <Sparkles className="size-3.5" />
                   )}
-                  Regenerar con IA
+                  {t("edit_regenerate_ai")}
                 </Button>
               </TabsContent>
             </Tabs>
@@ -265,27 +268,27 @@ export function EditDraftDialog({
           <div className="space-y-3 pt-2 border-t">
             <div className="space-y-1">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                Texto del post
+                {t("edit_post_text")}
               </Label>
             </div>
 
             {draftTitle !== null && (
               <div className="space-y-1">
                 <Label htmlFor="draft_title" className="text-xs">
-                  Hook / Titular
+                  {t("edit_hook_headline")}
                 </Label>
                 <Input
                   id="draft_title"
                   value={draftTitle}
                   onChange={(e) => setDraftTitle(e.target.value)}
-                  placeholder="Primera línea del post (LinkedIn)"
+                  placeholder={t("edit_first_line_placeholder")}
                 />
               </div>
             )}
 
             <div className="space-y-1">
               <Label htmlFor="draft_body" className="text-xs">
-                Cuerpo
+                {t("edit_body")}
               </Label>
               <textarea
                 id="draft_body"
@@ -298,7 +301,7 @@ export function EditDraftDialog({
 
             <div className="space-y-1">
               <Label htmlFor="draft_hashtags" className="text-xs">
-                Hashtags
+                {t("edit_hashtags")}
               </Label>
               <Input
                 id="draft_hashtags"
@@ -307,7 +310,7 @@ export function EditDraftDialog({
                 placeholder="#AI #SmallBusiness"
               />
               <p className="text-xs text-muted-foreground">
-                Separados por espacios o comas.
+                {t("edit_hashtags_hint")}
               </p>
             </div>
           </div>
@@ -315,11 +318,11 @@ export function EditDraftDialog({
           {/* Headline overlay editing */}
           <div className="space-y-3 pt-2 border-t">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              Imagen — overlay
+              {t("edit_image_overlay")}
             </Label>
             <div className="space-y-1">
               <Label htmlFor="branded_headline" className="text-xs">
-                Headline (8 palabras máx)
+                {t("edit_headline_max")}
               </Label>
               <Input
                 id="branded_headline"
@@ -330,7 +333,7 @@ export function EditDraftDialog({
             </div>
             <div className="space-y-1">
               <Label htmlFor="accent_phrases" className="text-xs">
-                Palabras a destacar (verde)
+                {t("edit_accent_words")}
               </Label>
               <Input
                 id="accent_phrases"
@@ -339,8 +342,7 @@ export function EditDraftDialog({
                 placeholder="GOOGLE, CUT"
               />
               <p className="text-xs text-muted-foreground">
-                Separadas por coma. Al guardar, la imagen se re-renderiza con el overlay
-                nuevo (mantiene el mismo fondo).
+                {t("edit_accent_words_hint")}
               </p>
             </div>
           </div>
@@ -355,7 +357,7 @@ export function EditDraftDialog({
             className="gap-1.5"
           >
             <X className="size-4" />
-            Cerrar
+            {t("edit_close")}
           </Button>
           <Button
             onClick={handleSaveText}
@@ -367,7 +369,7 @@ export function EditDraftDialog({
             ) : (
               <Save className="size-4" />
             )}
-            Guardar cambios
+            {t("edit_save_changes")}
           </Button>
         </div>
       </DialogContent>

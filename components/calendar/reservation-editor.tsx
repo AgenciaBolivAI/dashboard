@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { CalendarClock, Mail, Phone, Trash2, User, Briefcase, UserCircle2, Video, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export function ReservationCard({
   staff: Staffer[];
   availableSlots: Slot[];
 }) {
+  const t = useTranslations("calendar");
   const [open, setOpen] = useState(false);
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
   const assignedStaff = reservation.staff_id ? staffById.get(reservation.staff_id) : null;
@@ -56,7 +58,7 @@ export function ReservationCard({
         >
           <div className="flex items-center justify-between gap-1">
             <span className="font-medium truncate">
-              {reservation.customer_name ?? "Reserva"}
+              {reservation.customer_name ?? t("reservation")}
             </span>
             <Badge variant="success" className="shrink-0 text-[9px] px-1 py-0">
               {reservation.duration_minutes}m
@@ -78,7 +80,7 @@ export function ReservationCard({
             target="_blank"
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}
-            title="Unirse a la videollamada"
+            title={t("join_video_call")}
             className="absolute top-1.5 right-1.5 rounded-md bg-primary text-primary-foreground p-1 hover:opacity-90 shadow"
           >
             <Video className="size-3" />
@@ -121,6 +123,7 @@ function ReservationDialog({
   staff: Staffer[];
   availableSlots: Slot[];
 }) {
+  const t = useTranslations("calendar");
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s])), [staff]);
   const assignedStaff = reservation.staff_id ? staffById.get(reservation.staff_id) : null;
 
@@ -138,27 +141,29 @@ function ReservationDialog({
   useEffect(() => {
     if (notesState.error) toast.error(notesState.error);
     if (notesState.success) {
-      toast.success("Notas guardadas");
+      toast.success(t("notes_saved"));
       onClose();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notesState, onClose]);
 
   useEffect(() => {
     if (rescheduleState.error) toast.error(rescheduleState.error);
     if (rescheduleState.success) {
-      toast.success("Reserva reagendada");
+      toast.success(t("reservation_rescheduled"));
       onClose();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rescheduleState, onClose]);
 
   function handleCancel() {
     const reason = window.prompt(
-      "¿Por qué se cancela esta reserva? (opcional)",
+      t("cancel_reason_prompt"),
       "",
     );
     // Treat clicking Cancel in the prompt as "abort"; empty string proceeds with no reason.
     if (reason === null) return;
-    if (!confirm("¿Confirmar cancelación?")) return;
+    if (!confirm(t("cancel_confirm"))) return;
 
     startCancel(async () => {
       const res = await cancelReservationAction(
@@ -168,7 +173,7 @@ function ReservationDialog({
       );
       if (res.error) toast.error(res.error);
       else {
-        toast.success("Reserva cancelada");
+        toast.success(t("reservation_cancelled"));
         onClose();
       }
     });
@@ -179,12 +184,12 @@ function ReservationDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === "reschedule" ? "Reagendar reserva" : "Detalle de reserva"}
+            {mode === "reschedule" ? t("reschedule_title") : t("reservation_detail_title")}
           </DialogTitle>
           <DialogDescription>
             {mode === "reschedule"
-              ? "Elige un nuevo horario disponible. El cliente recibirá una notificación si tienes las alertas activadas."
-              : "Datos del cliente, notas internas y acciones."}
+              ? t("reschedule_desc")
+              : t("reservation_detail_desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -244,7 +249,9 @@ function ViewMode({
   onReschedule: () => void;
   onClose: () => void;
 }) {
-  const startDateLabel = formatDateLong(reservation.start_at, tenantTimezone);
+  const t = useTranslations("calendar");
+  const locale = useLocale();
+  const startDateLabel = formatDateLong(reservation.start_at, tenantTimezone, locale);
   const startTimeLabel = formatTime(reservation.start_at, tenantTimezone);
   const endTimeLabel = formatTime(reservation.end_at, tenantTimezone);
 
@@ -277,7 +284,7 @@ function ViewMode({
           className="flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-2.5 text-sm font-medium hover:opacity-90"
         >
           <Video className="size-4" />
-          Unirse a la videollamada
+          {t("join_video_call")}
         </a>
       ) : null}
 
@@ -295,7 +302,7 @@ function ViewMode({
               reservation.customer_name
             )
           ) : (
-            <span className="text-muted-foreground">Sin nombre</span>
+            <span className="text-muted-foreground">{t("no_name")}</span>
           )}
         </Row>
         <Row icon={<Mail className="size-4" />}>
@@ -304,7 +311,7 @@ function ViewMode({
               {reservation.customer_email}
             </a>
           ) : (
-            <span className="text-muted-foreground">Sin email</span>
+            <span className="text-muted-foreground">{t("no_email")}</span>
           )}
         </Row>
         <Row icon={<Phone className="size-4" />}>
@@ -318,19 +325,19 @@ function ViewMode({
               {reservation.customer_phone}
             </a>
           ) : (
-            <span className="text-muted-foreground">Sin teléfono</span>
+            <span className="text-muted-foreground">{t("no_phone")}</span>
           )}
         </Row>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Notas internas</Label>
+        <Label htmlFor="notes">{t("internal_notes")}</Label>
         <textarea
           id="notes"
           name="notes"
           defaultValue={reservation.notes ?? ""}
           rows={4}
-          placeholder="Apuntes sobre la reunión, lo que pidió el cliente, follow-ups…"
+          placeholder={t("notes_placeholder")}
           className={cn(
             "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
             "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
@@ -349,7 +356,7 @@ function ViewMode({
             className="text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="size-4" />
-            {cancelling ? "Cancelando…" : "Cancelar reserva"}
+            {cancelling ? t("cancelling") : t("cancel_reservation")}
           </Button>
           <Button
             type="button"
@@ -358,7 +365,7 @@ function ViewMode({
             disabled={cancelling || notesPending}
           >
             <CalendarClock className="size-4" />
-            Reagendar
+            {t("reschedule")}
           </Button>
           <CreateInvoiceButton
             tenantId={tenantId}
@@ -374,10 +381,10 @@ function ViewMode({
             onClick={onClose}
             disabled={cancelling || notesPending}
           >
-            Cerrar
+            {t("close")}
           </Button>
           <Button type="submit" disabled={cancelling || notesPending}>
-            {notesPending ? "Guardando…" : "Guardar notas"}
+            {notesPending ? t("saving") : t("save_notes")}
           </Button>
         </div>
       </DialogFooter>
@@ -404,6 +411,8 @@ function RescheduleMode({
   pending: boolean;
   onBack: () => void;
 }) {
+  const t = useTranslations("calendar");
+  const locale = useLocale();
   // Group slots by tenant-tz date so the day picker shows real local dates.
   const slotsByDate = useMemo(() => {
     const map = new Map<string, Slot[]>();
@@ -436,18 +445,18 @@ function RescheduleMode({
       />
 
       <div className="rounded-md border border-border bg-secondary/30 p-3 text-xs text-muted-foreground">
-        Reserva actual: <span className="text-foreground font-medium">{formatDateLong(reservation.start_at, tenantTimezone)}</span>{" "}
+        {t("current_reservation")}: <span className="text-foreground font-medium">{formatDateLong(reservation.start_at, tenantTimezone, locale)}</span>{" "}
         · {formatTime(reservation.start_at, tenantTimezone)} ({reservation.duration_minutes}m)
       </div>
 
       {dateOptions.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No hay slots disponibles en los próximos 30 días. Crea más slots desde el calendario para reagendar.
+          {t("no_slots_available")}
         </p>
       ) : (
         <>
           <div className="space-y-2">
-            <Label htmlFor="reschedule_date">Nuevo día</Label>
+            <Label htmlFor="reschedule_date">{t("new_day")}</Label>
             <select
               id="reschedule_date"
               value={selectedDate}
@@ -459,14 +468,14 @@ function RescheduleMode({
             >
               {dateOptions.map((d) => (
                 <option key={d} value={d}>
-                  {formatDateLongFromKey(d, tenantTimezone)}
+                  {formatDateLongFromKey(d, tenantTimezone, locale)}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="space-y-2">
-            <Label>Nuevo horario</Label>
+            <Label>{t("new_time")}</Label>
             <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
               {slotsForDate.map((s) => {
                 const staffer = s.staff_id ? staffById.get(s.staff_id) : null;
@@ -501,10 +510,10 @@ function RescheduleMode({
 
       <DialogFooter className="flex justify-between gap-2">
         <Button type="button" variant="ghost" onClick={onBack} disabled={pending}>
-          ← Volver
+          ← {t("back")}
         </Button>
         <Button type="submit" disabled={pending || !selectedSlotId}>
-          {pending ? "Reagendando…" : "Confirmar nuevo horario"}
+          {pending ? t("rescheduling") : t("confirm_new_time")}
         </Button>
       </DialogFooter>
     </form>
@@ -526,6 +535,7 @@ function CreateInvoiceButton({
   // already a <form>, and HTML disallows nested forms. Calling the action
   // directly with a manually-built FormData works the same and avoids the
   // hydration error.
+  const t = useTranslations("calendar");
   const [pending, startTransition] = useTransition();
   function fire(e: React.MouseEvent) {
     e.preventDefault();
@@ -546,7 +556,7 @@ function CreateInvoiceButton({
       disabled={disabled || pending}
     >
       <FileText className="size-4" />
-      Crear factura
+      {t("create_invoice")}
     </Button>
   );
 }
@@ -569,8 +579,8 @@ function formatTime(iso: string, tz: string): string {
   }).format(new Date(iso));
 }
 
-function formatDateLong(iso: string, tz: string): string {
-  return new Intl.DateTimeFormat("es", {
+function formatDateLong(iso: string, tz: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -587,10 +597,10 @@ function formatDateKey(iso: string, tz: string): string {
   }).format(new Date(iso));
 }
 
-function formatDateLongFromKey(key: string, tz: string): string {
+function formatDateLongFromKey(key: string, tz: string, locale: string): string {
   // Treat key as noon UTC to avoid TZ boundary issues, then format in tenant tz.
   const probe = new Date(`${key}T12:00:00Z`);
-  return new Intl.DateTimeFormat("es", {
+  return new Intl.DateTimeFormat(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Sparkles, Clock, CheckCircle2, Send, XCircle, Settings } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ export default async function ContentPage({
   const { status: statusFilter = "pending" } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("content");
+  const locale = await getLocale();
 
   const STATUS_FILTERS: { id: StatusFilterId; label: string }[] = [
     { id: "pending", label: t("status_pending") },
@@ -229,7 +230,7 @@ export default async function ContentPage({
                   <h2 className="text-lg font-display font-semibold">
                     {t("generation_heading", {
                       date: generatedAt
-                        ? new Date(generatedAt).toLocaleString("es-BO", {
+                        ? new Date(generatedAt).toLocaleString(locale, {
                             dateStyle: "medium",
                             timeStyle: "short",
                             timeZone: tenant.timezone,
@@ -298,7 +299,7 @@ export default async function ContentPage({
                   stories: r.stories_picked,
                 })}
               >
-                {new Date(r.started_at).toLocaleString("es-BO", {
+                {new Date(r.started_at).toLocaleString(locale, {
                   month: "short",
                   day: "numeric",
                   hour: "2-digit",

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowLeft, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -22,6 +22,7 @@ export default async function ConversationDetailPage({
   const convo = await getConversationDetail(tenant.id, id);
   if (!convo) notFound();
   const t = await getTranslations("conversations");
+  const locale = await getLocale();
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
@@ -76,10 +77,10 @@ export default async function ConversationDetailPage({
 
         <h3 className="font-display font-semibold mb-4">{t("sidebar_conversation")}</h3>
         <div className="space-y-3 text-sm">
-          <Field label={t("field_started")} value={formatDate(convo.created_at)} />
+          <Field label={t("field_started")} value={formatDate(convo.created_at, locale)} />
           <Field
             label={t("field_last_message")}
-            value={formatRelative(convo.last_message_at)}
+            value={formatRelative(convo.last_message_at, locale)}
           />
           <Field label={t("field_messages")} value={String(convo.messages.length)} />
           {convo.hitl_taken_over ? (

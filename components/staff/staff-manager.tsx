@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ export function StaffManager({
   allServices: ServiceOption[];
   servicesByStaff: Record<string, string[]>;
 }) {
+  const t = useTranslations("staff");
   const [editing, setEditing] = useState<StaffRow | null>(null);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -72,11 +74,11 @@ export function StaffManager({
     setOpen(true);
   }
   function handleDelete(s: StaffRow) {
-    if (!confirm(`¿Eliminar a ${s.name}? Las reservas existentes se conservan sin asignar.`)) return;
+    if (!confirm(t("delete_confirm", { name: s.name }))) return;
     startTransition(async () => {
       const res = await deleteStaffAction(tenantId, s.id);
       if (res.error) toast.error(res.error);
-      else toast.success("Persona eliminada");
+      else toast.success(t("staff_deleted"));
     });
   }
 
@@ -91,20 +93,19 @@ export function StaffManager({
       <div className="mb-4 flex justify-end">
         <Button onClick={openNew}>
           <Plus className="size-4" />
-          Añadir persona
+          {t("add_person")}
         </Button>
       </div>
 
       {staff.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
-          <p className="font-medium">Aún no hay personal</p>
+          <p className="font-medium">{t("empty_title")}</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Agrega al menos una persona para que el agente pueda asignar
-            reservas y mostrar disponibilidad.
+            {t("empty_subtitle")}
           </p>
           <Button onClick={openNew} className="mt-4">
             <Plus className="size-4" />
-            Añadir
+            {t("add")}
           </Button>
         </Card>
       ) : (
@@ -112,11 +113,11 @@ export function StaffManager({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Servicios</TableHead>
-                <TableHead>Estado</TableHead>
+                <TableHead>{t("col_name")}</TableHead>
+                <TableHead>{t("col_email")}</TableHead>
+                <TableHead>{t("col_role")}</TableHead>
+                <TableHead>{t("col_services")}</TableHead>
+                <TableHead>{t("col_status")}</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
@@ -134,16 +135,16 @@ export function StaffManager({
                     </TableCell>
                     <TableCell className="text-sm">
                       {count > 0 ? (
-                        `${count} servicio${count === 1 ? "" : "s"}`
+                        t("service_count", { count })
                       ) : (
-                        <span className="text-muted-foreground">ninguno</span>
+                        <span className="text-muted-foreground">{t("none")}</span>
                       )}
                     </TableCell>
                     <TableCell>
                       {s.active ? (
-                        <Badge variant="success">Activo</Badge>
+                        <Badge variant="success">{t("active")}</Badge>
                       ) : (
-                        <Badge variant="muted">Inactivo</Badge>
+                        <Badge variant="muted">{t("inactive")}</Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -197,6 +198,7 @@ function StaffFormDialog({
   allServices: ServiceOption[];
   linkedServiceIds: string[];
 }) {
+  const t = useTranslations("staff");
   const isEdit = !!staff;
   const [state, action, pending] = useActionState(
     isEdit ? updateStaffAction : createStaffAction,
@@ -206,9 +208,10 @@ function StaffFormDialog({
   useEffect(() => {
     if (state.error) toast.error(state.error);
     if (state.success) {
-      toast.success(isEdit ? "Persona actualizada" : "Persona creada");
+      toast.success(isEdit ? t("staff_updated") : t("staff_created"));
       onClose();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, isEdit, onClose]);
 
   const linkedSet = new Set(linkedServiceIds);
@@ -217,9 +220,9 @@ function StaffFormDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar persona" : "Añadir persona"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("edit_person") : t("add_person")}</DialogTitle>
           <DialogDescription>
-            El personal aparece en el calendario y puede recibir reservas.
+            {t("form_description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -228,12 +231,12 @@ function StaffFormDialog({
           {staff ? <input type="hidden" name="id" value={staff.id} /> : null}
 
           <div className="space-y-2">
-            <Label htmlFor="name">Nombre completo</Label>
+            <Label htmlFor="name">{t("full_name")}</Label>
             <Input id="name" name="name" defaultValue={staff?.name ?? ""} required />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("col_email")}</Label>
             <Input
               id="email"
               name="email"
@@ -243,20 +246,20 @@ function StaffFormDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role">Rol</Label>
+            <Label htmlFor="role">{t("col_role")}</Label>
             <Input
               id="role"
               name="role"
-              placeholder="fisioterapeuta, dentista, doctor…"
+              placeholder={t("role_placeholder")}
               defaultValue={staff?.role ?? ""}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Servicios que ofrece</Label>
+            <Label>{t("services_offered")}</Label>
             {allServices.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Aún no hay servicios. Crea servicios y vuelve para asignarlos.
+                {t("no_services_yet")}
               </p>
             ) : (
               <div className="rounded-md border border-input divide-y divide-border max-h-48 overflow-y-auto">
@@ -273,15 +276,15 @@ function StaffFormDialog({
                       className="rounded border-input"
                     />
                     <span className={s.active ? "" : "text-muted-foreground"}>
-                      {s.name} · {s.duration_min} min
-                      {s.active ? "" : " (inactivo)"}
+                      {s.name} · {t("minutes_short", { count: s.duration_min })}
+                      {s.active ? "" : ` ${t("inactive_suffix")}`}
                     </span>
                   </label>
                 ))}
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              El agente solo asignará reservas de los servicios marcados.
+              {t("agent_assigns_marked_services")}
             </p>
           </div>
 
@@ -292,15 +295,15 @@ function StaffFormDialog({
               defaultChecked={staff?.active ?? true}
               className="rounded border-input"
             />
-            Activo (puede recibir reservas)
+            {t("active_staff_label")}
           </label>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>
-              Cancelar
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Guardando…" : isEdit ? "Guardar" : "Crear"}
+              {pending ? t("saving") : isEdit ? t("save") : t("create")}
             </Button>
           </DialogFooter>
         </form>

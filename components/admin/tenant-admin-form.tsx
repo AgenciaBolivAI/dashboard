@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,34 +29,33 @@ export function TenantAdminForm({
     status: string;
   };
 }) {
+  const t = useTranslations("admin_tenant_detail");
   const [state, action, pending] = useActionState(updateTenantAdminAction, initial);
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
-    if (state.success) toast.success("Tenant actualizado");
-  }, [state]);
+    if (state.success) toast.success(t("tenant_updated"));
+  }, [state, t]);
 
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="id" value={tenant.id} />
 
-      <Field label="Nombre" name="name" defaultValue={tenant.name} required />
-      <Field label="Industria" name="industry" defaultValue={tenant.industry ?? ""} />
+      <Field label={t("field_name")} name="name" defaultValue={tenant.name} required />
+      <Field label={t("field_industry")} name="industry" defaultValue={tenant.industry ?? ""} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Idioma" name="language" defaultValue={tenant.language} required />
-        <Field label="Zona horaria" name="timezone" defaultValue={tenant.timezone} required />
+        <Field label={t("field_language")} name="language" defaultValue={tenant.language} required />
+        <Field label={t("field_timezone")} name="timezone" defaultValue={tenant.timezone} required />
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Para editar el canal de mensajería (Evolution / Meta / etc.) y sus
-        credenciales, abre el tenant con &ldquo;Ver como tenant&rdquo; →
-        Ajustes → Integraciones.
+        {t("channel_edit_hint")}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="plan">Plan</Label>
+          <Label htmlFor="plan">{t("field_plan")}</Label>
           <select
             id="plan"
             name="plan"
@@ -70,7 +70,7 @@ export function TenantAdminForm({
           </select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="status">Estado</Label>
+          <Label htmlFor="status">{t("field_status")}</Label>
           <select
             id="status"
             name="status"
@@ -87,7 +87,7 @@ export function TenantAdminForm({
       </div>
 
       <Button type="submit" disabled={pending}>
-        {pending ? "Guardando…" : "Guardar"}
+        {pending ? t("saving") : t("save")}
       </Button>
     </form>
   );

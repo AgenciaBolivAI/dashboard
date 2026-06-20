@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Sparkles, Loader2, Newspaper, Building2, Blend, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -11,37 +12,38 @@ import {
 } from "@/lib/actions/ccavai";
 import { cn } from "@/lib/utils";
 
-const MODES: {
-  id: CcavaiMode;
-  label: string;
-  desc: string;
-  icon: typeof Sparkles;
-}[] = [
-  {
-    id: "mixed",
-    label: "Noticias + marca",
-    desc: "Mezcla: posts de tu negocio y reacciones a noticias del día.",
-    icon: Blend,
-  },
-  {
-    id: "news",
-    label: "Solo noticias",
-    desc: "Todo basado en las noticias de tus feeds RSS, con el ángulo de tu negocio.",
-    icon: Newspaper,
-  },
-  {
-    id: "brand",
-    label: "Solo marca",
-    desc: "Solo tu negocio y persona — tips, servicios, ofertas. Sin noticias.",
-    icon: Building2,
-  },
-];
-
 export function GenerateContentButton({ tenantId }: { tenantId: string }) {
   const router = useRouter();
+  const t = useTranslations("content");
   const [pending, startTransition] = useTransition();
   const [polling, setPolling] = useState(false);
   const [open, setOpen] = useState(false);
+
+  const MODES: {
+    id: CcavaiMode;
+    label: string;
+    desc: string;
+    icon: typeof Sparkles;
+  }[] = [
+    {
+      id: "mixed",
+      label: t("cf_mode_mixed"),
+      desc: t("gen_mode_mixed_desc"),
+      icon: Blend,
+    },
+    {
+      id: "news",
+      label: t("cf_mode_news"),
+      desc: t("gen_mode_news_desc"),
+      icon: Newspaper,
+    },
+    {
+      id: "brand",
+      label: t("cf_mode_brand"),
+      desc: t("gen_mode_brand_desc"),
+      icon: Building2,
+    },
+  ];
 
   function generate(mode: CcavaiMode) {
     setOpen(false);
@@ -52,7 +54,7 @@ export function GenerateContentButton({ tenantId }: { tenantId: string }) {
         return;
       }
       const modeLabel = MODES.find((m) => m.id === mode)?.label ?? "";
-      toast.success(`Generando contenido (${modeLabel}). Aparecerá en ~1 minuto.`);
+      toast.success(t("gen_started_toast", { mode: modeLabel }));
       setPolling(true);
       let attempts = 0;
       const interval = setInterval(() => {
@@ -79,7 +81,7 @@ export function GenerateContentButton({ tenantId }: { tenantId: string }) {
           className="gap-2 rounded-r-none"
         >
           {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-          {busy ? "Generando..." : "Generar contenido"}
+          {busy ? t("gen_generating") : t("gen_generate_content")}
         </Button>
         <Button
           type="button"
@@ -87,7 +89,7 @@ export function GenerateContentButton({ tenantId }: { tenantId: string }) {
           disabled={busy}
           size="sm"
           className="rounded-l-none border-l border-primary-foreground/20 px-2"
-          aria-label="Elegir tipo de contenido"
+          aria-label={t("gen_choose_type")}
         >
           <ChevronDown className="size-4" />
         </Button>

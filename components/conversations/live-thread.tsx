@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLocale } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { MessageBubble, type Message } from "./message-bubble";
 
@@ -11,6 +12,7 @@ export function LiveThread({
   conversationId: string;
   initialMessages: Message[];
 }) {
+  const locale = useLocale();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +64,7 @@ export function LiveThread({
           Sin mensajes aún.
         </p>
       ) : (
-        messages.map((m) => <MessageBubble key={m.id} message={m} />)
+        messages.map((m) => <MessageBubble key={m.id} message={m} locale={locale} />)
       )}
       <div ref={bottomRef} />
     </div>

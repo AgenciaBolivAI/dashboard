@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { Clock, Check, AlertCircle, Loader2, X, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,16 +18,16 @@ import { cn } from "@/lib/utils";
 
 const STATUS_META: Record<
   ViraJob["status"],
-  { label: string; cls: string; icon: typeof Clock; spinning?: boolean }
+  { labelKey: string; cls: string; icon: typeof Clock; spinning?: boolean }
 > = {
-  pending:      { label: "En cola",      cls: "bg-muted text-muted-foreground", icon: Clock },
-  downloading:  { label: "Descargando",  cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400", icon: Loader2, spinning: true },
-  transcribing: { label: "Transcribiendo", cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400", icon: Loader2, spinning: true },
-  analyzing:    { label: "Analizando",   cls: "bg-purple-500/15 text-purple-600 dark:text-purple-400", icon: Loader2, spinning: true },
-  clipping:     { label: "Cortando",     cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400", icon: Loader2, spinning: true },
-  done:         { label: "Listo",        cls: "bg-primary/15 text-primary", icon: Check },
-  failed:       { label: "Falló",        cls: "bg-destructive/15 text-destructive", icon: AlertCircle },
-  cancelled:    { label: "Cancelado",    cls: "bg-muted text-muted-foreground", icon: X },
+  pending:      { labelKey: "status_pending",      cls: "bg-muted text-muted-foreground", icon: Clock },
+  downloading:  { labelKey: "status_downloading",  cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400", icon: Loader2, spinning: true },
+  transcribing: { labelKey: "status_transcribing", cls: "bg-blue-500/15 text-blue-600 dark:text-blue-400", icon: Loader2, spinning: true },
+  analyzing:    { labelKey: "status_analyzing",   cls: "bg-purple-500/15 text-purple-600 dark:text-purple-400", icon: Loader2, spinning: true },
+  clipping:     { labelKey: "status_clipping",     cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400", icon: Loader2, spinning: true },
+  done:         { labelKey: "status_done",        cls: "bg-primary/15 text-primary", icon: Check },
+  failed:       { labelKey: "status_failed",        cls: "bg-destructive/15 text-destructive", icon: AlertCircle },
+  cancelled:    { labelKey: "status_cancelled",    cls: "bg-muted text-muted-foreground", icon: X },
 };
 
 function shortenUrl(url: string): string {
@@ -52,10 +53,13 @@ export function JobsTable({
   jobs: ViraJob[];
   tenantSlug: string;
 }) {
+  const t = useTranslations("shorts");
+  const locale = useLocale();
+
   if (jobs.length === 0) {
     return (
       <Card className="py-12 text-center text-sm text-muted-foreground">
-        Aún no procesaste ningún video. Pega un link arriba para empezar.
+        {t("jobs_empty")}
       </Card>
     );
   }
@@ -65,11 +69,11 @@ export function JobsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Video</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Duración</TableHead>
-            <TableHead>Idioma</TableHead>
-            <TableHead>Encolado</TableHead>
+            <TableHead>{t("col_video")}</TableHead>
+            <TableHead>{t("col_status")}</TableHead>
+            <TableHead className="text-right">{t("col_duration")}</TableHead>
+            <TableHead>{t("col_language")}</TableHead>
+            <TableHead>{t("col_queued")}</TableHead>
             <TableHead />
           </TableRow>
         </TableHeader>
@@ -111,7 +115,7 @@ export function JobsTable({
                     <Icon
                       className={cn("size-3", meta.spinning && "animate-spin")}
                     />
-                    {meta.label}
+                    {t(meta.labelKey)}
                   </Badge>
                   {j.error && (
                     <div className="text-xs text-destructive mt-1 line-clamp-2 max-w-xs">
@@ -126,7 +130,7 @@ export function JobsTable({
                   {j.language ?? "—"}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {new Date(j.created_at).toLocaleString("es-BO", {
+                  {new Date(j.created_at).toLocaleString(locale, {
                     dateStyle: "short",
                     timeStyle: "short",
                   })}
@@ -137,7 +141,7 @@ export function JobsTable({
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                   >
-                    {j.status === "done" ? "Ver clips" : "Ver detalle"}
+                    {j.status === "done" ? t("view_clips") : t("view_detail")}
                     <ArrowRight className="size-3 opacity-0 group-hover:opacity-100 transition" />
                   </Link>
                 </TableCell>

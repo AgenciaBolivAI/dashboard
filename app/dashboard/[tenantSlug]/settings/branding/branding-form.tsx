@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Upload, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ export function BrandingForm({
     custom_domain: string | null;
   };
 }) {
+  const t = useTranslations("settings_branding");
   const [state, action, pending] = useActionState(updateBrandingAction, initial);
   const [logoUrl, setLogoUrl] = useState(tenant.logo_url);
   const [primary, setPrimary] = useState(tenant.primary_color);
@@ -37,8 +39,8 @@ export function BrandingForm({
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
-    if (state.success) toast.success("Marca actualizada");
-  }, [state]);
+    if (state.success) toast.success(t("toast_saved"));
+  }, [state, t]);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -51,7 +53,7 @@ export function BrandingForm({
       if (res.error) {
         toast.error(res.error);
       } else {
-        toast.success("Logo subido");
+        toast.success(t("logo_uploaded"));
         if (res.logoUrl) setLogoUrl(res.logoUrl);
       }
       if (fileInput.current) fileInput.current.value = "";
@@ -59,12 +61,12 @@ export function BrandingForm({
   }
 
   function handleRemove() {
-    if (!confirm("¿Quitar el logo actual?")) return;
+    if (!confirm(t("confirm_remove_logo"))) return;
     startRemove(async () => {
       const res = await removeLogoAction(tenant.id);
       if (res.error) toast.error(res.error);
       else {
-        toast.success("Logo eliminado");
+        toast.success(t("logo_removed"));
         setLogoUrl(null);
       }
     });
@@ -74,14 +76,14 @@ export function BrandingForm({
     <div className="space-y-8">
       {/* Logo */}
       <section className="space-y-3">
-        <Label>Logo</Label>
+        <Label>{t("logo_label")}</Label>
         <div className="flex items-center gap-4">
           <div className="size-20 rounded-md border border-border bg-secondary flex items-center justify-center overflow-hidden">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="Logo" className="object-contain w-full h-full" />
+              <img src={logoUrl} alt={t("logo_alt")} className="object-contain w-full h-full" />
             ) : (
-              <span className="text-xs text-muted-foreground">Sin logo</span>
+              <span className="text-xs text-muted-foreground">{t("no_logo")}</span>
             )}
           </div>
           <div className="flex flex-col gap-2">
@@ -93,7 +95,7 @@ export function BrandingForm({
               onClick={() => fileInput.current?.click()}
             >
               <Upload className="size-4" />
-              {uploading ? "Subiendo…" : "Subir nuevo"}
+              {uploading ? t("uploading") : t("upload_new")}
             </Button>
             {logoUrl ? (
               <Button
@@ -105,7 +107,7 @@ export function BrandingForm({
                 className="text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="size-4" />
-                Quitar
+                {t("remove")}
               </Button>
             ) : null}
             <input
@@ -118,7 +120,7 @@ export function BrandingForm({
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          PNG, JPG, WebP o SVG · máx 5 MB · cuadrado recomendado.
+          {t("logo_hint")}
         </p>
       </section>
 
@@ -130,13 +132,13 @@ export function BrandingForm({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ColorField
-            label="Color primario"
+            label={t("field_primary_color")}
             name="primary_color"
             value={primary}
             onChange={setPrimary}
           />
           <ColorField
-            label="Color de acento"
+            label={t("field_accent_color")}
             name="accent_color"
             value={accent}
             onChange={setAccent}
@@ -144,25 +146,25 @@ export function BrandingForm({
         </div>
 
         <div className="rounded-md border border-border bg-secondary/40 p-4">
-          <p className="text-xs text-muted-foreground mb-2">Vista previa</p>
+          <p className="text-xs text-muted-foreground mb-2">{t("preview")}</p>
           <div className="flex items-center gap-2">
             <div
               className="px-4 py-2 rounded-md font-display font-semibold text-sm"
               style={{ backgroundColor: primary, color: "#000" }}
             >
-              Botón primario
+              {t("preview_primary_button")}
             </div>
             <div
               className="px-4 py-2 rounded-md text-sm"
               style={{ backgroundColor: accent + "30", color: accent }}
             >
-              Acento
+              {t("preview_accent")}
             </div>
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="custom_domain">Dominio personalizado</Label>
+          <Label htmlFor="custom_domain">{t("field_custom_domain")}</Label>
           <Input
             id="custom_domain"
             name="custom_domain"
@@ -170,12 +172,12 @@ export function BrandingForm({
             defaultValue={tenant.custom_domain ?? ""}
           />
           <p className="text-xs text-muted-foreground">
-            Subdominio bajo el que tu equipo accederá al panel.
+            {t("custom_domain_hint")}
           </p>
         </div>
 
         <Button type="submit" disabled={pending}>
-          {pending ? "Guardando…" : "Guardar cambios"}
+          {pending ? t("saving") : t("save_changes")}
         </Button>
       </form>
 
@@ -187,20 +189,22 @@ export function BrandingForm({
 }
 
 function DnsInstructions({ domain }: { domain: string }) {
+  const t = useTranslations("settings_branding");
   const isApex = domain.split(".").length === 2; // e.g. "cervantes.com"
   return (
     <div className="rounded-md border border-border bg-secondary/30 p-5 space-y-3">
       <h3 className="font-display font-semibold text-sm">
-        Activar <code className="font-mono">{domain}</code>
+        {t.rich("dns_activate", {
+          domain: () => <code className="font-mono">{domain}</code>,
+        })}
       </h3>
       <p className="text-xs text-muted-foreground">
-        Para que el panel responda en tu dominio, configura DNS y añádelo al
-        proyecto en Vercel. Dos pasos:
+        {t("dns_intro")}
       </p>
 
       <div>
         <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
-          1. Registro DNS
+          {t("dns_step1")}
         </p>
         <pre className="rounded-md bg-background border border-border p-3 text-xs font-mono overflow-x-auto">
           {isApex
@@ -212,27 +216,27 @@ Host: ${domain.split(".")[0]}
 Value: cname.vercel-dns.com`}
         </pre>
         <p className="text-[11px] text-muted-foreground mt-1.5">
-          {isApex
-            ? "Apex (raíz) requiere un registro A que apunta a la IP de Vercel."
-            : "Subdominios usan CNAME al endpoint de Vercel."}
+          {isApex ? t("dns_apex_note") : t("dns_subdomain_note")}
         </p>
       </div>
 
       <div>
         <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
-          2. Añadir el dominio en Vercel
+          {t("dns_step2")}
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          En el dashboard de Vercel del proyecto <code>bolivai-dashboard</code>{" "}
-          → <strong>Settings → Domains</strong> → pega{" "}
-          <code className="font-mono">{domain}</code> y verifica. Vercel emite
-          el certificado SSL automáticamente cuando el DNS resuelve.
+          {t.rich("dns_step2_body", {
+            code: () => <code>bolivai-dashboard</code>,
+            strong: (chunks) => <strong>{chunks}</strong>,
+            domain: () => <code className="font-mono">{domain}</code>,
+          })}
         </p>
       </div>
 
       <p className="text-[11px] text-muted-foreground italic pt-2 border-t border-border">
-        Una vez verificado, accede al panel desde{" "}
-        <code className="font-mono">https://{domain}</code>.
+        {t.rich("dns_footer", {
+          url: () => <code className="font-mono">https://{domain}</code>,
+        })}
       </p>
     </div>
   );
@@ -249,6 +253,7 @@ function ColorField({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations("settings_branding");
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
@@ -258,7 +263,7 @@ function ColorField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="h-10 w-12 rounded-md border border-input bg-background cursor-pointer"
-          aria-label={`${label} picker`}
+          aria-label={t("color_picker_aria", { label })}
         />
         <Input
           id={name}

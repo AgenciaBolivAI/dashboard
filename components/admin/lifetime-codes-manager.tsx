@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Ticket, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -19,24 +20,25 @@ const initial: CodeState = { error: null };
 
 export function LifetimeCodesManager({ codes }: { codes: LifetimeCode[] }) {
   const router = useRouter();
+  const t = useTranslations("admin_codes");
   const [state, action, pending] = useActionState(createLifetimeCodeAction, initial);
   const [delPending, startDel] = useTransition();
 
   useEffect(() => {
     if (state.success) {
-      toast.success("Código creado");
+      toast.success(t("toast_code_created"));
       router.refresh();
     } else if (state.error) {
       toast.error(state.error);
     }
-  }, [state, router]);
+  }, [state, router, t]);
 
   function deactivate(id: string) {
     startDel(async () => {
       const r = await deactivateLifetimeCodeAction(id);
       if (r.error) toast.error(r.error);
       else {
-        toast.success("Código desactivado");
+        toast.success(t("toast_code_deactivated"));
         router.refresh();
       }
     });
@@ -47,50 +49,49 @@ export function LifetimeCodesManager({ codes }: { codes: LifetimeCode[] }) {
       <Card className="p-5">
         <div className="mb-3 flex items-center gap-2">
           <Ticket className="size-4 text-primary" />
-          <h2 className="font-display font-semibold">Crear código</h2>
+          <h2 className="font-display font-semibold">{t("create_code_title")}</h2>
         </div>
         <form action={action} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Descuento % (1–100)">
+          <Field label={t("field_discount_pct")}>
             <Input name="percent_off" type="number" min={1} max={100} required defaultValue="50" />
           </Field>
-          <Field label="Código (opcional)">
+          <Field label={t("field_code")}>
             <Input name="code" placeholder="FUNDADOR50" maxLength={40} />
           </Field>
-          <Field label="Etiqueta (opcional)">
-            <Input name="label" placeholder="Campaña LinkedIn" maxLength={60} />
+          <Field label={t("field_label")}>
+            <Input name="label" placeholder={t("field_label_placeholder")} maxLength={60} />
           </Field>
-          <Field label="Máx. usos (opcional)">
+          <Field label={t("field_max_uses")}>
             <Input name="max_redemptions" type="number" min={1} placeholder="∞" />
           </Field>
-          <Field label="Expira (opcional)">
+          <Field label={t("field_expires")}>
             <Input name="expires_at" type="date" />
           </Field>
           <div className="flex items-end">
             <Button type="submit" disabled={pending} className="w-full">
-              {pending ? "Creando…" : "Crear código"}
+              {pending ? t("creating") : t("create_code_button")}
             </Button>
           </div>
         </form>
         <p className="mt-3 text-xs text-muted-foreground">
-          Si dejas el código vacío, Stripe genera uno. 100% = acceso gratis. Los usuarios lo ingresan
-          en el paywall o en la página de Stripe.
+          {t("create_code_hint")}
         </p>
       </Card>
 
       <Card className="p-5">
-        <h2 className="mb-3 font-display font-semibold">Códigos</h2>
+        <h2 className="mb-3 font-display font-semibold">{t("codes_title")}</h2>
         {codes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aún no hay códigos.</p>
+          <p className="text-sm text-muted-foreground">{t("codes_empty")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="py-2">Código</th>
-                  <th>Desc.</th>
-                  <th>Usos</th>
-                  <th>Expira</th>
-                  <th>Estado</th>
+                  <th className="py-2">{t("col_code")}</th>
+                  <th>{t("col_discount")}</th>
+                  <th>{t("col_uses")}</th>
+                  <th>{t("col_expires")}</th>
+                  <th>{t("col_status")}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -106,12 +107,12 @@ export function LifetimeCodesManager({ codes }: { codes: LifetimeCode[] }) {
                       {c.timesRedeemed}
                       {c.maxRedemptions ? ` / ${c.maxRedemptions}` : ""}
                     </td>
-                    <td>{c.expiresAt ? new Date(c.expiresAt * 1000).toLocaleDateString("es") : "—"}</td>
+                    <td>{c.expiresAt ? new Date(c.expiresAt * 1000).toLocaleDateString() : "—"}</td>
                     <td>
                       {c.active ? (
-                        <Badge variant="success">Activo</Badge>
+                        <Badge variant="success">{t("status_active")}</Badge>
                       ) : (
-                        <Badge variant="muted">Inactivo</Badge>
+                        <Badge variant="muted">{t("status_inactive")}</Badge>
                       )}
                     </td>
                     <td className="text-right">

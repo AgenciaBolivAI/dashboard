@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowLeft, ExternalLink, Coins, DollarSign, TrendingDown, PiggyBank, Gift } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,7 @@ export default async function AdminTenantDetail({
   const { id } = await params;
   const svc = createServiceClient();
   const tr = await getTranslations("admin_tenant_detail");
+  const locale = await getLocale();
 
   const { data: tenant } = await svc
     .from("tenants")
@@ -151,10 +152,10 @@ export default async function AdminTenantDetail({
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <StatCard label={tr("stat_members")} value={members.count ?? 0} />
-        <StatCard label={tr("stat_conversations")} value={conversations.count ?? 0} />
-        <StatCard label={tr("stat_leads")} value={leads.count ?? 0} />
-        <StatCard label={tr("stat_services")} value={services.count ?? 0} />
+        <StatCard label={tr("stat_members")} value={members.count ?? 0} locale={locale} />
+        <StatCard label={tr("stat_conversations")} value={conversations.count ?? 0} locale={locale} />
+        <StatCard label={tr("stat_leads")} value={leads.count ?? 0} locale={locale} />
+        <StatCard label={tr("stat_services")} value={services.count ?? 0} locale={locale} />
       </div>
 
       {/* ── P&L SECTION ──────────────────────────────────────────────── */}
@@ -176,7 +177,7 @@ export default async function AdminTenantDetail({
               value={fmtCents(acct?.balance_credits ?? 0)}
               subtitle={
                 acct
-                  ? `${(acct.balance_credits ?? 0).toLocaleString()} ${tr("credits_word")}${
+                  ? `${(acct.balance_credits ?? 0).toLocaleString(locale)} ${tr("credits_word")}${
                       acct.reserved_credits > 0
                         ? ` · ${tr("reserved_n", { count: acct.reserved_credits })}`
                         : ""
@@ -239,11 +240,10 @@ export default async function AdminTenantDetail({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Gift className="size-5 text-primary" />
-            Acreditar créditos
+            {tr("grant_card_title")}
           </CardTitle>
           <CardDescription>
-            Agrega créditos a este tenant. Vos pagás el costo de vendor, así que
-            podés regalar saldo cuando quieras. $1 = 100 créditos.
+            {tr("grant_card_desc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -282,7 +282,7 @@ export default async function AdminTenantDetail({
                 <TableRow key={a.action_key}>
                   <TableCell className="font-mono text-xs">{a.action_key}</TableCell>
                   <TableCell className="text-right font-mono text-sm">
-                    {a.units.toLocaleString("en-US")}
+                    {a.units.toLocaleString(locale)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-green-600">
                     {fmtCents(a.revenue_credits)}
@@ -331,14 +331,14 @@ export default async function AdminTenantDetail({
               {topups.map((tu, i) => (
                 <TableRow key={i}>
                   <TableCell className="text-xs text-muted-foreground">
-                    {new Date(tu.created_at).toLocaleString("es-BO", { dateStyle: "medium", timeStyle: "short" })}
+                    {new Date(tu.created_at).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-green-600">
                     {fmtCents(tu.paid_cents)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">{tu.base_credits.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{tu.base_credits.toLocaleString(locale)}</TableCell>
                   <TableCell className="text-right font-mono text-sm">
-                    {tu.bonus_credits > 0 ? `+${tu.bonus_credits.toLocaleString()}` : "—"}
+                    {tu.bonus_credits > 0 ? `+${tu.bonus_credits.toLocaleString(locale)}` : "—"}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">{fmtCents(tu.balance_after)}</TableCell>
                   <TableCell className="font-mono text-[10px] text-muted-foreground">
@@ -379,7 +379,7 @@ export default async function AdminTenantDetail({
               recentTx.map((tx) => (
                 <TableRow key={tx.id}>
                   <TableCell className="text-xs text-muted-foreground">
-                    {new Date(tx.created_at).toLocaleString("es-BO", { dateStyle: "short", timeStyle: "short" })}
+                    {new Date(tx.created_at).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs">
@@ -397,9 +397,9 @@ export default async function AdminTenantDetail({
                     )}
                   >
                     {tx.credits_delta > 0 ? "+" : ""}
-                    {tx.credits_delta.toLocaleString()}
+                    {tx.credits_delta.toLocaleString(locale)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">{tx.balance_after.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{tx.balance_after.toLocaleString(locale)}</TableCell>
                   <TableCell className="font-mono text-[10px] text-muted-foreground">
                     {tx.reference_id ? `${tx.reference_id.slice(0, 18)}…` : "—"}
                   </TableCell>
@@ -452,7 +452,7 @@ export default async function AdminTenantDetail({
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value, locale }: { label: string; value: number; locale: string }) {
   return (
     <Card>
       <CardContent className="pt-5">
@@ -460,7 +460,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
           {label}
         </p>
         <p className="mt-1 font-display text-2xl font-extrabold">
-          {value.toLocaleString("es")}
+          {value.toLocaleString(locale)}
         </p>
       </CardContent>
     </Card>

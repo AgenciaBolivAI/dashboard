@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Trash2, PhoneCall, Check, X, AlertCircle, Voicemail } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +17,14 @@ import type { SandraQueueItem } from "@/lib/queries/sandra-queue";
 import { intentLabel } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
 
-const STATUS_LABEL: Record<SandraQueueItem["status"], string> = {
-  pending: "Pendiente",
-  calling: "Llamando",
-  completed: "Completada",
-  skipped: "Saltada",
-  no_answer: "Sin respuesta",
-  failed: "Fallida",
+// Maps each status to its translation key in the "sandra" namespace.
+const STATUS_LABEL_KEY: Record<SandraQueueItem["status"], string> = {
+  pending: "row_status_pending",
+  calling: "row_status_calling",
+  completed: "row_status_completed",
+  skipped: "row_status_skipped",
+  no_answer: "row_status_no_answer",
+  failed: "row_status_failed",
 };
 
 const STATUS_STYLE: Record<SandraQueueItem["status"], string> = {
@@ -46,6 +48,7 @@ export function QueueRow({
   onToggle: (id: string) => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("sandra");
   const params = useParams<{ tenantSlug?: string }>();
   const tenantSlug = params?.tenantSlug ?? "";
   const [pending, startTransition] = useTransition();
@@ -62,19 +65,19 @@ export function QueueRow({
         toast.error(res.error);
         setOptimisticStatus(previous);
       } else {
-        toast.success(`Marcado como ${STATUS_LABEL[next]}`);
+        toast.success(t("row_marked_as", { status: t(STATUS_LABEL_KEY[next]) }));
         router.refresh();
       }
     });
   }
 
   function remove() {
-    if (!confirm("¿Quitar de la cola?")) return;
+    if (!confirm(t("row_confirm_remove"))) return;
     startTransition(async () => {
       const res = await removeFromSandraQueueAction(tenantId, item.id);
       if (res.error) toast.error(res.error);
       else {
-        toast.success("Quitado de la cola");
+        toast.success(t("row_removed"));
         router.refresh();
       }
     });
@@ -134,7 +137,7 @@ export function QueueRow({
           variant="outline"
           className={cn("text-xs", STATUS_STYLE[optimisticStatus])}
         >
-          {STATUS_LABEL[optimisticStatus]}
+          {t(STATUS_LABEL_KEY[optimisticStatus])}
         </Badge>
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">
@@ -148,7 +151,7 @@ export function QueueRow({
               variant="ghost"
               disabled={pending}
               onClick={() => setStatus("completed")}
-              title="Marcar completada"
+              title={t("row_action_completed")}
               className="text-green-600 hover:bg-green-500/10"
             >
               <Check className="size-4" />
@@ -160,7 +163,7 @@ export function QueueRow({
               variant="ghost"
               disabled={pending}
               onClick={() => setStatus("no_answer")}
-              title="Sin respuesta"
+              title={t("row_action_no_answer")}
               className="text-blue-600 hover:bg-blue-500/10"
             >
               <Voicemail className="size-4" />
@@ -172,7 +175,7 @@ export function QueueRow({
               variant="ghost"
               disabled={pending}
               onClick={() => setStatus("failed")}
-              title="Marcar fallida"
+              title={t("row_action_failed")}
               className="text-destructive hover:bg-destructive/10"
             >
               <AlertCircle className="size-4" />
@@ -184,7 +187,7 @@ export function QueueRow({
               variant="ghost"
               disabled={pending}
               onClick={() => setStatus("skipped")}
-              title="Saltar"
+              title={t("row_action_skip")}
               className="text-muted-foreground"
             >
               <X className="size-4" />
@@ -195,7 +198,7 @@ export function QueueRow({
             variant="ghost"
             disabled={pending}
             onClick={remove}
-            title="Quitar de la cola"
+            title={t("row_action_remove")}
             className="text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="size-4" />
@@ -206,4 +209,4 @@ export function QueueRow({
   );
 }
 
-export const SANDRA_QUEUE_STATUS_META = { STATUS_LABEL, STATUS_STYLE };
+export const SANDRA_QUEUE_STATUS_META = { STATUS_LABEL_KEY, STATUS_STYLE };

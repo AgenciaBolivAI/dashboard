@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Loader2,
   Save,
@@ -28,69 +29,70 @@ import {
 import type { AimaSettings } from "@/lib/queries/aima";
 import { cn } from "@/lib/utils";
 
+// Labels resolved at render via t("source_<id>") / t("vertical_<id>").
 const SOURCE_OPTIONS = [
-  { id: "google_maps", label: "Google Maps" },
-  { id: "yellow_pages", label: "Yellow Pages" },
-  { id: "web_directory", label: "Web directorios" },
-  { id: "apollo", label: "Apollo" },
+  { id: "google_maps" },
+  { id: "yellow_pages" },
+  { id: "web_directory" },
+  { id: "apollo" },
 ] as const;
 
 const VERTICAL_PRESETS = [
   // Health & medical
-  { id: "dental_clinic",        emoji: "🦷", label: "Dental" },
-  { id: "physiotherapy_clinic", emoji: "🩺", label: "Fisio" },
-  { id: "medical_clinic",       emoji: "🏥", label: "Clínica médica" },
-  { id: "dermatology_clinic",   emoji: "🧴", label: "Dermatología" },
-  { id: "optometry",            emoji: "👓", label: "Óptica" },
-  { id: "psychology_practice",  emoji: "🧠", label: "Psicología" },
-  { id: "nutritionist",         emoji: "🥗", label: "Nutrición" },
-  { id: "chiropractor",         emoji: "🦴", label: "Quiropráctico" },
-  { id: "veterinary_clinic",    emoji: "🐶", label: "Veterinaria" },
-  { id: "pharmacy",             emoji: "💊", label: "Farmacia" },
+  { id: "dental_clinic",        emoji: "🦷" },
+  { id: "physiotherapy_clinic", emoji: "🩺" },
+  { id: "medical_clinic",       emoji: "🏥" },
+  { id: "dermatology_clinic",   emoji: "🧴" },
+  { id: "optometry",            emoji: "👓" },
+  { id: "psychology_practice",  emoji: "🧠" },
+  { id: "nutritionist",         emoji: "🥗" },
+  { id: "chiropractor",         emoji: "🦴" },
+  { id: "veterinary_clinic",    emoji: "🐶" },
+  { id: "pharmacy",             emoji: "💊" },
   // Beauty & wellness
-  { id: "aesthetic_clinic",     emoji: "✨", label: "Estética" },
-  { id: "beauty_salon",         emoji: "💇", label: "Belleza" },
-  { id: "barber_shop",          emoji: "💈", label: "Barbería" },
-  { id: "nail_salon",           emoji: "💅", label: "Uñas" },
-  { id: "spa_wellness",         emoji: "🧖", label: "Spa" },
-  { id: "massage_therapy",      emoji: "💆", label: "Masajes" },
-  { id: "tattoo_studio",        emoji: "🎨", label: "Tatuajes" },
+  { id: "aesthetic_clinic",     emoji: "✨" },
+  { id: "beauty_salon",         emoji: "💇" },
+  { id: "barber_shop",          emoji: "💈" },
+  { id: "nail_salon",           emoji: "💅" },
+  { id: "spa_wellness",         emoji: "🧖" },
+  { id: "massage_therapy",      emoji: "💆" },
+  { id: "tattoo_studio",        emoji: "🎨" },
   // Fitness
-  { id: "fitness_studio",       emoji: "💪", label: "Fitness" },
-  { id: "yoga_studio",          emoji: "🧘", label: "Yoga" },
-  { id: "martial_arts",         emoji: "🥋", label: "Artes marciales" },
+  { id: "fitness_studio",       emoji: "💪" },
+  { id: "yoga_studio",          emoji: "🧘" },
+  { id: "martial_arts",         emoji: "🥋" },
   // Food & hospitality
-  { id: "restaurant",           emoji: "🍽️", label: "Restaurante" },
-  { id: "cafe",                 emoji: "☕", label: "Café" },
-  { id: "bakery",               emoji: "🥐", label: "Panadería" },
-  { id: "catering",             emoji: "🍱", label: "Catering" },
-  { id: "hotel",                emoji: "🏨", label: "Hotel" },
+  { id: "restaurant",           emoji: "🍽️" },
+  { id: "cafe",                 emoji: "☕" },
+  { id: "bakery",               emoji: "🥐" },
+  { id: "catering",             emoji: "🍱" },
+  { id: "hotel",                emoji: "🏨" },
   // Professional services
-  { id: "real_estate",          emoji: "🏠", label: "Inmobiliaria" },
-  { id: "law_firm",             emoji: "⚖️", label: "Abogados" },
-  { id: "accounting_firm",      emoji: "📊", label: "Contadores" },
-  { id: "insurance_agency",     emoji: "🛡️", label: "Seguros" },
-  { id: "marketing_agency",     emoji: "📣", label: "Marketing" },
-  { id: "travel_agency",        emoji: "✈️", label: "Viajes" },
-  { id: "photography_studio",   emoji: "📷", label: "Fotografía" },
-  { id: "event_planning",       emoji: "🎉", label: "Eventos" },
+  { id: "real_estate",          emoji: "🏠" },
+  { id: "law_firm",             emoji: "⚖️" },
+  { id: "accounting_firm",      emoji: "📊" },
+  { id: "insurance_agency",     emoji: "🛡️" },
+  { id: "marketing_agency",     emoji: "📣" },
+  { id: "travel_agency",        emoji: "✈️" },
+  { id: "photography_studio",   emoji: "📷" },
+  { id: "event_planning",       emoji: "🎉" },
   // Home & auto services
-  { id: "cleaning_service",     emoji: "🧹", label: "Limpieza" },
-  { id: "plumbing",             emoji: "🔧", label: "Plomería" },
-  { id: "electrician",          emoji: "⚡", label: "Electricista" },
-  { id: "hvac",                 emoji: "❄️", label: "Climatización" },
-  { id: "landscaping",          emoji: "🌿", label: "Jardinería" },
-  { id: "auto_repair",          emoji: "🚗", label: "Taller mecánico" },
+  { id: "cleaning_service",     emoji: "🧹" },
+  { id: "plumbing",             emoji: "🔧" },
+  { id: "electrician",          emoji: "⚡" },
+  { id: "hvac",                 emoji: "❄️" },
+  { id: "landscaping",          emoji: "🌿" },
+  { id: "auto_repair",          emoji: "🚗" },
   // Retail
-  { id: "florist",              emoji: "🌸", label: "Florería" },
-  { id: "jewelry_store",        emoji: "💍", label: "Joyería" },
-  { id: "pet_store",            emoji: "🐾", label: "Mascotas" },
+  { id: "florist",              emoji: "🌸" },
+  { id: "jewelry_store",        emoji: "💍" },
+  { id: "pet_store",            emoji: "🐾" },
   // Education
-  { id: "tutoring_center",      emoji: "📚", label: "Tutorías" },
-  { id: "language_school",      emoji: "🗣️", label: "Idiomas" },
-  { id: "driving_school",       emoji: "🚙", label: "Autoescuela" },
-  { id: "daycare",              emoji: "🧸", label: "Guardería" },
-  { id: "music_school",         emoji: "🎵", label: "Música" },
+  { id: "tutoring_center",      emoji: "📚" },
+  { id: "language_school",      emoji: "🗣️" },
+  { id: "driving_school",       emoji: "🚙" },
+  { id: "daycare",              emoji: "🧸" },
+  { id: "music_school",         emoji: "🎵" },
 ] as const;
 
 // Leading business cities worldwide. Grouped by region for readability,
@@ -147,6 +149,7 @@ export function AimaSettingsForm({
   settings: AimaSettings;
 }) {
   const router = useRouter();
+  const t = useTranslations("aima");
   const [saving, startSave] = useTransition();
   const [acting, startAct] = useTransition();
 
@@ -203,7 +206,7 @@ export function AimaSettingsForm({
         toast.error(res.error);
         return;
       }
-      toast.success("Ajustes guardados");
+      toast.success(t("toast_saved"));
       router.refresh();
     });
   }
@@ -215,20 +218,20 @@ export function AimaSettingsForm({
         toast.error(res.error);
         return;
       }
-      toast.success("AIMA arrancando — los leads aparecerán en /leads.");
+      toast.success(t("toast_started"));
       router.refresh();
     });
   }
 
   function handleStop() {
-    if (!confirm("¿Detener AIMA ahora? Los runs en curso se marcarán como abortados.")) return;
+    if (!confirm(t("confirm_stop"))) return;
     startAct(async () => {
       const res = await abortAimaScrapeAction(tenantId);
       if (res.error) {
         toast.error(res.error);
         return;
       }
-      toast.success("AIMA detenida");
+      toast.success(t("toast_stopped"));
       setScraperEnabled(false);
       router.refresh();
     });
@@ -243,12 +246,10 @@ export function AimaSettingsForm({
           <div>
             <h2 className="text-lg font-display font-semibold flex items-center gap-2">
               <Globe className="size-5 text-violet-500" />
-              Buscador de leads (AIMA)
+              {t("finder_title")}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              AIMA busca negocios en Google Maps con sus teléfonos verificados, en
-              cualquier ciudad del mundo. Para activarlo necesitas tu propia clave
-              de Google Maps Places API.
+              {t("finder_desc")}
             </p>
           </div>
           <ToggleButton
@@ -276,14 +277,14 @@ export function AimaSettingsForm({
                     : "bg-secondary text-muted-foreground border-border hover:text-foreground",
                 )}
               >
-                {s.label}
+                {t(`source_${s.id}`)}
               </button>
             );
           })}
         </div>
         <div className="flex flex-wrap items-end gap-3 pt-2">
           <div className="space-y-1">
-            <Label className="text-xs">Máximo por run</Label>
+            <Label className="text-xs">{t("max_per_run")}</Label>
             <Input
               type="number"
               min={10}
@@ -294,16 +295,16 @@ export function AimaSettingsForm({
             />
           </div>
           <div className="flex-1 space-y-1 min-w-[200px]">
-            <Label className="text-xs">Proxy URL (opcional)</Label>
+            <Label className="text-xs">{t("proxy_url")}</Label>
             <Input
               type="url"
               value={scraperProxy}
               onChange={(e) => setScraperProxy(e.target.value)}
-              placeholder="https://brightdata… o tu proxy"
+              placeholder={t("proxy_url_placeholder")}
             />
           </div>
           <div className="flex-1 space-y-1 min-w-[200px]">
-            <Label className="text-xs">Proxy token</Label>
+            <Label className="text-xs">{t("proxy_token")}</Label>
             <Input
               type="password"
               value={scraperProxyToken}
@@ -324,7 +325,7 @@ export function AimaSettingsForm({
             ) : (
               <Play className="size-4" />
             )}
-            Empezar ahora
+            {t("start_now")}
           </Button>
           <Button
             size="sm"
@@ -334,7 +335,7 @@ export function AimaSettingsForm({
             className="gap-1.5"
           >
             <StopCircle className="size-4" />
-            Detener
+            {t("stop")}
           </Button>
         </div>
       </Card>
@@ -345,17 +346,16 @@ export function AimaSettingsForm({
           <div>
             <h2 className="text-lg font-display font-semibold flex items-center gap-2">
               <Sparkles className="size-5 text-amber-500" />
-              Apollo (alternativa pagada)
+              {t("apollo_title")}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Si no quieres usar el scraper DIY hoy, activa Apollo y los leads
-              vendrán de su API.
+              {t("apollo_desc")}
             </p>
           </div>
           <ToggleButton on={apolloEnabled} onChange={setApolloEnabled} label={apolloEnabled ? "ON" : "OFF"} />
         </div>
         <div className="space-y-1 pt-2">
-          <Label className="text-xs">Apollo API key</Label>
+          <Label className="text-xs">{t("apollo_api_key")}</Label>
           <Input
             type="password"
             value={apolloKey}
@@ -371,18 +371,17 @@ export function AimaSettingsForm({
           <div>
             <h2 className="text-lg font-display font-semibold flex items-center gap-2">
               <Mail className="size-5 text-emerald-500" />
-              Cold email vía Instantly
+              {t("cold_email_title")}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Los nuevos leads se mandan a una campaña de Instantly.ai. Cuando
-              alguien responde, el lead pasa a Sandra para una llamada.
+              {t("cold_email_desc")}
             </p>
           </div>
           <ToggleButton on={coldEmailEnabled} onChange={setColdEmailEnabled} label={coldEmailEnabled ? "ON" : "OFF"} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
           <div className="space-y-1">
-            <Label className="text-xs">Instantly API key</Label>
+            <Label className="text-xs">{t("instantly_api_key")}</Label>
             <Input
               type="password"
               value={instantlyKey}
@@ -391,7 +390,7 @@ export function AimaSettingsForm({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Campaign ID</Label>
+            <Label className="text-xs">{t("campaign_id")}</Label>
             <Input
               value={instantlyCampaign}
               onChange={(e) => setInstantlyCampaign(e.target.value)}
@@ -399,7 +398,7 @@ export function AimaSettingsForm({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Límite diario</Label>
+            <Label className="text-xs">{t("daily_cap")}</Label>
             <Input
               type="number"
               min={1}
@@ -416,12 +415,12 @@ export function AimaSettingsForm({
       <Card className="p-6 space-y-5">
         <h2 className="text-lg font-display font-semibold flex items-center gap-2">
           <Target className="size-5 text-rose-500" />
-          A quién buscar
+          {t("targeting_title")}
         </h2>
 
         {/* Verticals as chip multi-select from preset list */}
         <div className="space-y-2">
-          <Label className="text-xs">Verticales ({verticals.length} seleccionadas)</Label>
+          <Label className="text-xs">{t("verticals_label", { count: verticals.length })}</Label>
           <div className="flex flex-wrap gap-1.5">
             {VERTICAL_PRESETS.map((v) => {
               const on = verticals.includes(v.id);
@@ -442,14 +441,14 @@ export function AimaSettingsForm({
                   )}
                 >
                   <span>{v.emoji}</span>
-                  {v.label}
+                  {t(`vertical_${v.id}`)}
                 </button>
               );
             })}
           </div>
           {verticals.filter((v) => !VERTICAL_PRESETS.some((p) => p.id === v)).length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Verticales personalizadas:{" "}
+              {t("custom_verticals")}:{" "}
               {verticals
                 .filter((v) => !VERTICAL_PRESETS.some((p) => p.id === v))
                 .map((v) => (
@@ -463,7 +462,7 @@ export function AimaSettingsForm({
 
         {/* Cities as removable chips + add-new input */}
         <div className="space-y-2">
-          <Label className="text-xs">Geografías ({geographies.length})</Label>
+          <Label className="text-xs">{t("geographies_label", { count: geographies.length })}</Label>
           {geographies.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {geographies.map((c) => (
@@ -476,7 +475,7 @@ export function AimaSettingsForm({
                     type="button"
                     onClick={() => setGeographies((cur) => cur.filter((x) => x !== c))}
                     className="text-muted-foreground hover:text-destructive transition"
-                    aria-label={`Eliminar ${c}`}
+                    aria-label={t("remove_city", { city: c })}
                   >
                     <X className="size-3" />
                   </button>
@@ -498,7 +497,7 @@ export function AimaSettingsForm({
                   setNewCity("");
                 }
               }}
-              placeholder="Ciudad nueva, ej. Asunción"
+              placeholder={t("new_city_placeholder")}
               className="flex-1"
             />
             <Button
@@ -518,7 +517,7 @@ export function AimaSettingsForm({
           </div>
           {GEO_PRESETS.length > 0 && (
             <div className="pt-2">
-              <p className="text-xs text-muted-foreground mb-1.5">Sugeridas:</p>
+              <p className="text-xs text-muted-foreground mb-1.5">{t("suggested")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {GEO_PRESETS.filter((g) => !geographies.includes(g)).map((g) => (
                   <button
@@ -540,7 +539,7 @@ export function AimaSettingsForm({
       <div className="sticky bottom-4 z-10 flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-1.5 shadow-lg">
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          Guardar cambios
+          {t("save_changes")}
         </Button>
       </div>
     </div>

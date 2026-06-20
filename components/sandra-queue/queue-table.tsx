@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Download, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -22,6 +23,7 @@ export function QueueTable({
   tenantId: string;
   items: SandraQueueItem[];
 }) {
+  const t = useTranslations("sandra");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const pendingIds = useMemo(
@@ -48,7 +50,7 @@ export function QueueTable({
   function exportSelectedCsv() {
     const list = items.filter((i) => selected.has(i.id) && i.lead_phone);
     if (list.length === 0) {
-      toast.error("No hay seleccionados con teléfono");
+      toast.error(t("none_with_phone"));
       return;
     }
     // Format expected by ElevenLabs batch calling: one row per number plus
@@ -80,17 +82,16 @@ export function QueueTable({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success(`${list.length} contactos exportados`);
+    toast.success(t("contacts_exported", { count: list.length }));
   }
 
   if (items.length === 0) {
     return (
       <Card className="py-16 flex flex-col items-center text-center">
         <PhoneCall className="size-10 text-muted-foreground mb-4" />
-        <p className="font-medium">La cola está vacía</p>
+        <p className="font-medium">{t("empty_title")}</p>
         <p className="text-sm text-muted-foreground mt-1 max-w-md">
-          Selecciona leads desde la página de Leads y usa &ldquo;Agregar a la cola
-          de Sandra&rdquo; para que aparezcan aquí.
+          {t("empty_desc")}
         </p>
       </Card>
     );
@@ -101,8 +102,8 @@ export function QueueTable({
       <div className="mb-3 flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm text-muted-foreground">
           {selected.size > 0
-            ? `${selected.size} seleccionado${selected.size === 1 ? "" : "s"}`
-            : `${items.length} contacto${items.length === 1 ? "" : "s"} en la cola`}
+            ? t("selected_count", { count: selected.size })
+            : t("in_queue_count", { count: items.length })}
         </p>
         <div className="flex gap-2">
           <Button
@@ -112,8 +113,8 @@ export function QueueTable({
             disabled={pendingIds.length === 0}
           >
             {selected.size > 0
-              ? "Limpiar selección"
-              : `Seleccionar pendientes (${pendingIds.length})`}
+              ? t("clear_selection")
+              : t("select_pending", { count: pendingIds.length })}
           </Button>
           <Button
             size="sm"
@@ -122,7 +123,7 @@ export function QueueTable({
             className="gap-1.5"
           >
             <Download className="size-4" />
-            Exportar CSV para ElevenLabs
+            {t("export_csv")}
           </Button>
         </div>
       </div>
@@ -132,12 +133,12 @@ export function QueueTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
-              <TableHead>Nombre</TableHead>
-              <TableHead>Contacto</TableHead>
-              <TableHead>Intención</TableHead>
-              <TableHead>Fuente</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Intentos</TableHead>
+              <TableHead>{t("col_name")}</TableHead>
+              <TableHead>{t("col_contact")}</TableHead>
+              <TableHead>{t("col_intent")}</TableHead>
+              <TableHead>{t("col_source")}</TableHead>
+              <TableHead>{t("col_status")}</TableHead>
+              <TableHead>{t("col_attempts")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>

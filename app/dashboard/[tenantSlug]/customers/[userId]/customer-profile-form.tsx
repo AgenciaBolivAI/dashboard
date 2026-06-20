@@ -45,21 +45,9 @@ export function CustomerProfileForm({
   useEffect(() => {
     if (state.error) toast.error(state.error);
     if (state.success) {
-      try {
-        toast.success(t("profile_saved"));
-      } catch {
-        toast.success("Perfil actualizado");
-      }
+      toast.success(t("profile_saved"));
     }
   }, [state, t]);
-
-  const tx = (key: string, fallback: string) => {
-    try {
-      return t(key);
-    } catch {
-      return fallback;
-    }
-  };
 
   return (
     <form action={action} className="space-y-5">
@@ -69,26 +57,26 @@ export function CustomerProfileForm({
       {/* Basic info section */}
       <div className="space-y-3">
         <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-          {tx("basic_info_section", "Información de contacto")}
+          {t("basic_info_section")}
         </p>
 
         <div className="space-y-1.5">
           <Label htmlFor="name" className="text-xs flex items-center gap-1.5">
             <User className="size-3" />
-            {tx("field_name", "Nombre")}
+            {t("field_name")}
           </Label>
           <Input
             id="name"
             name="name"
             defaultValue={name ?? ""}
-            placeholder={tx("field_name_placeholder", "María López")}
+            placeholder={t("field_name_placeholder")}
           />
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="whatsapp_number" className="text-xs flex items-center gap-1.5">
             <Phone className="size-3" />
-            {tx("field_phone", "Teléfono / WhatsApp")}
+            {t("field_phone")}
           </Label>
           <Input
             id="whatsapp_number"
@@ -98,60 +86,60 @@ export function CustomerProfileForm({
             placeholder="+5491134567890"
           />
           <p className="text-[11px] text-muted-foreground">
-            {tx("field_phone_hint", "Formato E.164 — incluye código de país. Sin guiones ni espacios.")}
+            {t("field_phone_hint")}
           </p>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="email" className="text-xs flex items-center gap-1.5">
             <Mail className="size-3" />
-            {tx("field_email", "Email")}
+            {t("field_email")}
           </Label>
           <Input
             id="email"
             name="email"
             type="email"
             defaultValue={email ?? ""}
-            placeholder="cliente@ejemplo.com"
+            placeholder="name@example.com"
           />
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="business_name" className="text-xs flex items-center gap-1.5">
             <Building2 className="size-3" />
-            {tx("field_business_name", "Nombre del negocio")}
+            {t("field_business_name")}
           </Label>
           <Input
             id="business_name"
             name="business_name"
             defaultValue={businessName ?? ""}
-            placeholder={tx("field_business_name_placeholder", "Hostal Andino")}
+            placeholder={t("field_business_name_placeholder")}
           />
           <p className="text-[11px] text-muted-foreground">
-            {tx("field_business_name_hint", "Solo si el cliente es una empresa. Dejá vacío para clientes individuales.")}
+            {t("field_business_name_hint")}
           </p>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="point_of_contact" className="text-xs flex items-center gap-1.5">
             <Contact className="size-3" />
-            {tx("field_point_of_contact", "Persona de contacto")}
+            {t("field_point_of_contact")}
           </Label>
           <Input
             id="point_of_contact"
             name="point_of_contact"
             defaultValue={pointOfContact ?? ""}
-            placeholder={tx("field_point_of_contact_placeholder", "María López, Gerente")}
+            placeholder={t("field_point_of_contact_placeholder")}
           />
           <p className="text-[11px] text-muted-foreground">
-            {tx("field_point_of_contact_hint", "Útil para B2B: la persona específica con la que hablás dentro de la empresa.")}
+            {t("field_point_of_contact_hint")}
           </p>
         </div>
       </div>
 
       <div className="border-t border-border pt-4 space-y-3">
         <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-          {tx("flags_section", "Marca y notas")}
+          {t("flags_section")}
         </p>
 
         <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -162,22 +150,19 @@ export function CustomerProfileForm({
             className="h-4 w-4 rounded border-input cursor-pointer"
           />
           <Star className="size-4 text-muted-foreground" />
-          <span>{tx("mark_as_vip", "Marcar como VIP")}</span>
+          <span>{t("mark_as_vip")}</span>
         </label>
 
         <div className="space-y-1.5">
           <Label htmlFor="tenant_notes" className="text-xs">
-            {tx("internal_notes_title", "Notas privadas")}
+            {t("internal_notes_title")}
           </Label>
           <textarea
             id="tenant_notes"
             name="tenant_notes"
             defaultValue={tenantNotes ?? ""}
             rows={5}
-            placeholder={tx(
-              "notes_placeholder",
-              "Alergias, preferencias, historial, lo que sea útil para tu equipo…",
-            )}
+            placeholder={t("notes_placeholder")}
             className={cn(
               "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
               "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y",
@@ -187,7 +172,7 @@ export function CustomerProfileForm({
       </div>
 
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? tx("saving", "Guardando…") : tx("save_profile", "Guardar cambios")}
+        {pending ? t("saving") : t("save_profile")}
       </Button>
     </form>
   );

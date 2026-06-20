@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Brain, Search, Loader2, FileText, Lightbulb, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,14 +25,6 @@ const SOURCE_BADGES: Record<string, { label: string; cls: string }> = {
   voice_call:    { label: "Voice",      cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
   manual:        { label: "Manual",     cls: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400" },
 };
-
-const EXAMPLE_QUERIES = [
-  "¿Cómo funciona el modelo de créditos?",
-  "¿Por qué elegimos Google Maps para AIMA en vez de Apollo?",
-  "¿Qué tablas usa el sistema de billing?",
-  "¿Cómo razona VIRA para elegir clips?",
-  "¿Qué hace Rebecca cuando un agente se quedó sin créditos?",
-];
 
 /**
  * Convert citation markers like [1], [2] into clickable links pointing to
@@ -76,6 +69,14 @@ function renderAnswerWithCitations(
 }
 
 export function BrainSearch() {
+  const t = useTranslations("admin_brain");
+  const EXAMPLE_QUERIES = [
+    t("example_query_1"),
+    t("example_query_2"),
+    t("example_query_3"),
+    t("example_query_4"),
+    t("example_query_5"),
+  ];
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<BrainSearchHit[] | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
@@ -112,7 +113,7 @@ export function BrainSearch() {
         <div className="flex items-center gap-2 mb-3">
           <Brain className="size-5 text-primary" />
           <p className="text-sm font-medium">
-            Pregúntale al brain de la empresa
+            {t("search_prompt")}
           </p>
         </div>
 
@@ -120,7 +121,7 @@ export function BrainSearch() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="¿Cómo decidimos el costo de Apollo?"
+            placeholder={t("search_placeholder")}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -133,13 +134,13 @@ export function BrainSearch() {
           />
           <Button onClick={() => go()} disabled={pending || query.trim().length < 2}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-            Buscar
+            {t("search_button")}
           </Button>
         </div>
 
         {!hits && !pending && (
           <div className="mt-4">
-            <p className="text-xs text-muted-foreground mb-2">Ejemplos:</p>
+            <p className="text-xs text-muted-foreground mb-2">{t("examples_label")}</p>
             <div className="flex flex-wrap gap-1.5">
               {EXAMPLE_QUERIES.map((q) => (
                 <button
@@ -157,8 +158,8 @@ export function BrainSearch() {
 
         {totalMs !== null && hits && (
           <p className="text-xs text-muted-foreground mt-3">
-            {hits.length} {hits.length === 1 ? "resultado" : "resultados"} en {totalMs}ms
-            {answer && " · respuesta sintetizada"}
+            {t("results_count", { count: hits.length, ms: totalMs ?? 0 })}
+            {answer && ` · ${t("synthesized_suffix")}`}
           </p>
         )}
         {error && (
@@ -173,7 +174,7 @@ export function BrainSearch() {
             <Brain className="size-5 text-primary shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-xs uppercase tracking-wider text-primary font-semibold mb-2">
-                Respuesta del brain
+                {t("answer_header")}
               </p>
               <div className="text-sm leading-relaxed whitespace-pre-wrap">
                 {renderAnswerWithCitations(answer, citations)}
@@ -181,7 +182,7 @@ export function BrainSearch() {
               {citations.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-primary/15">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Fuentes citadas
+                    {t("cited_sources")}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {citations.map((c) => {
@@ -213,7 +214,7 @@ export function BrainSearch() {
       {/* No-results state */}
       {hits !== null && hits.length === 0 && !pending && (
         <Card className="p-8 text-center text-sm text-muted-foreground">
-          Sin resultados. Probá reformular la pregunta o registrar una decisión nueva.
+          {t("no_results")}
         </Card>
       )}
 
@@ -221,7 +222,7 @@ export function BrainSearch() {
       {hits && hits.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
-            Fuentes ({hits.length})
+            {t("sources_count", { count: hits.length })}
           </p>
           {hits.map((hit) => {
             const badge = SOURCE_BADGES[
@@ -252,7 +253,7 @@ export function BrainSearch() {
                           {hit.title}
                         </h3>
                         <Badge variant="outline" className={cn("text-[10px]", badge.cls)}>
-                          {isDecision ? "Decisión" : badge.label}
+                          {isDecision ? t("badge_decision") : badge.label}
                         </Badge>
                         <span className="text-xs text-muted-foreground font-mono">
                           {(Math.round(Number(hit.similarity) * 1000) / 10).toFixed(1)}%
@@ -265,12 +266,12 @@ export function BrainSearch() {
                       )}
                       {isDecision && Boolean(hit.metadata?.choice) && (
                         <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">
-                          Elegimos: {String(hit.metadata?.choice ?? "")}
+                          {t("we_chose")}: {String(hit.metadata?.choice ?? "")}
                         </p>
                       )}
                       {hit.decided_at && (
                         <p className="text-xs text-muted-foreground mb-2">
-                          Decidido: {new Date(hit.decided_at).toLocaleDateString("es-BO")}
+                          {t("decided_on")}: {new Date(hit.decided_at).toLocaleDateString()}
                         </p>
                       )}
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3 leading-relaxed">

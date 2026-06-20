@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   Activity,
 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,6 +43,7 @@ export default async function AdminOverviewPage({
   searchParams: Promise<{ window?: string }>;
 }) {
   const tr = await getTranslations("admin_overview");
+  const locale = await getLocale();
 
   const WINDOWS: { id: PnlWindow; label: string }[] = [
     { id: "today", label: tr("window_today") },
@@ -207,11 +208,10 @@ export default async function AdminOverviewPage({
         <div className="p-4 border-b">
           <h2 className="font-semibold flex items-center gap-2">
             <Gift className="size-4 text-primary" />
-            Regalar créditos
+            {tr("grant_card_title")}
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Acredita saldo a cualquier negocio — cortesía de lanzamiento o créditos
-            de prueba. $1 = 100 créditos.
+            {tr("grant_card_desc")}
           </p>
         </div>
         <div className="p-4">
@@ -335,7 +335,7 @@ export default async function AdminOverviewPage({
               <TableRow key={a.action_key}>
                 <TableCell className="font-mono text-xs">{a.action_key}</TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {a.units.toLocaleString("en-US")}
+                  {a.units.toLocaleString(locale)}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm text-green-600">
                   {fmtCents(a.revenue_credits)}

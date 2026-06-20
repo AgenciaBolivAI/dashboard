@@ -10,6 +10,15 @@ import { TERMS_VERSION } from "@/lib/legal";
 
 export type AuthState = { error: string | null; success?: boolean };
 
+/**
+ * Only allow same-origin relative redirect targets. Blocks open-redirect via
+ * `?next=https://evil.com` or protocol-relative `//evil.com`.
+ */
+function safeNext(next: string | undefined | null): string {
+  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
+  return "/dashboard";
+}
+
 // ─── Sign in ─────────────────────────────────────────────────────────
 export async function signInAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const t = await getTranslations("auth");
@@ -34,7 +43,7 @@ export async function signInAction(_prev: AuthState, formData: FormData): Promis
   }
 
   revalidatePath("/", "layout");
-  redirect(parsed.data.next || "/dashboard");
+  redirect(safeNext(parsed.data.next));
 }
 
 // ─── Sign up ─────────────────────────────────────────────────────────

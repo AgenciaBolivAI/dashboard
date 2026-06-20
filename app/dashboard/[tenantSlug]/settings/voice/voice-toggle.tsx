@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Mic, MicOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,13 +20,14 @@ export function VoiceToggle({
   enabled: boolean;
   hasAgent: boolean;
 }) {
+  const t = useTranslations("settings_voice");
   const [pending, start] = useTransition();
 
   function handleEnable() {
     start(async () => {
       const res = await enableVoiceAction(tenantId);
       if (res.error) toast.error(res.error);
-      else toast.success(hasAgent ? "Voz reactivada" : "Agente de voz creado");
+      else toast.success(hasAgent ? t("voice_reactivated") : t("voice_agent_created"));
     });
   }
 
@@ -33,21 +35,16 @@ export function VoiceToggle({
     start(async () => {
       const res = await disableVoiceAction(tenantId);
       if (res.error) toast.error(res.error);
-      else toast.success("Voz desactivada");
+      else toast.success(t("voice_disabled"));
     });
   }
 
   function handleDelete() {
-    if (
-      !confirm(
-        "Esto elimina permanentemente el agente de voz en ElevenLabs. Tendrás que volver a configurarlo desde cero. ¿Continuar?",
-      )
-    )
-      return;
+    if (!confirm(t("confirm_delete_agent"))) return;
     start(async () => {
       const res = await deleteVoiceAgentAction(tenantId);
       if (res.error) toast.error(res.error);
-      else toast.success("Agente eliminado");
+      else toast.success(t("agent_deleted"));
     });
   }
 
@@ -62,12 +59,12 @@ export function VoiceToggle({
           className="text-muted-foreground"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : <MicOff className="size-4" />}
-          Desactivar voz
+          {t("disable_voice")}
         </Button>
       ) : (
         <Button type="button" onClick={handleEnable} disabled={pending}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Mic className="size-4" />}
-          {hasAgent ? "Reactivar voz" : "Activar voz"}
+          {hasAgent ? t("reactivate_voice") : t("activate_voice")}
         </Button>
       )}
       {hasAgent ? (
@@ -78,7 +75,7 @@ export function VoiceToggle({
           disabled={pending}
           className="text-muted-foreground hover:text-destructive"
         >
-          Eliminar agente
+          {t("delete_agent")}
         </Button>
       ) : null}
     </div>

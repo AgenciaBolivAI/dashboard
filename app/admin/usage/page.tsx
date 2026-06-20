@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,6 +30,7 @@ export default async function AdminUsagePage({
   searchParams: Promise<{ window?: string }>;
 }) {
   const t = await getTranslations("admin_usage");
+  const locale = await getLocale();
   const windows: { id: PnlWindow; label: string }[] = [
     { id: "today", label: t("window_today") },
     { id: "7d", label: t("window_7d") },
@@ -120,7 +121,7 @@ export default async function AdminUsagePage({
                   <TableRow key={a.action_key}>
                     <TableCell className="font-mono text-xs">{a.action_key}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
-                      {a.units.toLocaleString("en-US")}
+                      {a.units.toLocaleString(locale)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-green-600">
                       {fmtCents(a.revenue_credits)}
@@ -236,7 +237,7 @@ export default async function AdminUsagePage({
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
                     {tn.last_activity_at
-                      ? new Date(tn.last_activity_at).toLocaleString("es-BO", {
+                      ? new Date(tn.last_activity_at).toLocaleString(locale, {
                           dateStyle: "short",
                           timeStyle: "short",
                         })

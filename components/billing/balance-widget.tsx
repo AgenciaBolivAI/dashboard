@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Coins, AlertTriangle } from "lucide-react";
 import { getBalance } from "@/lib/billing/credits";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ export async function BalanceWidget({
   tenantSlug: string;
 }) {
   const bal = await getBalance(tenantId);
+  const t = await getTranslations("billing");
   if (!bal) {
     return (
       <Link
@@ -22,7 +24,7 @@ export async function BalanceWidget({
         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-secondary text-xs font-medium hover:bg-secondary/80 transition"
       >
         <Coins className="size-3.5" />
-        Sin créditos
+        {t("widget_no_credits")}
       </Link>
     );
   }
@@ -41,9 +43,12 @@ export async function BalanceWidget({
         "inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition hover:brightness-110",
         tone,
       )}
-      title={`Créditos disponibles: ${bal.available_credits.toLocaleString()}\n${
-        bal.reserved_credits > 0 ? `Reservados: ${bal.reserved_credits.toLocaleString()}\n` : ""
-      }Total acumulado gastado: ${bal.lifetime_spent_credits.toLocaleString()}`}
+      title={t("widget_tooltip", {
+        available: bal.available_credits.toLocaleString(),
+        reserved: bal.reserved_credits,
+        reservedFormatted: bal.reserved_credits.toLocaleString(),
+        spent: bal.lifetime_spent_credits.toLocaleString(),
+      })}
     >
       {bal.is_zero || bal.is_low ? (
         <AlertTriangle className="size-3.5" />

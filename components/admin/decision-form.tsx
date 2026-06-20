@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Lightbulb, Loader2, Plus, X, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -26,6 +27,7 @@ const COMMON_TAGS = [
 
 export function DecisionForm() {
   const router = useRouter();
+  const t = useTranslations("admin_brain");
   const [open, setOpen] = useState(false);
   const [pending, startSave] = useTransition();
 
@@ -58,7 +60,7 @@ export function DecisionForm() {
 
   function handleSave() {
     if (title.trim().length < 3 || problem.trim().length < 10 || choice.trim().length < 2 || reasoning.trim().length < 10) {
-      toast.error("Completá título, problema, elección y razonamiento");
+      toast.error(t("decision_validation"));
       return;
     }
     startSave(async () => {
@@ -73,7 +75,7 @@ export function DecisionForm() {
         toast.error(res.error);
         return;
       }
-      toast.success("Decisión registrada y embebida");
+      toast.success(t("decision_saved"));
       reset();
       setOpen(false);
       router.refresh();
@@ -87,16 +89,15 @@ export function DecisionForm() {
           <div>
             <p className="text-sm font-medium flex items-center gap-2">
               <Lightbulb className="size-4 text-amber-500" />
-              Registrar una decisión
+              {t("decision_cta_title")}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Cada decisión arquitectónica que escribís hoy es buscable mañana. Una sola
-              fuente de verdad sobre el "por qué".
+              {t("decision_cta_desc")}
             </p>
           </div>
           <Button onClick={() => setOpen(true)} size="sm" variant="outline" className="gap-1.5">
             <Plus className="size-4" />
-            Nueva decisión
+            {t("decision_new")}
           </Button>
         </div>
       </Card>
@@ -108,7 +109,7 @@ export function DecisionForm() {
       <div className="flex items-center justify-between">
         <h3 className="font-display font-semibold flex items-center gap-2">
           <Lightbulb className="size-5 text-amber-500" />
-          Nueva decisión (ADR)
+          {t("decision_form_title")}
         </h3>
         <Button variant="ghost" size="sm" onClick={() => { reset(); setOpen(false); }}>
           <X className="size-4" />
@@ -116,52 +117,52 @@ export function DecisionForm() {
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs">Título · una línea</Label>
+        <Label className="text-xs">{t("decision_title_label")}</Label>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Ej: Switch from Apollo to Google Maps for AIMA"
+          placeholder={t("decision_title_placeholder")}
           maxLength={160}
           autoFocus
         />
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs">Problema o contexto · qué situación forzó la decisión</Label>
+        <Label className="text-xs">{t("decision_problem_label")}</Label>
         <textarea
           value={problem}
           onChange={(e) => setProblem(e.target.value)}
           rows={3}
           maxLength={2000}
-          placeholder="Ej: El plan gratuito de Apollo no da acceso a mixed_people/search; necesitamos un proveedor que funcione worldwide y entregue teléfonos verificados…"
+          placeholder={t("decision_problem_placeholder")}
           className="w-full text-sm px-3 py-2 rounded-md border border-border bg-background"
         />
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs">Qué elegimos · una línea</Label>
+        <Label className="text-xs">{t("decision_choice_label")}</Label>
         <Input
           value={choice}
           onChange={(e) => setChoice(e.target.value)}
-          placeholder="Ej: Google Maps Places (New) Text Search"
+          placeholder={t("decision_choice_placeholder")}
           maxLength={500}
         />
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs">Por qué · el razonamiento que hace válida la elección</Label>
+        <Label className="text-xs">{t("decision_reasoning_label")}</Label>
         <textarea
           value={reasoning}
           onChange={(e) => setReasoning(e.target.value)}
           rows={4}
           maxLength={2000}
-          placeholder="Ej: Cobertura mundial, teléfonos verificados sin enriquecimiento extra, $0.017/lead margen sano, no requiere upgrade pago. Las alternativas (Apollo, Hunter) eran US-only o requerían plan pago…"
+          placeholder={t("decision_reasoning_placeholder")}
           className="w-full text-sm px-3 py-2 rounded-md border border-border bg-background"
         />
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs">Tags ({tags.length})</Label>
+        <Label className="text-xs">{t("decision_tags_label", { count: tags.length })}</Label>
         <div className="flex flex-wrap gap-1.5">
           {COMMON_TAGS.map((t) => {
             const on = tags.includes(t);
@@ -186,7 +187,7 @@ export function DecisionForm() {
           <Input
             value={newTag}
             onChange={(e) => setNewTag(e.target.value)}
-            placeholder="Tag custom"
+            placeholder={t("decision_custom_tag_placeholder")}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -215,11 +216,11 @@ export function DecisionForm() {
 
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="ghost" onClick={() => { reset(); setOpen(false); }}>
-          Cancelar
+          {t("cancel")}
         </Button>
         <Button onClick={handleSave} disabled={pending} className="gap-1.5">
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          Guardar decisión
+          {t("decision_save")}
         </Button>
       </div>
     </Card>

@@ -56,14 +56,6 @@ export function LeadNotesEditor({
     }
   }
 
-  const placeholder = (() => {
-    try {
-      return t("notes_placeholder");
-    } catch {
-      return "Notas internas sobre este lead. Cosas que recordar para la próxima llamada — fechas importantes, preferencias, qué evitar mencionar…";
-    }
-  })();
-
   return (
     <div className="space-y-2">
       <textarea
@@ -74,7 +66,7 @@ export function LeadNotesEditor({
         }}
         onKeyDown={onKeyDown}
         rows={6}
-        placeholder={placeholder}
+        placeholder={t("notes_placeholder")}
         className={cn(
           "w-full text-sm leading-relaxed px-3 py-2 rounded-md border border-border bg-background",
           "focus:outline-none focus:ring-2 focus:ring-ring",
@@ -86,34 +78,22 @@ export function LeadNotesEditor({
           {saving ? (
             <span className="inline-flex items-center gap-1">
               <Loader2 className="size-3 animate-spin" />
-              {(() => {
-                try { return t("notes_saving"); } catch { return "Guardando…"; }
-              })()}
+              {t("notes_saving")}
             </span>
           ) : dirty ? (
             <span className="text-amber-600">
-              {(() => {
-                try { return t("notes_unsaved"); } catch { return "Cambios sin guardar — ⌘/Ctrl + Enter para guardar"; }
-              })()}
+              {t("notes_unsaved")}
             </span>
           ) : lastSavedAt ? (
             <span className="inline-flex items-center gap-1 text-emerald-600">
               <Check className="size-3" />
-              {(() => {
-                try {
-                  return t("notes_saved_at", {
-                    time: lastSavedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
-                  });
-                } catch {
-                  return `Guardado a las ${lastSavedAt.toLocaleTimeString()}`;
-                }
-              })()}
+              {t("notes_saved_at", {
+                time: lastSavedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+              })}
             </span>
           ) : (
             <span>
-              {(() => {
-                try { return t("notes_hint"); } catch { return "Autoguarda mientras escribís"; }
-              })()}
+              {t("notes_hint")}
             </span>
           )}
         </div>
@@ -129,9 +109,7 @@ export function LeadNotesEditor({
           )}
         >
           <Save className="size-3" />
-          {(() => {
-            try { return t("notes_save_now"); } catch { return "Guardar"; }
-          })()}
+          {t("notes_save_now")}
         </button>
       </div>
     </div>

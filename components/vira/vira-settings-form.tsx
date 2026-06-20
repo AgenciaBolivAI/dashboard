@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -13,25 +14,6 @@ import { updateViraSettingsAction } from "@/lib/actions/vira";
 import type { ViraSettings } from "@/lib/queries/vira";
 import { cn } from "@/lib/utils";
 
-const STYLE_OPTIONS = [
-  { id: "high_energy", emoji: "⚡", label: "Energía alta", desc: "Hooks, momentos punzantes, reacciones del público." },
-  { id: "educational", emoji: "🎓", label: "Educativo", desc: "Explicaciones, definiciones, tutoriales." },
-  { id: "storytelling", emoji: "📖", label: "Narrativa", desc: "Arcos de historia, momentos emocionales." },
-  { id: "qa_highlights", emoji: "💬", label: "Q&A", desc: "Preguntas + respuestas, picos de un experto." },
-] as const;
-
-const FORMAT_OPTIONS = [
-  { id: "9:16", emoji: "📱", label: "Vertical (Reels, Shorts, TikTok)" },
-  { id: "1:1", emoji: "⬛", label: "Cuadrado (Instagram feed)" },
-  { id: "16:9", emoji: "🖥️", label: "Horizontal (YouTube, LinkedIn)" },
-] as const;
-
-const SUBTITLE_OPTIONS = [
-  { id: "bold_centered", label: "Negrita centrada (TikTok)" },
-  { id: "minimal_bottom", label: "Minimal abajo (sobrio)" },
-  { id: "word_pop", label: "Palabra a palabra (pop)" },
-] as const;
-
 export function ViraSettingsForm({
   tenantId,
   settings,
@@ -40,7 +22,27 @@ export function ViraSettingsForm({
   settings: ViraSettings;
 }) {
   const router = useRouter();
+  const t = useTranslations("shorts");
   const [saving, startSave] = useTransition();
+
+  const STYLE_OPTIONS = [
+    { id: "high_energy", emoji: "⚡", label: t("settings_style_high_energy"), desc: t("settings_style_high_energy_desc") },
+    { id: "educational", emoji: "🎓", label: t("settings_style_educational"), desc: t("settings_style_educational_desc") },
+    { id: "storytelling", emoji: "📖", label: t("settings_style_storytelling"), desc: t("settings_style_storytelling_desc") },
+    { id: "qa_highlights", emoji: "💬", label: t("settings_style_qa"), desc: t("settings_style_qa_desc") },
+  ] as const;
+
+  const FORMAT_OPTIONS = [
+    { id: "9:16", emoji: "📱", label: t("settings_format_vertical") },
+    { id: "1:1", emoji: "⬛", label: t("settings_format_square") },
+    { id: "16:9", emoji: "🖥️", label: t("settings_format_horizontal") },
+  ] as const;
+
+  const SUBTITLE_OPTIONS = [
+    { id: "bold_centered", label: t("settings_subtitle_bold_centered") },
+    { id: "minimal_bottom", label: t("settings_subtitle_minimal_bottom") },
+    { id: "word_pop", label: t("settings_subtitle_word_pop") },
+  ] as const;
 
   const [minClip, setMinClip] = useState(settings.min_clip_seconds);
   const [maxClip, setMaxClip] = useState(settings.max_clip_seconds);
@@ -77,7 +79,7 @@ export function ViraSettingsForm({
         toast.error(res.error);
         return;
       }
-      toast.success("Ajustes guardados");
+      toast.success(t("settings_saved_toast"));
       router.refresh();
     });
   }
@@ -94,11 +96,11 @@ export function ViraSettingsForm({
       {/* Clip length + count */}
       <Card className="p-6 space-y-4">
         <h3 className="text-sm uppercase tracking-wider text-muted-foreground">
-          Duración y cantidad
+          {t("settings_length_count_heading")}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1">
-            <Label className="text-xs">Duración mínima (s)</Label>
+            <Label className="text-xs">{t("settings_min_duration")}</Label>
             <Input
               type="number"
               min={5}
@@ -108,7 +110,7 @@ export function ViraSettingsForm({
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Duración máxima (s)</Label>
+            <Label className="text-xs">{t("settings_max_duration")}</Label>
             <Input
               type="number"
               min={10}
@@ -117,11 +119,11 @@ export function ViraSettingsForm({
               onChange={(e) => setMaxClip(parseInt(e.target.value || "0", 10))}
             />
             {maxClip < minClip && (
-              <p className="text-xs text-destructive">El máximo debe ser mayor que el mínimo.</p>
+              <p className="text-xs text-destructive">{t("settings_max_gt_min")}</p>
             )}
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Clips por video</Label>
+            <Label className="text-xs">{t("settings_clips_per_video")}</Label>
             <Input
               type="number"
               min={1}
@@ -132,7 +134,7 @@ export function ViraSettingsForm({
           </div>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Duración máxima del video de entrada (min)</Label>
+          <Label className="text-xs">{t("settings_max_input_minutes")}</Label>
           <Input
             type="number"
             min={1}
@@ -142,8 +144,7 @@ export function ViraSettingsForm({
             className="max-w-[200px]"
           />
           <p className="text-xs text-muted-foreground">
-            Tope de seguridad: si pegas un video de más de {maxInputMin} min, VIRA lo
-            rechaza. Evita drenar créditos por un link mal pegado.
+            {t("settings_max_input_hint", { minutes: maxInputMin })}
           </p>
         </div>
       </Card>
@@ -151,11 +152,11 @@ export function ViraSettingsForm({
       {/* Output format + style */}
       <Card className="p-6 space-y-4">
         <h3 className="text-sm uppercase tracking-wider text-muted-foreground">
-          Formato y razonamiento
+          {t("settings_format_reasoning_heading")}
         </h3>
 
         <div className="space-y-2">
-          <Label className="text-xs">Formato de salida</Label>
+          <Label className="text-xs">{t("settings_output_format")}</Label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             {FORMAT_OPTIONS.map((f) => {
               const on = format === f.id;
@@ -179,7 +180,7 @@ export function ViraSettingsForm({
 
         <div className="space-y-2">
           <Label className="text-xs">
-            Estilo de clip — guía a VIRA para elegir qué momentos cortar
+            {t("settings_clip_style_label")}
           </Label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {STYLE_OPTIONS.map((s) => {
@@ -208,21 +209,21 @@ export function ViraSettingsForm({
 
       {/* Subtitles + watermark */}
       <Card className="p-6 space-y-4">
-        <h3 className="text-sm uppercase tracking-wider text-muted-foreground">Visuales</h3>
+        <h3 className="text-sm uppercase tracking-wider text-muted-foreground">{t("settings_visuals_heading")}</h3>
 
         <div className="flex items-center justify-between">
           <div>
-            <Label className="text-sm">Subtítulos automáticos</Label>
+            <Label className="text-sm">{t("settings_auto_subtitles")}</Label>
             <p className="text-xs text-muted-foreground">
-              Pega los subtítulos generados por Whisper en cada clip.
+              {t("settings_auto_subtitles_desc")}
             </p>
           </div>
-          <ToggleButton on={addSubs} onChange={setAddSubs} label={addSubs ? "Sí" : "No"} />
+          <ToggleButton on={addSubs} onChange={setAddSubs} label={addSubs ? t("settings_yes") : t("settings_no")} />
         </div>
 
         {addSubs && (
           <div className="space-y-1">
-            <Label className="text-xs">Estilo de subtítulos</Label>
+            <Label className="text-xs">{t("settings_subtitle_style")}</Label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {SUBTITLE_OPTIONS.map((s) => {
                 const on = subStyle === s.id;
@@ -248,20 +249,20 @@ export function ViraSettingsForm({
 
         <div className="flex items-center justify-between pt-2 border-t">
           <div>
-            <Label className="text-sm">Marca de agua</Label>
+            <Label className="text-sm">{t("settings_watermark")}</Label>
             <p className="text-xs text-muted-foreground">
-              Texto pequeño en una esquina del clip.
+              {t("settings_watermark_desc")}
             </p>
           </div>
-          <ToggleButton on={watermark} onChange={setWatermark} label={watermark ? "Sí" : "No"} />
+          <ToggleButton on={watermark} onChange={setWatermark} label={watermark ? t("settings_yes") : t("settings_no")} />
         </div>
         {watermark && (
           <div className="space-y-1">
-            <Label className="text-xs">Texto de la marca</Label>
+            <Label className="text-xs">{t("settings_watermark_text")}</Label>
             <Input
               value={watermarkText}
               onChange={(e) => setWatermarkText(e.target.value)}
-              placeholder="@tunegocio"
+              placeholder={t("settings_watermark_placeholder")}
               maxLength={120}
             />
           </div>
@@ -269,39 +270,43 @@ export function ViraSettingsForm({
 
         <div className="flex items-center justify-between pt-2 border-t">
           <div>
-            <Label className="text-sm">Auto-publicar como borradores en CCAVAI</Label>
+            <Label className="text-sm">{t("settings_autopost")}</Label>
             <p className="text-xs text-muted-foreground">
-              Al terminar el job, manda cada clip a la cola de contenido para revisión.
+              {t("settings_autopost_desc")}
             </p>
           </div>
-          <ToggleButton on={autoPost} onChange={setAutoPost} label={autoPost ? "Sí" : "No"} />
+          <ToggleButton on={autoPost} onChange={setAutoPost} label={autoPost ? t("settings_yes") : t("settings_no")} />
         </div>
       </Card>
 
       {/* Economics preview */}
       <Card className="p-5 bg-muted/30">
         <h3 className="text-sm uppercase tracking-wider text-muted-foreground mb-2">
-          Costo estimado por video
+          {t("settings_cost_estimate_heading")}
         </h3>
         <p className="text-sm text-muted-foreground">
-          Ejemplo: un video de <strong>{exampleInputMin} min</strong> → {perVideo} clips de
-          ~{Math.round((minClip + maxClip) / 2)}s cada uno:
+          {t.rich("settings_cost_estimate_example", {
+            minutes: exampleInputMin,
+            clips: perVideo,
+            seconds: Math.round((minClip + maxClip) / 2),
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
         </p>
         <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
           <div>
-            <p className="text-xs text-muted-foreground">Procesamiento</p>
+            <p className="text-xs text-muted-foreground">{t("settings_cost_processing")}</p>
             <p className="font-mono">
               {inputCost} cr <span className="text-muted-foreground">(${(inputCost / 100).toFixed(2)})</span>
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Renderizado</p>
+            <p className="text-xs text-muted-foreground">{t("settings_cost_rendering")}</p>
             <p className="font-mono">
               {outputCost} cr <span className="text-muted-foreground">(${(outputCost / 100).toFixed(2)})</span>
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="text-xs text-muted-foreground">{t("settings_cost_total")}</p>
             <p className="font-mono font-bold">
               {totalCost} cr <span className="text-primary">(${(totalCost / 100).toFixed(2)})</span>
             </p>
@@ -312,7 +317,7 @@ export function ViraSettingsForm({
       <div className="sticky bottom-4 z-10 flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-1.5 shadow-lg">
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          Guardar cambios
+          {t("settings_save_changes")}
         </Button>
       </div>
     </div>

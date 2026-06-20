@@ -1,5 +1,5 @@
 import { Coins, TrendingDown, TrendingUp, CreditCard, History } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
@@ -20,6 +20,7 @@ export default async function BillingPage({
   const { topup } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("billing");
+  const locale = await getLocale();
 
   const TX_TYPE_LABEL: Record<string, string> = {
     top_up: t("tx_top_up"),
@@ -176,7 +177,7 @@ export default async function BillingPage({
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(tx.created_at).toLocaleString("es-BO", {
+                      {new Date(tx.created_at).toLocaleString(locale, {
                         dateStyle: "medium",
                         timeStyle: "short",
                       })}

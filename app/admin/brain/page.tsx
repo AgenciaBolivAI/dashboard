@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Brain, FileText, Lightbulb, HelpCircle, Database, Network } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminBrainPage() {
   const t = await getTranslations("admin_brain");
+  const locale = await getLocale();
   const [stats, unknowns] = await Promise.all([
     getBrainStats(),
     listOpenUnknowns(),
@@ -62,7 +63,7 @@ export default async function AdminBrainPage() {
           label={t("stat_last_ingest")}
           value={
             stats?.last_indexed_at
-              ? new Date(stats.last_indexed_at).toLocaleDateString("es-BO")
+              ? new Date(stats.last_indexed_at).toLocaleDateString(locale)
               : "—"
           }
           color="text-cyan-500"

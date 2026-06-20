@@ -12,6 +12,7 @@ import {
   Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ export function OnboardingWizard({
 }: {
   userEmail: string;
 }) {
+  const t = useTranslations("onboarding");
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [submitting, startSubmit] = useTransition();
@@ -105,10 +107,10 @@ export function OnboardingWizard({
     startSubmit(async () => {
       const res = await provisionTenantAction({ error: null }, fd);
       if (res.error || !res.slug) {
-        toast.error(res.error ?? "No se pudo crear el agente");
+        toast.error(res.error ?? t("err_create_agent"));
         return;
       }
-      toast.success("Tu agente está listo. Recarga créditos para activarlo.");
+      toast.success(t("agent_ready"));
       // Land on billing — agents are inert until they have credits
       router.push(`/dashboard/${res.slug}/billing?onboarding=success`);
     });
@@ -170,7 +172,7 @@ export function OnboardingWizard({
               className="gap-1.5"
             >
               <ArrowLeft className="size-4" />
-              Atrás
+              {t("back")}
             </Button>
             {step < totalSteps ? (
               <Button
@@ -178,7 +180,7 @@ export function OnboardingWizard({
                 onClick={() => setStep((s) => Math.min(totalSteps, s + 1))}
                 className="gap-1.5"
               >
-                Continuar
+                {t("continue")}
                 <ArrowRight className="size-4" />
               </Button>
             ) : (
@@ -188,7 +190,7 @@ export function OnboardingWizard({
                 className="gap-1.5"
               >
                 {submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                Crear agente
+                {t("create_agent")}
               </Button>
             )}
           </div>
@@ -199,10 +201,11 @@ export function OnboardingWizard({
 }
 
 function Stepper({ step, total }: { step: number; total: number }) {
+  const t = useTranslations("onboarding");
   const labels = [
-    { icon: Building2, label: "Negocio" },
-    { icon: MessageCircle, label: "WhatsApp" },
-    { icon: Palette, label: "Marca" },
+    { icon: Building2, label: t("step_business") },
+    { icon: MessageCircle, label: t("step_whatsapp") },
+    { icon: Palette, label: t("step_brand") },
   ];
   return (
     <div className="flex items-center justify-between">
@@ -255,36 +258,37 @@ function Step1(props: {
   timezone: string; setTimezone: (v: string) => void;
   language: "es" | "en" | "pt"; setLanguage: (v: "es" | "en" | "pt") => void;
 }) {
+  const t = useTranslations("onboarding");
   return (
     <Card className="p-6 md:p-8 space-y-5">
       <div>
-        <h2 className="text-2xl font-display font-bold">Cuéntanos sobre tu negocio</h2>
+        <h2 className="text-2xl font-display font-bold">{t("step1_title")}</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Esto configura el primer agente. Puedes cambiar todo después.
+          {t("step1_description")}
         </p>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="company_name">Nombre del negocio</Label>
+        <Label htmlFor="company_name">{t("field_company_name")}</Label>
         <Input
           id="company_name"
           value={props.companyName}
           onChange={(e) => props.setCompanyName(e.target.value)}
-          placeholder="Clínica Dental Sonrisa"
+          placeholder={t("placeholder_company_name")}
           autoFocus
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="industry">Industria</Label>
+        <Label htmlFor="industry">{t("field_industry")}</Label>
         <Input
           id="industry"
           value={props.industry}
           onChange={(e) => props.setIndustry(e.target.value)}
-          placeholder="Odontología, inmobiliaria, fitness, etc."
+          placeholder={t("placeholder_industry")}
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1">
-          <Label htmlFor="country">País</Label>
+          <Label htmlFor="country">{t("field_country")}</Label>
           <select
             id="country"
             value={props.country}
@@ -297,7 +301,7 @@ function Step1(props: {
           </select>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="language">Idioma del agente</Label>
+          <Label htmlFor="language">{t("field_agent_language")}</Label>
           <select
             id="language"
             value={props.language}
@@ -311,7 +315,7 @@ function Step1(props: {
         </div>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="timezone">Zona horaria</Label>
+        <Label htmlFor="timezone">{t("field_timezone")}</Label>
         <select
           id="timezone"
           value={props.timezone}
@@ -319,7 +323,7 @@ function Step1(props: {
           className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {!TIMEZONES.includes(props.timezone) ? (
-            <option value={props.timezone}>{props.timezone} (detectada)</option>
+            <option value={props.timezone}>{t("timezone_detected", { tz: props.timezone })}</option>
           ) : null}
           {TIMEZONES.map((tz) => (
             <option key={tz} value={tz}>{tz}</option>
@@ -337,33 +341,31 @@ function Step3({
   whatsappNumber: string;
   setWhatsappNumber: (v: string) => void;
 }) {
+  const t = useTranslations("onboarding");
   return (
     <Card className="p-6 md:p-8 space-y-5">
       <div>
-        <h2 className="text-2xl font-display font-bold">¿Qué número usará tu agente?</h2>
+        <h2 className="text-2xl font-display font-bold">{t("step2_title")}</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          El número de WhatsApp que tus clientes ven. Apenas creas el agente,
-          lo conectas tú mismo escaneando un código QR — en segundos, sin esperar
-          a nadie.
+          {t("step2_description")}
         </p>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="whatsapp_number">Número con código de país</Label>
+        <Label htmlFor="whatsapp_number">{t("field_whatsapp_number")}</Label>
         <Input
           id="whatsapp_number"
           value={whatsappNumber}
           onChange={(e) => setWhatsappNumber(e.target.value)}
-          placeholder="+591 12345678"
+          placeholder={t("placeholder_whatsapp_number")}
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Recomendado: un número exclusivo para el negocio. Si usas un número personal,
-          tendrás que escanear el QR cada vez que cierres sesión.
+          {t("whatsapp_number_hint")}
         </p>
       </div>
       <div className="rounded-md bg-primary/10 border border-primary/30 px-4 py-3 text-xs text-foreground">
-        <strong>Conexión instantánea:</strong> Después de crear el agente, ve a
-        Ajustes → Integraciones y toca “Conectar WhatsApp”. Escaneas el QR con el
-        WhatsApp del negocio (como WhatsApp Web) y queda activo al instante.
+        {t.rich("whatsapp_instant_note", {
+          strong: (chunks) => <strong>{chunks}</strong>,
+        })}
       </div>
     </Card>
   );
@@ -381,18 +383,18 @@ function Step4({
   accentColor: string; setAccentColor: (v: string) => void;
   logoUrl: string; setLogoUrl: (v: string) => void;
 }) {
+  const t = useTranslations("onboarding");
   return (
     <Card className="p-6 md:p-8 space-y-5">
       <div>
-        <h2 className="text-2xl font-display font-bold">Tu marca</h2>
+        <h2 className="text-2xl font-display font-bold">{t("step3_title")}</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Estos colores se aplican al dashboard, emails de confirmación y enlaces.
-          Puedes editarlos cuando quieras.
+          {t("step3_description")}
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1">
-          <Label htmlFor="primary_color">Color primario</Label>
+          <Label htmlFor="primary_color">{t("field_primary_color")}</Label>
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -409,7 +411,7 @@ function Step4({
           </div>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="accent_color">Color de acento</Label>
+          <Label htmlFor="accent_color">{t("field_accent_color")}</Label>
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -427,22 +429,22 @@ function Step4({
         </div>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="logo_url">URL de logo (opcional)</Label>
+        <Label htmlFor="logo_url">{t("field_logo_url")}</Label>
         <Input
           id="logo_url"
           type="url"
           value={logoUrl}
           onChange={(e) => setLogoUrl(e.target.value)}
-          placeholder="https://ejemplo.com/logo.png"
+          placeholder={t("placeholder_logo_url")}
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Si no tienes una URL pública, puedes saltarlo y subirla después desde Ajustes.
+          {t("logo_url_hint")}
         </p>
       </div>
       <div className="rounded-md bg-primary/10 border border-primary/30 px-4 py-3 text-xs text-foreground">
-        <strong>Siguiente paso:</strong> Después de crear, te llevamos a Facturación
-        para que recargues créditos. Tu agente queda <strong>en pausa</strong> hasta
-        tener saldo — así no se acumulan cargos sin tu autorización.
+        {t.rich("next_step_note", {
+          strong: (chunks) => <strong>{chunks}</strong>,
+        })}
       </div>
     </Card>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ export function ServiceFormDialog({
   allStaff: StaffOption[];
   linkedStaffIds: string[];
 }) {
+  const t = useTranslations("services");
   const isEdit = !!service;
   const [state, action, pending] = useActionState(
     isEdit ? updateServiceAction : createServiceAction,
@@ -58,9 +60,10 @@ export function ServiceFormDialog({
   useEffect(() => {
     if (state.error) toast.error(state.error);
     if (state.success) {
-      toast.success(isEdit ? "Servicio actualizado" : "Servicio creado");
+      toast.success(isEdit ? t("service_updated") : t("service_created"));
       onClose();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, isEdit, onClose]);
 
   const linkedSet = new Set(linkedStaffIds);
@@ -69,9 +72,9 @@ export function ServiceFormDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar servicio" : "Nuevo servicio"}</DialogTitle>
+          <DialogTitle>{isEdit ? t("edit_service") : t("new_service")}</DialogTitle>
           <DialogDescription>
-            Esta info la usa el agente para responder y reservar citas.
+            {t("form_description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -80,28 +83,28 @@ export function ServiceFormDialog({
           {service ? <input type="hidden" name="id" value={service.id} /> : null}
 
           <Field
-            label="Nombre"
+            label={t("name")}
             name="name"
             defaultValue={service?.name ?? ""}
             required
-            placeholder="Limpieza dental"
+            placeholder={t("name_placeholder")}
           />
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descripción</Label>
+            <Label htmlFor="description">{t("description")}</Label>
             <textarea
               id="description"
               name="description"
               defaultValue={service?.description ?? ""}
               rows={2}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="Revisión general + limpieza profunda con ultrasonido"
+              placeholder={t("description_placeholder")}
             />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2 space-y-2">
-              <Label htmlFor="price_amount">Precio</Label>
+              <Label htmlFor="price_amount">{t("price")}</Label>
               <Input
                 id="price_amount"
                 name="price_amount"
@@ -113,7 +116,7 @@ export function ServiceFormDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="price_currency">Moneda</Label>
+              <Label htmlFor="price_currency">{t("currency")}</Label>
               <Input
                 id="price_currency"
                 name="price_currency"
@@ -126,7 +129,7 @@ export function ServiceFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <Field
-              label="Duración (min)"
+              label={t("duration_min")}
               name="duration_min"
               type="number"
               min="5"
@@ -135,19 +138,18 @@ export function ServiceFormDialog({
               required
             />
             <Field
-              label="Categoría"
+              label={t("category")}
               name="category"
               defaultValue={service?.category ?? ""}
-              placeholder="Higiene"
+              placeholder={t("category_placeholder")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Personal que ofrece este servicio</Label>
+            <Label>{t("staff_offering_service")}</Label>
             {allStaff.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Aún no hay personal. Agrega personal en la sección Personal y
-                vuelve para asignarlo.
+                {t("no_staff_yet")}
               </p>
             ) : (
               <div className="rounded-md border border-input divide-y divide-border max-h-48 overflow-y-auto">
@@ -165,14 +167,14 @@ export function ServiceFormDialog({
                     />
                     <span className={s.active ? "" : "text-muted-foreground"}>
                       {s.name}
-                      {s.active ? "" : " (inactivo)"}
+                      {s.active ? "" : ` ${t("inactive_suffix")}`}
                     </span>
                   </label>
                 ))}
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              El agente solo ofrecerá horarios del personal marcado.
+              {t("agent_offers_marked_staff")}
             </p>
           </div>
 
@@ -183,15 +185,15 @@ export function ServiceFormDialog({
               defaultChecked={service?.active ?? true}
               className="rounded border-input"
             />
-            Activo (el agente puede ofrecerlo)
+            {t("active_service_label")}
           </label>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>
-              Cancelar
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Guardando…" : isEdit ? "Guardar" : "Crear"}
+              {pending ? t("saving") : isEdit ? t("save") : t("create")}
             </Button>
           </DialogFooter>
         </form>

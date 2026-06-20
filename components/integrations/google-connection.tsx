@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useTransition } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { CheckCircle2, RefreshCcw, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ export function GoogleConnection({
   tenantSlug: string;
   integration: GoogleIntegration | null;
 }) {
+  const t = useTranslations("settings_integrations");
+  const locale = useLocale();
   const connected = !!integration?.access_token;
   const expiresAt = integration?.expires_at ? new Date(integration.expires_at) : null;
   const isExpired = expiresAt ? expiresAt.getTime() < Date.now() : false;
@@ -47,16 +50,16 @@ export function GoogleConnection({
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
-    if (state.success) toast.success("Configuración guardada");
-  }, [state]);
+    if (state.success) toast.success(t("google_config_saved"));
+  }, [state, t]);
 
   function handleDisconnect() {
-    if (!confirm("¿Desconectar Google? El agente dejará de poder crear eventos, hojas y emails."))
+    if (!confirm(t("confirm_disconnect_google")))
       return;
     startBusy(async () => {
       const res = await disconnectGoogleAction(tenantId);
       if (res.error) toast.error(res.error);
-      else toast.success("Google desconectado");
+      else toast.success(t("google_disconnected"));
     });
   }
 
@@ -64,7 +67,7 @@ export function GoogleConnection({
     startBusy(async () => {
       const res = await refreshGoogleTokenAction(tenantId);
       if (res.error) toast.error(res.error);
-      else toast.success("Token actualizado");
+      else toast.success(t("token_refreshed"));
     });
   }
 
@@ -72,20 +75,18 @@ export function GoogleConnection({
     return (
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Conecta tu cuenta de Google para que el agente pueda crear eventos en
-          tu Calendar, agregar leads a una Sheet y enviar emails de confirmación.
+          {t("google_connect_intro")}
         </p>
         <Button asChild>
           <a
             href={`/api/google/connect?tenant_id=${tenantId}&tenant_slug=${tenantSlug}`}
           >
             <GoogleIcon />
-            Conectar Google
+            {t("google_connect_btn")}
           </a>
         </Button>
         <p className="text-xs text-muted-foreground">
-          Usa una cuenta dedicada para el agente. Vamos a pedir permisos de
-          Calendar, Sheets y Gmail (envío).
+          {t("google_connect_hint")}
         </p>
       </div>
     );
@@ -100,11 +101,11 @@ export function GoogleConnection({
             <Badge variant={isExpired ? "warning" : "success"}>
               {isExpired ? (
                 <>
-                  <AlertTriangle className="size-3" /> Token expirado
+                  <AlertTriangle className="size-3" /> {t("token_expired")}
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="size-3" /> Conectado
+                  <CheckCircle2 className="size-3" /> {t("connected")}
                 </>
               )}
             </Badge>
@@ -114,7 +115,7 @@ export function GoogleConnection({
           </div>
           {expiresAt ? (
             <p className="text-xs text-muted-foreground mt-1">
-              Expira: {expiresAt.toLocaleString("es")}
+              {t("expires_at", { date: expiresAt.toLocaleString(locale) })}
             </p>
           ) : null}
         </div>
@@ -126,7 +127,7 @@ export function GoogleConnection({
             disabled={busy}
           >
             <RefreshCcw className="size-4" />
-            Refrescar
+            {t("refresh")}
           </Button>
           <Button
             variant="ghost"
@@ -136,7 +137,7 @@ export function GoogleConnection({
             className="text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="size-4" />
-            Desconectar
+            {t("disconnect")}
           </Button>
         </div>
       </div>
@@ -155,9 +156,10 @@ export function GoogleConnection({
             placeholder="primary"
           />
           <p className="text-xs text-muted-foreground">
-            <code>primary</code> usa el calendario por defecto. Para usar uno
-            dedicado, crea uno en Google Calendar y pega su ID (algo como{" "}
-            <code className="font-mono">…@group.calendar.google.com</code>).
+            {t.rich("calendar_id_hint", {
+              code1: () => <code>primary</code>,
+              code2: () => <code className="font-mono">…@group.calendar.google.com</code>,
+            })}
           </p>
         </div>
 
@@ -172,11 +174,13 @@ export function GoogleConnection({
               className="font-mono"
             />
             <p className="text-xs text-muted-foreground">
-              ID en la URL: <code>spreadsheets/d/&lt;ID&gt;/edit</code>
+              {t.rich("spreadsheet_id_hint", {
+                code: () => <code>{"spreadsheets/d/<ID>/edit"}</code>,
+              })}
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="sheet_range">Rango de la hoja</Label>
+            <Label htmlFor="sheet_range">{t("field_sheet_range")}</Label>
             <Input
               id="sheet_range"
               name="sheet_range"
@@ -188,7 +192,7 @@ export function GoogleConnection({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="sender_email">Email del remitente</Label>
+          <Label htmlFor="sender_email">{t("field_sender_email")}</Label>
           <Input
             id="sender_email"
             name="sender_email"
@@ -197,13 +201,12 @@ export function GoogleConnection({
             placeholder="hola@tucliente.com"
           />
           <p className="text-xs text-muted-foreground">
-            Desde qué email se envían las confirmaciones. Debe ser una dirección
-            de la cuenta conectada (incluyendo alias autorizados en Gmail).
+            {t("sender_email_hint")}
           </p>
         </div>
 
         <Button type="submit" disabled={pending}>
-          {pending ? "Guardando…" : "Guardar configuración"}
+          {pending ? t("google_saving") : t("google_save_config")}
         </Button>
       </form>
     </div>

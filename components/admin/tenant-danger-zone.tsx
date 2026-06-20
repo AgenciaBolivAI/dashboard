@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { deleteTenantAction, type AdminState } from "@/lib/actions/admin";
 const initial: AdminState = { error: null };
 
 export function TenantDangerZone({ id, slug }: { id: string; slug: string }) {
+  const t = useTranslations("admin_tenant_detail");
   const [state, action, pending] = useActionState(deleteTenantAction, initial);
   const [confirmText, setConfirmText] = useState("");
   const matches = confirmText === slug;
@@ -24,8 +26,10 @@ export function TenantDangerZone({ id, slug }: { id: string; slug: string }) {
       <input type="hidden" name="id" value={id} />
       <div className="space-y-2">
         <Label htmlFor="confirm_slug">
-          Escribe <code className="font-mono text-foreground">{slug}</code>{" "}
-          para confirmar:
+          {t.rich("delete_confirm_label", {
+            slug,
+            code: (c) => <code className="font-mono text-foreground">{c}</code>,
+          })}
         </Label>
         <Input
           id="confirm_slug"
@@ -42,7 +46,7 @@ export function TenantDangerZone({ id, slug }: { id: string; slug: string }) {
         disabled={!matches || pending}
       >
         <Trash2 className="size-4" />
-        {pending ? "Eliminando…" : "Eliminar tenant permanentemente"}
+        {pending ? t("deleting") : t("delete_button")}
       </Button>
     </form>
   );

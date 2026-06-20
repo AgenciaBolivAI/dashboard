@@ -127,7 +127,7 @@ export default async function CalendarPage({
           <Link
             href={`/dashboard/${tenantSlug}/calendar${startParam ? `?start=${startParam}` : ""}`}
             className="shrink-0 rounded px-2 py-0.5 text-xs font-medium hover:bg-destructive/15"
-            aria-label="Dismiss"
+            aria-label={t("dismiss")}
           >
             ✕
           </Link>

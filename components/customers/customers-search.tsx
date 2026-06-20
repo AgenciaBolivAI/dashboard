@@ -60,9 +60,7 @@ export function CustomersSearch({
         type="search"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder={(() => {
-          try { return t("search_placeholder"); } catch { return "Buscar por nombre o teléfono…"; }
-        })()}
+        placeholder={t("search_placeholder")}
         className="pl-9 pr-9"
         autoFocus
       />
@@ -74,7 +72,7 @@ export function CustomersSearch({
             type="button"
             onClick={clear}
             className="text-muted-foreground hover:text-foreground transition p-0.5"
-            aria-label="Limpiar búsqueda"
+            aria-label={t("clear_search")}
           >
             <X className="size-4" />
           </button>

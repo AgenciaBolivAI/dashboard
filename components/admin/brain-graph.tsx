@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Search, X, Layers, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ type GraphLink = GraphEdge & {
 
 export function BrainGraph({ data }: { data: GraphPayload }) {
   const router = useRouter();
+  const t = useTranslations("admin_brain");
   const containerRef = useRef<HTMLDivElement>(null);
   // Initialize types from the data so empty buckets are hidden by default
   const presentTypes = useMemo(() => {
@@ -156,7 +158,7 @@ export function BrainGraph({ data }: { data: GraphPayload }) {
         <Card className="p-3">
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
             <Search className="size-3" />
-            Buscar entidad
+            {t("graph_search_entity")}
           </p>
           <div className="relative">
             <Input
@@ -170,7 +172,7 @@ export function BrainGraph({ data }: { data: GraphPayload }) {
                 type="button"
                 onClick={() => setSearch("")}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label="Limpiar"
+                aria-label={t("graph_clear")}
               >
                 <X className="size-3.5" />
               </button>
@@ -179,9 +181,11 @@ export function BrainGraph({ data }: { data: GraphPayload }) {
           {search.trim() && (
             <p className="text-xs mt-2">
               {highlightedId
-                ? `Resaltado: ${filtered.nodes.find((n) => n.id === highlightedId)?.name}`
+                ? t("graph_highlighted", {
+                    name: filtered.nodes.find((n) => n.id === highlightedId)?.name ?? "",
+                  })
                 : (
-                  <span className="text-muted-foreground italic">Sin coincidencias</span>
+                  <span className="text-muted-foreground italic">{t("graph_no_matches")}</span>
                 )}
             </p>
           )}
@@ -190,7 +194,7 @@ export function BrainGraph({ data }: { data: GraphPayload }) {
         <Card className="p-3">
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
             <Layers className="size-3" />
-            Filtrar por tipo
+            {t("graph_filter_by_type")}
           </p>
           <div className="space-y-1">
             {ALL_TYPES.map((type) => {
@@ -241,15 +245,15 @@ export function BrainGraph({ data }: { data: GraphPayload }) {
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-2">
-              Mencionada {hoveredNode.mention_count} {hoveredNode.mention_count === 1 ? "vez" : "veces"}
+              {t("graph_mentioned", { count: hoveredNode.mention_count })}
             </p>
-            <p className="text-xs text-primary mt-1">Click para ver detalle →</p>
+            <p className="text-xs text-primary mt-1">{t("graph_click_detail")}</p>
           </Card>
         )}
 
         <Card className="p-3 text-xs text-muted-foreground space-y-1">
-          <p><strong className="text-foreground">{filtered.nodes.length}</strong> entidades visibles</p>
-          <p><strong className="text-foreground">{filtered.links.length}</strong> relaciones</p>
+          <p>{t.rich("graph_visible_entities", { count: filtered.nodes.length, strong: (c) => <strong className="text-foreground">{c}</strong> })}</p>
+          <p>{t.rich("graph_relations", { count: filtered.links.length, strong: (c) => <strong className="text-foreground">{c}</strong> })}</p>
         </Card>
       </div>
 

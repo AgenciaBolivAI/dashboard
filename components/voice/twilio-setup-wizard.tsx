@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Loader2, ExternalLink, Phone, CheckCircle2, AlertCircle, X,
 } from "lucide-react";
@@ -40,6 +41,7 @@ export function TwilioSetupWizard({
   };
 }) {
   const router = useRouter();
+  const t = useTranslations("settings_voice");
   const [state, action, pending] = useActionState(attachTwilioNumberAction, initial);
   const [showAuth, setShowAuth] = useState(false);
   const [detaching, startDetach] = useTransition();
@@ -47,20 +49,20 @@ export function TwilioSetupWizard({
   useEffect(() => {
     if (state.error) toast.error(state.error);
     if (state.success) {
-      toast.success("Número conectado. Sandra y Rebecca ya pueden llamar.");
+      toast.success(t("twilio_connected_toast"));
       router.refresh();
     }
-  }, [state, router]);
+  }, [state, router, t]);
 
   function disconnect() {
-    if (!confirm("¿Desconectar tu número? Sandra y Rebecca dejan de funcionar hasta que conectes uno nuevo.")) return;
+    if (!confirm(t("twilio_disconnect_confirm"))) return;
     startDetach(async () => {
       const res = await detachPhoneNumberAction(tenantId);
       if (res.error) {
         toast.error(res.error);
         return;
       }
-      toast.success("Número desconectado");
+      toast.success(t("twilio_disconnected_toast"));
       router.refresh();
     });
   }
@@ -76,15 +78,14 @@ export function TwilioSetupWizard({
             </div>
             <div>
               <p className="font-semibold flex items-center gap-2">
-                Número conectado
-                <Badge variant="success" className="text-[10px]">activo</Badge>
+                {t("number_connected_title")}
+                <Badge variant="success" className="text-[10px]">{t("badge_active_lower")}</Badge>
               </p>
               <p className="text-sm text-muted-foreground mt-0.5 font-mono">
                 {current.phone_number}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Sandra puede llamar a tus leads desde acá. Rebecca atiende
-                cuando alguien llama a este número.
+                {t("number_connected_note")}
               </p>
             </div>
           </div>
@@ -95,7 +96,7 @@ export function TwilioSetupWizard({
             className="text-destructive hover:bg-destructive/10"
           >
             {detaching ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />}
-            Desconectar
+            {t("disconnect")}
           </Button>
         </div>
       </Card>
@@ -108,15 +109,10 @@ export function TwilioSetupWizard({
       <div className="mb-5">
         <p className="font-semibold flex items-center gap-2">
           <Phone className="size-4 text-primary" />
-          Conectá tu número de teléfono
+          {t("wizard_title")}
         </p>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Para que Sandra haga llamadas y Rebecca atienda, necesitás un
-          número de Twilio. Twilio es el proveedor que conecta el número
-          con nuestros agentes de AI. Tomá 5 minutos: créate una cuenta,
-          comprá un número, y pegá las credenciales acá. Pagás Twilio
-          directamente por el número (~$1/mes) y los minutos de carrier
-          (~$0.014/min). BolivAI te cobra los créditos por la AI.
+          {t("wizard_intro")}
         </p>
       </div>
 
@@ -124,50 +120,56 @@ export function TwilioSetupWizard({
       <ol className="space-y-3 mb-6 text-sm">
         <Step
           number={1}
-          title="Creá una cuenta de Twilio"
+          title={t("step1_title")}
           body={
             <span>
-              Andá a{" "}
-              <a
-                href="https://www.twilio.com/try-twilio"
-                target="_blank"
-                rel="noopener"
-                className="text-primary hover:underline inline-flex items-center gap-1"
-              >
-                twilio.com/try-twilio <ExternalLink className="size-3" />
-              </a>{" "}
-              y registrate. Te dan $15 de crédito gratis para empezar.
+              {t.rich("step1_body", {
+                link: (chunks) => (
+                  <a
+                    href="https://www.twilio.com/try-twilio"
+                    target="_blank"
+                    rel="noopener"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    {chunks} <ExternalLink className="size-3" />
+                  </a>
+                ),
+              })}
             </span>
           }
         />
         <Step
           number={2}
-          title="Comprá un número"
+          title={t("step2_title")}
           body={
             <span>
-              En tu Twilio Console abrí{" "}
-              <a
-                href="https://console.twilio.com/us1/develop/phone-numbers/manage/search"
-                target="_blank"
-                rel="noopener"
-                className="text-primary hover:underline inline-flex items-center gap-1"
-              >
-                Phone Numbers → Buy a number <ExternalLink className="size-3" />
-              </a>
-              . Elegí país, marcá <strong>Voice</strong>, y comprá uno
-              (~$1.15/mes el de EE.UU).
+              {t.rich("step2_body", {
+                link: (chunks) => (
+                  <a
+                    href="https://console.twilio.com/us1/develop/phone-numbers/manage/search"
+                    target="_blank"
+                    rel="noopener"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    {chunks} <ExternalLink className="size-3" />
+                  </a>
+                ),
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </span>
           }
         />
         <Step
           number={3}
-          title="Copiá tus credenciales"
+          title={t("step3_title")}
           body={
             <span>
-              En el dashboard de Twilio, copiá el{" "}
-              <strong>Account SID</strong> (empieza con <code className="text-xs bg-muted px-1 rounded">AC</code>)
-              y el <strong>Auth Token</strong>. Los encontrás en la página
-              principal de la Console.
+              {t.rich("step3_body", {
+                strong: (chunks) => <strong>{chunks}</strong>,
+                code: (chunks) => (
+                  <code className="text-xs bg-muted px-1 rounded">{chunks}</code>
+                ),
+              })}
             </span>
           }
         />
@@ -179,7 +181,7 @@ export function TwilioSetupWizard({
 
         <div className="space-y-1.5">
           <Label htmlFor="phone_number" className="text-xs">
-            Tu número de Twilio (formato internacional)
+            {t("field_phone_number")}
           </Label>
           <Input
             id="phone_number"
@@ -190,7 +192,7 @@ export function TwilioSetupWizard({
             className="font-mono"
           />
           <p className="text-[11px] text-muted-foreground">
-            Incluí el "+" y el código de país. Sin espacios ni guiones.
+            {t("field_phone_number_hint")}
           </p>
         </div>
 
@@ -227,13 +229,11 @@ export function TwilioSetupWizard({
               onClick={() => setShowAuth((v) => !v)}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
             >
-              {showAuth ? "ocultar" : "ver"}
+              {showAuth ? t("toggle_hide") : t("toggle_show")}
             </button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Guardamos el token cifrado para hacer las llamadas en tu nombre.
-            Podés rotarlo en cualquier momento desde Twilio y volver a
-            conectar acá.
+            {t("auth_token_hint")}
           </p>
         </div>
 
@@ -248,12 +248,12 @@ export function TwilioSetupWizard({
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Conectando…
+              {t("connecting")}
             </>
           ) : (
             <>
               <Phone className="size-4" />
-              Conectar número
+              {t("connect_number")}
             </>
           )}
         </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,55 +126,56 @@ export function GeneralForm({
     notify_on_cancel: boolean;
   };
 }) {
+  const t = useTranslations("settings_general");
   const [state, action, pending] = useActionState(updateTenantGeneralAction, initial);
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
-    if (state.success) toast.success("Cambios guardados");
-  }, [state]);
+    if (state.success) toast.success(t("toast_saved"));
+  }, [state, t]);
 
   return (
     <form action={action} className="space-y-5 max-w-xl">
       <input type="hidden" name="tenant_id" value={tenant.id} />
 
-      <Field label="Nombre del negocio" name="name" defaultValue={tenant.name} required />
-      <Field label="Industria" name="industry" defaultValue={tenant.industry ?? ""} placeholder="fisioterapia, dental, inmobiliaria…" />
+      <Field label={t("field_name")} name="name" defaultValue={tenant.name} required />
+      <Field label={t("field_industry")} name="industry" defaultValue={tenant.industry ?? ""} placeholder={t("industry_placeholder")} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Idioma" name="language" defaultValue={tenant.language} placeholder="es, es-ES, es-BO" required />
+        <Field label={t("field_language")} name="language" defaultValue={tenant.language} placeholder="es, es-ES, es-BO" required />
         <TimezoneField defaultValue={tenant.timezone} />
       </div>
 
       <Field
-        label="WhatsApp del negocio"
+        label={t("field_whatsapp")}
         name="whatsapp_number"
         defaultValue={tenant.whatsapp_number ?? ""}
         placeholder="59171234567"
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Email de soporte (visible al cliente)" name="support_email" type="email" defaultValue={tenant.support_email ?? ""} />
-        <Field label="WhatsApp de soporte (visible al cliente)" name="support_whatsapp" defaultValue={tenant.support_whatsapp ?? ""} />
+        <Field label={t("field_support_email")} name="support_email" type="email" defaultValue={tenant.support_email ?? ""} />
+        <Field label={t("field_support_whatsapp")} name="support_whatsapp" defaultValue={tenant.support_whatsapp ?? ""} />
       </div>
 
       <div className="border-t pt-5 space-y-4">
         <div>
-          <h3 className="text-sm font-semibold">Notificaciones de reservas</h3>
+          <h3 className="text-sm font-semibold">{t("notifications_title")}</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Aquí recibes tú (dueño del negocio) los avisos cuando un cliente reserva, reprograma o cancela.
+            {t("notifications_description")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field
-            label="Email para avisos"
+            label={t("field_notification_email")}
             name="notification_email"
             type="email"
             defaultValue={tenant.notification_email ?? ""}
             placeholder="duenodelnegocio@email.com"
           />
           <Field
-            label="WhatsApp para avisos (E.164)"
+            label={t("field_notification_whatsapp")}
             name="notification_whatsapp_e164"
             defaultValue={tenant.notification_whatsapp_e164 ?? ""}
             placeholder="+59171234567"
@@ -181,15 +183,15 @@ export function GeneralForm({
         </div>
 
         <fieldset className="space-y-2">
-          <legend className="text-sm">Avisarme cuando…</legend>
-          <Checkbox name="notify_on_new_reservation" defaultChecked={tenant.notify_on_new_reservation} label="Se crea una reserva nueva" />
-          <Checkbox name="notify_on_reschedule"      defaultChecked={tenant.notify_on_reschedule}      label="Se reprograma una reserva" />
-          <Checkbox name="notify_on_cancel"          defaultChecked={tenant.notify_on_cancel}          label="Se cancela una reserva" />
+          <legend className="text-sm">{t("notify_legend")}</legend>
+          <Checkbox name="notify_on_new_reservation" defaultChecked={tenant.notify_on_new_reservation} label={t("notify_new_reservation")} />
+          <Checkbox name="notify_on_reschedule"      defaultChecked={tenant.notify_on_reschedule}      label={t("notify_reschedule")} />
+          <Checkbox name="notify_on_cancel"          defaultChecked={tenant.notify_on_cancel}          label={t("notify_cancel")} />
         </fieldset>
       </div>
 
       <Button type="submit" disabled={pending}>
-        {pending ? "Guardando…" : "Guardar cambios"}
+        {pending ? t("saving") : t("save_changes")}
       </Button>
     </form>
   );
@@ -210,11 +212,12 @@ function Field({
 }
 
 function TimezoneField({ defaultValue }: { defaultValue: string }) {
+  const t = useTranslations("settings_general");
   const known = new Set(TIMEZONE_GROUPS.flatMap((g) => g.zones.map((z) => z.value)));
   const isCustom = defaultValue && !known.has(defaultValue);
   return (
     <div className="space-y-2">
-      <Label htmlFor="timezone">Zona horaria</Label>
+      <Label htmlFor="timezone">{t("field_timezone")}</Label>
       <select
         id="timezone"
         name="timezone"
@@ -227,7 +230,7 @@ function TimezoneField({ defaultValue }: { defaultValue: string }) {
         )}
       >
         {isCustom ? (
-          <option value={defaultValue}>{defaultValue} (actual)</option>
+          <option value={defaultValue}>{t("timezone_current", { zone: defaultValue })}</option>
         ) : null}
         {TIMEZONE_GROUPS.map((group) => (
           <optgroup key={group.label} label={group.label}>
@@ -240,7 +243,7 @@ function TimezoneField({ defaultValue }: { defaultValue: string }) {
         ))}
       </select>
       <p className="text-xs text-muted-foreground">
-        Define cómo se muestran fechas y horarios en el calendario, los avisos y los mensajes del agente.
+        {t("timezone_hint")}
       </p>
     </div>
   );

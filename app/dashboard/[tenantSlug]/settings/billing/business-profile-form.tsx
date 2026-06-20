@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,18 +16,11 @@ const initial: BillingState = { error: null };
 
 const CURRENCIES = ["USD", "EUR", "GBP", "MXN", "BRL", "CLP", "PEN", "COP", "ARS", "CAD", "AUD"];
 
-const COUNTRIES = [
-  ["US", "Estados Unidos"], ["CA", "Canadá"], ["MX", "México"],
-  ["BR", "Brasil"], ["AR", "Argentina"], ["CL", "Chile"], ["CO", "Colombia"],
-  ["PE", "Perú"], ["EC", "Ecuador"], ["VE", "Venezuela"], ["BO", "Bolivia"],
-  ["UY", "Uruguay"], ["PY", "Paraguay"], ["PA", "Panamá"], ["CR", "Costa Rica"],
-  ["DO", "Rep. Dominicana"], ["GT", "Guatemala"], ["HN", "Honduras"],
-  ["SV", "El Salvador"], ["NI", "Nicaragua"], ["PR", "Puerto Rico"],
-  ["ES", "España"], ["PT", "Portugal"], ["GB", "Reino Unido"],
-  ["FR", "Francia"], ["DE", "Alemania"], ["IT", "Italia"],
-  ["NL", "Países Bajos"], ["IE", "Irlanda"],
-  ["AU", "Australia"], ["NZ", "Nueva Zelanda"],
-  ["JP", "Japón"], ["SG", "Singapur"], ["IN", "India"],
+const COUNTRY_CODES = [
+  "US", "CA", "MX", "BR", "AR", "CL", "CO", "PE", "EC", "VE", "BO",
+  "UY", "PY", "PA", "CR", "DO", "GT", "HN", "SV", "NI", "PR",
+  "ES", "PT", "GB", "FR", "DE", "IT", "NL", "IE",
+  "AU", "NZ", "JP", "SG", "IN",
 ];
 
 export function BusinessProfileForm({
@@ -46,15 +40,22 @@ export function BusinessProfileForm({
     invoice_default_currency: string;
   };
 }) {
+  const t = useTranslations("settings_billing");
+  const locale = useLocale();
   const [state, action, pending] = useActionState(
     updateBusinessProfileAction,
     initial,
   );
 
+  const regionNames = new Intl.DisplayNames([locale], { type: "region" });
+  const countries = COUNTRY_CODES.map(
+    (code) => [code, regionNames.of(code) ?? code] as const,
+  ).sort((a, b) => a[1].localeCompare(b[1], locale));
+
   useEffect(() => {
     if (state.error) toast.error(state.error);
-    if (state.success) toast.success("Datos guardados");
-  }, [state]);
+    if (state.success) toast.success(t("toast_data_saved"));
+  }, [state, t]);
 
   return (
     <form action={action} className="space-y-5 max-w-2xl">
@@ -62,13 +63,13 @@ export function BusinessProfileForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field
-          label="Razón social"
+          label={t("field_legal_name")}
           name="legal_name"
           defaultValue={tenant.legal_name ?? ""}
           placeholder="BolivAI LLC"
         />
         <Field
-          label="ID fiscal / RFC / VAT / EIN"
+          label={t("field_tax_id")}
           name="tax_id"
           defaultValue={tenant.tax_id ?? ""}
           placeholder="EIN, RFC, NIT, CUIT, VAT…"
@@ -76,33 +77,33 @@ export function BusinessProfileForm({
       </div>
 
       <Field
-        label="Dirección (línea 1)"
+        label={t("field_address_line1")}
         name="address_line1"
         defaultValue={tenant.address_line1 ?? ""}
         placeholder="30 N Gould St Ste R"
       />
       <Field
-        label="Dirección (línea 2)"
+        label={t("field_address_line2")}
         name="address_line2"
         defaultValue={tenant.address_line2 ?? ""}
-        placeholder="Suite, depto, referencia…"
+        placeholder={t("address_line2_placeholder")}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Field
-          label="Ciudad"
+          label={t("field_city")}
           name="address_city"
           defaultValue={tenant.address_city ?? ""}
           placeholder="Sheridan"
         />
         <Field
-          label="Estado / Provincia"
+          label={t("field_state")}
           name="address_state"
           defaultValue={tenant.address_state ?? ""}
           placeholder="WY"
         />
         <Field
-          label="Código postal"
+          label={t("field_postal_code")}
           name="address_postal_code"
           defaultValue={tenant.address_postal_code ?? ""}
           placeholder="82801"
@@ -111,15 +112,15 @@ export function BusinessProfileForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="address_country">País</Label>
+          <Label htmlFor="address_country">{t("field_country")}</Label>
           <select
             id="address_country"
             name="address_country"
             defaultValue={tenant.address_country ?? ""}
             className={selectCls}
           >
-            <option value="">— Sin definir —</option>
-            {COUNTRIES.map(([code, name]) => (
+            <option value="">{t("country_unset")}</option>
+            {countries.map(([code, name]) => (
               <option key={code} value={code}>
                 {name} ({code})
               </option>
@@ -127,7 +128,7 @@ export function BusinessProfileForm({
           </select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="invoice_default_currency">Moneda por defecto</Label>
+          <Label htmlFor="invoice_default_currency">{t("field_default_currency")}</Label>
           <select
             id="invoice_default_currency"
             name="invoice_default_currency"
@@ -144,26 +145,25 @@ export function BusinessProfileForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="invoice_footer">Pie de página de las facturas</Label>
+        <Label htmlFor="invoice_footer">{t("field_invoice_footer")}</Label>
         <textarea
           id="invoice_footer"
           name="invoice_footer"
           defaultValue={tenant.invoice_footer ?? ""}
           rows={3}
-          placeholder="Términos de pago, agradecimiento, datos bancarios alternativos…"
+          placeholder={t("invoice_footer_placeholder")}
           className={cn(
             "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
             "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y",
           )}
         />
         <p className="text-xs text-muted-foreground">
-          Aparece al final de cada factura. Útil para términos de pago,
-          políticas de cancelación, o un agradecimiento.
+          {t("invoice_footer_hint")}
         </p>
       </div>
 
       <Button type="submit" disabled={pending}>
-        {pending ? "Guardando…" : "Guardar cambios"}
+        {pending ? t("saving") : t("save_changes")}
       </Button>
     </form>
   );

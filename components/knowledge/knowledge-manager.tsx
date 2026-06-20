@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Upload, Plus, Pencil, Trash2, FileText, Files } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,8 @@ export function KnowledgeManager({
   chunks: AnyChunk[];
   sources: KnowledgeSource[];
 }) {
+  const t = useTranslations("knowledge");
+  const locale = useLocale();
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, startUpload] = useTransition();
   const [busy, startBusy] = useTransition();
@@ -62,7 +65,7 @@ export function KnowledgeManager({
     fd.set("file", file);
 
     const id = toast.loading(
-      `Procesando ${file.name}… (extrayendo, dividiendo, embedding)`,
+      t("upload_processing_toast", { name: file.name }),
     );
 
     startUpload(async () => {
@@ -71,15 +74,15 @@ export function KnowledgeManager({
         if (res.error) {
           toast.error(res.error, { id });
         } else if (res.duplicateSkipped) {
-          toast.warning("Este documento ya estaba ingresado", { id });
+          toast.warning(t("upload_duplicate_toast"), { id });
         } else {
           toast.success(
-            `${res.chunksAdded} chunk${res.chunksAdded === 1 ? "" : "s"} añadido${res.chunksAdded === 1 ? "" : "s"} desde ${file.name}`,
+            t("upload_success_toast", { count: res.chunksAdded ?? 0, name: file.name }),
             { id },
           );
         }
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Error al subir", { id });
+        toast.error(e instanceof Error ? e.message : t("upload_error_toast"), { id });
       } finally {
         if (fileInput.current) fileInput.current.value = "";
       }
@@ -97,32 +100,21 @@ export function KnowledgeManager({
   }
 
   function handleDelete(c: AnyChunk) {
-    if (!confirm("¿Eliminar este chunk? El agente dejará de poder usarlo.")) return;
+    if (!confirm(t("delete_chunk_confirm"))) return;
     startBusy(async () => {
       const res = await deleteChunkAction(tenantId, type, c.id);
       if (res.error) toast.error(res.error);
-      else toast.success("Chunk eliminado");
+      else toast.success(t("chunk_deleted_toast"));
     });
   }
 
   function handleDeleteSource(source: string, chunkCount: number) {
-    if (
-      !confirm(
-        `Eliminar la fuente "${source}"${
-          chunkCount > 0 ? ` y sus ${chunkCount} chunk${chunkCount === 1 ? "" : "s"}` : ""
-        }?\nLa fuente quedará disponible para re-subir.`,
-      )
-    )
-      return;
+    if (!confirm(t("delete_source_confirm", { source, count: chunkCount }))) return;
     startBusy(async () => {
       const res = await deleteSourceAction(tenantId, type, source);
       if (res.error) toast.error(res.error);
       else
-        toast.success(
-          chunkCount > 0
-            ? `Eliminados ${chunkCount} chunks y la fuente`
-            : "Fuente eliminada",
-        );
+        toast.success(t("source_deleted_toast", { count: chunkCount }));
     });
   }
 
@@ -131,8 +123,7 @@ export function KnowledgeManager({
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
         <p className="text-sm text-muted-foreground">
-          {chunks.length} chunk{chunks.length === 1 ? "" : "s"} ·{" "}
-          {sources.length} fuente{sources.length === 1 ? "" : "s"}
+          {t("toolbar_counter", { chunks: chunks.length, sources: sources.length })}
         </p>
         <div className="flex gap-2">
           <input
@@ -148,11 +139,11 @@ export function KnowledgeManager({
             disabled={uploading}
           >
             <Upload className="size-4" />
-            {uploading ? "Procesando…" : "Subir archivo"}
+            {uploading ? t("uploading") : t("upload_file")}
           </Button>
           <Button onClick={openNew}>
             <Plus className="size-4" />
-            Agregar manualmente
+            {t("add_manually")}
           </Button>
         </div>
       </div>
@@ -164,7 +155,7 @@ export function KnowledgeManager({
           <Card id="sources" className="scroll-mt-20">
             <div className="border-b border-border px-4 py-3 flex items-center gap-2">
               <Files className="size-4 text-muted-foreground" />
-              <p className="font-medium text-sm">Fuentes</p>
+              <p className="font-medium text-sm">{t("sources_title")}</p>
               <span className="text-xs text-muted-foreground ml-auto">
                 {sources.length}
               </span>
@@ -179,14 +170,13 @@ export function KnowledgeManager({
                     <p className="text-sm font-medium truncate">{s.source}</p>
                     <p className="text-xs text-muted-foreground">
                       {s.chunk_count > 0 ? (
-                        <>
-                          {s.chunk_count} chunk
-                          {s.chunk_count === 1 ? "" : "s"} · subido{" "}
-                          {formatRelative(s.ingested_at)}
-                        </>
+                        t("source_row_meta", {
+                          count: s.chunk_count,
+                          ago: formatRelative(s.ingested_at, locale),
+                        })
                       ) : (
                         <span className="text-yellow-500">
-                          0 chunks (huérfano) · bloquea re-subida
+                          {t("source_orphan")}
                         </span>
                       )}
                     </p>
@@ -199,7 +189,7 @@ export function KnowledgeManager({
                     disabled={busy}
                   >
                     <Trash2 className="size-4" />
-                    Eliminar
+                    {t("delete")}
                   </Button>
                 </div>
               ))}
@@ -212,21 +202,20 @@ export function KnowledgeManager({
             <FileText className="size-10 text-muted-foreground mb-4" />
             <p className="font-medium">
               {type === "documents"
-                ? "Aún no hay chunks de FAQ"
-                : "Aún no hay conocimiento clínico"}
+                ? t("empty_documents")
+                : t("empty_clinical")}
             </p>
             <p className="text-sm text-muted-foreground mt-1 max-w-md">
-              Sube un PDF/DOCX/TXT/MD, o agrega un chunk manualmente. Soporta
-              archivos hasta 25 MB.
+              {t("empty_hint")}
             </p>
             <div className="mt-4 flex gap-2">
               <Button variant="outline" onClick={triggerUpload} disabled={uploading}>
                 <Upload className="size-4" />
-                Subir archivo
+                {t("upload_file")}
               </Button>
               <Button onClick={openNew}>
                 <Plus className="size-4" />
-                Manual
+                {t("manual")}
               </Button>
             </div>
           </Card>
@@ -237,11 +226,11 @@ export function KnowledgeManager({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-1/3">
-                    {type === "documents" ? "Pregunta / Tema" : "Síntoma / Tema"}
+                    {type === "documents" ? t("col_question_topic") : t("col_symptom_topic")}
                   </TableHead>
-                  <TableHead>Contenido</TableHead>
-                  <TableHead className="w-32">Fuente</TableHead>
-                  <TableHead className="w-24">Añadido</TableHead>
+                  <TableHead>{t("col_content")}</TableHead>
+                  <TableHead className="w-32">{t("col_source")}</TableHead>
+                  <TableHead className="w-24">{t("col_added")}</TableHead>
                   <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
@@ -257,7 +246,7 @@ export function KnowledgeManager({
                         <p className="text-sm font-medium line-clamp-2">
                           {heading || (
                             <span className="italic text-muted-foreground">
-                              (sin título)
+                              {t("untitled")}
                             </span>
                           )}
                         </p>
@@ -273,7 +262,7 @@ export function KnowledgeManager({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {formatRelative(c.created_at)}
+                        {formatRelative(c.created_at, locale)}
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { PhoneCall, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -41,14 +41,14 @@ export type LeadFromQuery = {
   metadata?: { city?: string; vertical?: string; website?: string; primary_type?: string } | null;
 };
 
-const STATUS_LABEL: Record<LeadStatus, string> = {
-  new: "Nuevo",
-  contacted: "Contactado",
-  warm: "Caliente",
-  converted: "Convertido",
-  not_interested: "No interesado",
-  do_not_contact: "No contactar",
-  lost: "Perdido",
+const STATUS_KEY: Record<LeadStatus, string> = {
+  new: "status_label_new",
+  contacted: "status_label_contacted",
+  warm: "status_label_warm",
+  converted: "status_label_converted",
+  not_interested: "status_label_not_interested",
+  do_not_contact: "status_label_do_not_contact",
+  lost: "status_label_lost",
 };
 
 const STATUS_CLASS: Record<LeadStatus, string> = {
@@ -71,6 +71,7 @@ export function LeadsTable({
   const params = useParams<{ tenantSlug?: string }>();
   const tenantSlugParam = params?.tenantSlug ?? "";
   const t = useTranslations("leads");
+  const locale = useLocale();
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [adding, startAdd] = useTransition();
@@ -160,7 +161,11 @@ export function LeadsTable({
       const res = await updateLeadStatusAction(tenantId, leadId, next);
       if (res.error) toast.error(res.error);
       else {
-        toast.success(t("status_marked_as", { status: STATUS_LABEL[next as LeadStatus] ?? next }));
+        toast.success(
+          t("status_marked_as", {
+            status: STATUS_KEY[next as LeadStatus] ? t(STATUS_KEY[next as LeadStatus]) : next,
+          }),
+        );
         router.refresh();
       }
     });
@@ -232,11 +237,11 @@ export function LeadsTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
-              <TableHead>Nombre</TableHead>
-              <TableHead>Contacto</TableHead>
-              <TableHead>Intención</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="w-32">Capturado</TableHead>
+              <TableHead>{t("col_name")}</TableHead>
+              <TableHead>{t("col_contact")}</TableHead>
+              <TableHead>{t("col_intent")}</TableHead>
+              <TableHead>{t("col_status")}</TableHead>
+              <TableHead className="w-32">{t("col_captured")}</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -255,7 +260,7 @@ export function LeadsTable({
                       disabled={!canSelect}
                       onChange={() => toggle(l.id)}
                       className="size-4 rounded border cursor-pointer disabled:opacity-30"
-                      title={canSelect ? "Seleccionar" : "Sin teléfono"}
+                      title={canSelect ? t("checkbox_select") : t("checkbox_no_phone")}
                     />
                   </TableCell>
                   <TableCell className="font-medium">
@@ -312,13 +317,13 @@ export function LeadsTable({
                     >
                       {LEAD_STATUSES.map((s) => (
                         <option key={s} value={s}>
-                          {STATUS_LABEL[s]}
+                          {t(STATUS_KEY[s])}
                         </option>
                       ))}
                     </select>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {formatDate(l.created_at)}
+                    {formatDate(l.created_at, locale)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 justify-end">

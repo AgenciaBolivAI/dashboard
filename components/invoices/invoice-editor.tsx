@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2, Send, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ export function InvoiceEditor({
   invoice: Invoice | null;
   items: InvoiceItem[];
 }) {
+  const t = useTranslations("invoices");
   const router = useRouter();
   const [state, action, pending] = useActionState(upsertInvoiceAction, initial);
   const [sending, startSend] = useTransition();
@@ -75,11 +77,12 @@ export function InvoiceEditor({
   useEffect(() => {
     if (state.error) toast.error(state.error);
     if (state.success) {
-      toast.success("Borrador guardado");
+      toast.success(t("draft_saved"));
       if (state.invoiceId && !invoice) {
         router.push(`/dashboard/${tenant.slug}/invoices/${state.invoiceId}`);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, router, tenant.slug, invoice]);
 
   const totals = useMemo(() => {
@@ -118,15 +121,15 @@ export function InvoiceEditor({
 
   async function handleSend() {
     if (!invoice) {
-      toast.error("Guarda el borrador primero");
+      toast.error(t("save_draft_first"));
       return;
     }
-    if (!confirm("Una vez enviada no podrás editarla. ¿Continuar?")) return;
+    if (!confirm(t("send_confirm"))) return;
     startSend(async () => {
       const res = await sendInvoiceAction(tenant.id, invoice.id);
       if (res.error) toast.error(res.error);
       else {
-        toast.success("Factura enviada");
+        toast.success(t("invoice_sent"));
         router.refresh();
       }
     });
@@ -143,46 +146,43 @@ export function InvoiceEditor({
       {!tenant.stripe_account_id || !tenant.stripe_charges_enabled ? (
         <div className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary/40 border border-border rounded-md p-3">
           <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-          <span>
-            Puedes guardar el borrador, pero para enviarla necesitas conectar Stripe en{" "}
-            Ajustes → Facturación.
-          </span>
+          <span>{t("stripe_required_warning")}</span>
         </div>
       ) : null}
 
       {/* Customer card */}
-      <Section title="Cliente">
+      <Section title={t("field_customer")}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field
-            label="Nombre"
+            label={t("name")}
             name="customer_name"
             defaultValue={invoice?.customer_name ?? ""}
-            placeholder="Nombre completo"
+            placeholder={t("full_name")}
             required
           />
           <Field
-            label="Email"
+            label={t("field_email")}
             name="customer_email"
             type="email"
             defaultValue={invoice?.customer_email ?? ""}
-            placeholder="cliente@email.com"
+            placeholder="name@example.com"
             required
           />
           <Field
-            label="Teléfono"
+            label={t("field_phone")}
             name="customer_phone"
             defaultValue={invoice?.customer_phone ?? ""}
             placeholder="+1…"
           />
           <Field
-            label="Vence"
+            label={t("field_due")}
             name="due_date"
             type="date"
             defaultValue={invoice?.due_date ?? ""}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="customer_address">Dirección (opcional)</Label>
+          <Label htmlFor="customer_address">{t("address_optional")}</Label>
           <textarea
             id="customer_address"
             name="customer_address"
@@ -194,7 +194,7 @@ export function InvoiceEditor({
       </Section>
 
       {/* Items */}
-      <Section title="Items">
+      <Section title={t("items")}>
         <div className="space-y-2">
           {items.map((it, idx) => (
             <div
@@ -202,14 +202,14 @@ export function InvoiceEditor({
               className="grid grid-cols-12 gap-2 items-end rounded-md border border-border p-3"
             >
               <div className="col-span-12 sm:col-span-5 space-y-1">
-                <Label className="text-xs">Descripción</Label>
+                <Label className="text-xs">{t("col_description")}</Label>
                 {services.length > 0 ? (
                   <select
                     value={it.service_id ?? ""}
                     onChange={(e) => applyServiceToItem(idx, e.target.value)}
                     className={cn(selectCls, "mb-1 text-xs")}
                   >
-                    <option value="">— Elegir servicio (opcional) —</option>
+                    <option value="">{t("choose_service_optional")}</option>
                     {services.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
@@ -220,12 +220,12 @@ export function InvoiceEditor({
                 <Input
                   value={it.description}
                   onChange={(e) => patchItem(idx, { description: e.target.value })}
-                  placeholder="Consulta, sesión, etc."
+                  placeholder={t("item_placeholder")}
                   required
                 />
               </div>
               <div className="col-span-4 sm:col-span-2 space-y-1">
-                <Label className="text-xs">Cantidad</Label>
+                <Label className="text-xs">{t("quantity")}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -235,7 +235,7 @@ export function InvoiceEditor({
                 />
               </div>
               <div className="col-span-4 sm:col-span-2 space-y-1">
-                <Label className="text-xs">Precio unit.</Label>
+                <Label className="text-xs">{t("unit_price")}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -247,7 +247,7 @@ export function InvoiceEditor({
                 />
               </div>
               <div className="col-span-3 sm:col-span-2 space-y-1">
-                <Label className="text-xs">IVA %</Label>
+                <Label className="text-xs">{t("tax_pct")}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -267,28 +267,28 @@ export function InvoiceEditor({
                   onClick={() => removeItem(idx)}
                   className="text-muted-foreground hover:text-destructive"
                   disabled={items.length === 1}
-                  title="Eliminar item"
+                  title={t("remove_item")}
                 >
                   <Trash2 className="size-4" />
                 </Button>
               </div>
               <div className="col-span-12 text-right text-xs text-muted-foreground -mt-1">
-                Importe: {formatMoney(Math.round(it.quantity * it.unit_price_cents), currency)}
+                {t("amount")}: {formatMoney(Math.round(it.quantity * it.unit_price_cents), currency)}
               </div>
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={addItem}>
             <Plus className="size-4" />
-            Añadir item
+            {t("add_item")}
           </Button>
         </div>
       </Section>
 
       {/* Currency + recurring + totals */}
-      <Section title="Totales">
+      <Section title={t("totals")}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="currency">Moneda</Label>
+            <Label htmlFor="currency">{t("currency")}</Label>
             <select
               id="currency"
               name="currency"
@@ -304,7 +304,7 @@ export function InvoiceEditor({
             </select>
           </div>
           <div className="space-y-2">
-            <Label>Total</Label>
+            <Label>{t("total")}</Label>
             <div className="h-10 rounded-md border border-input bg-secondary/20 px-3 py-2 text-sm flex items-center justify-end font-medium tabular-nums">
               {formatMoney(totals.total, currency)}
             </div>
@@ -319,26 +319,26 @@ export function InvoiceEditor({
             onChange={(e) => setIsRecurring(e.target.checked)}
             className="h-4 w-4 rounded border-input"
           />
-          <span>Cobro recurrente (suscripción)</span>
+          <span>{t("recurring_charge")}</span>
         </label>
 
         {isRecurring ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-md border border-border bg-secondary/20 p-3">
             <div className="space-y-2">
-              <Label htmlFor="recurrence_interval">Frecuencia</Label>
+              <Label htmlFor="recurrence_interval">{t("frequency")}</Label>
               <select
                 id="recurrence_interval"
                 name="recurrence_interval"
                 defaultValue={invoice?.recurrence_interval ?? "month"}
                 className={selectCls}
               >
-                <option value="week">Semanal</option>
-                <option value="month">Mensual</option>
-                <option value="year">Anual</option>
+                <option value="week">{t("weekly")}</option>
+                <option value="month">{t("monthly")}</option>
+                <option value="year">{t("yearly")}</option>
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="recurrence_interval_count">Cada</Label>
+              <Label htmlFor="recurrence_interval_count">{t("every")}</Label>
               <Input
                 id="recurrence_interval_count"
                 name="recurrence_interval_count"
@@ -349,7 +349,7 @@ export function InvoiceEditor({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="recurrence_end_date">Hasta (opcional)</Label>
+              <Label htmlFor="recurrence_end_date">{t("until_optional")}</Label>
               <Input
                 id="recurrence_end_date"
                 name="recurrence_end_date"
@@ -361,19 +361,19 @@ export function InvoiceEditor({
         ) : null}
       </Section>
 
-      <Section title="Notas">
+      <Section title={t("notes")}>
         <textarea
           name="notes"
           defaultValue={invoice?.notes ?? ""}
           rows={3}
-          placeholder="Términos, agradecimiento, datos bancarios alternativos…"
+          placeholder={t("notes_placeholder")}
           className={txtCls}
         />
       </Section>
 
       <div className="flex justify-end gap-2 sticky bottom-0 bg-background border-t border-border py-3 -mx-6 px-6">
         <Button type="submit" variant="outline" disabled={pending || sending}>
-          {pending ? "Guardando…" : "Guardar borrador"}
+          {pending ? t("saving") : t("save_draft")}
         </Button>
         <Button
           type="button"
@@ -381,7 +381,7 @@ export function InvoiceEditor({
           onClick={handleSend}
         >
           <Send className="size-4" />
-          {sending ? "Enviando…" : "Enviar al cliente"}
+          {sending ? t("sending") : t("send_to_customer")}
         </Button>
       </div>
     </form>

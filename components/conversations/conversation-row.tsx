@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { ConversationStatusBadge } from "@/components/conversations/status-badge";
 import { cn, formatRelative } from "@/lib/utils";
@@ -36,6 +36,7 @@ export function ConversationRow({
 }) {
   const router = useRouter();
   const t = useTranslations("conversations");
+  const locale = useLocale();
   const conversationHref = `/dashboard/${tenantSlug}/conversations/${item.id}`;
   const customerHref = item.user?.id
     ? `/dashboard/${tenantSlug}/customers/${item.user.id}`
@@ -98,7 +99,7 @@ export function ConversationRow({
         />
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">
-        {formatRelative(item.last_message_at)}
+        {formatRelative(item.last_message_at, locale)}
       </TableCell>
     </TableRow>
   );

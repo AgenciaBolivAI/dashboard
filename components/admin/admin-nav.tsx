@@ -2,31 +2,33 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/admin/overview", label: "Resumen" },
-  { href: "/admin", label: "Tenants", exact: true },
-  { href: "/admin/usage", label: "Uso & Costos" },
-  { href: "/admin/pricing", label: "Precios" },
-  { href: "/admin/codes", label: "Códigos" },
-  { href: "/admin/brain", label: "Brain" },
-  { href: "/admin/users", label: "Equipo BolivAI" },
+  { href: "/admin/overview", key: "tab_overview" },
+  { href: "/admin", key: "tab_tenants", exact: true },
+  { href: "/admin/usage", key: "tab_usage" },
+  { href: "/admin/pricing", key: "tab_pricing" },
+  { href: "/admin/codes", key: "tab_codes" },
+  { href: "/admin/brain", key: "tab_brain" },
+  { href: "/admin/users", key: "tab_users" },
 ];
 
 export function AdminNav() {
   const pathname = usePathname();
+  const t = useTranslations("admin_nav");
   return (
     <nav className="border-b border-border bg-card">
       <div className="px-6 flex gap-1 overflow-x-auto">
-        {TABS.map((t) => {
-          const active = t.exact
-            ? pathname === t.href
-            : pathname === t.href || pathname.startsWith(`${t.href}/`);
+        {TABS.map((tab) => {
+          const active = tab.exact
+            ? pathname === tab.href
+            : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
           return (
             <Link
-              key={t.href}
-              href={t.href}
+              key={tab.href}
+              href={tab.href}
               className={cn(
                 "px-4 py-3 text-sm font-medium whitespace-nowrap transition border-b-2 -mb-px",
                 active
@@ -34,7 +36,7 @@ export function AdminNav() {
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
-              {t.label}
+              {t(tab.key)}
             </Link>
           );
         })}

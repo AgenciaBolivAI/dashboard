@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "next-intl";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
 /**
@@ -16,13 +17,15 @@ export function DonutChart({
   data,
   centerValue,
   centerLabel,
-  locale = "es",
+  locale,
 }: {
   data: DonutSlice[];
   centerValue: string;
   centerLabel: string;
   locale?: string;
 }) {
+  const activeLocale = useLocale();
+  const fmtLocale = locale ?? activeLocale;
   const total = data.reduce((s, d) => s + d.value, 0);
   const colored = data.map((d, i) => ({ ...d, color: PALETTE[i % PALETTE.length]! }));
 
@@ -80,7 +83,7 @@ export function DonutChart({
         ))}
         {colored.length === 0 ? (
           <li className="text-muted-foreground">
-            {centerLabel}: {(0).toLocaleString(locale)}
+            {centerLabel}: {(0).toLocaleString(fmtLocale)}
           </li>
         ) : null}
       </ul>

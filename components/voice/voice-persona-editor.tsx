@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, Save, MessageSquare, Megaphone, Headphones } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -28,6 +29,7 @@ export function VoicePersonaEditor({
   initial: VoicePersona;
 }) {
   const router = useRouter();
+  const t = useTranslations("settings_voice");
   const [pending, startTransition] = useTransition();
   const [p, setP] = useState<VoicePersona>(initial);
 
@@ -45,7 +47,7 @@ export function VoicePersonaEditor({
         toast.error(res.error);
         return;
       }
-      toast.success("Persona guardada — Sandra y Rebecca ya usan los cambios en su próxima llamada");
+      toast.success(t("persona_saved_toast"));
       router.refresh();
     });
   }
@@ -57,24 +59,24 @@ export function VoicePersonaEditor({
         <div>
           <p className="font-semibold flex items-center gap-2">
             <MessageSquare className="size-4 text-primary" />
-            Identidad
+            {t("identity_title")}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Cómo se presentan tus agentes y qué saben de tu negocio.
+            {t("identity_description")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-xs">Nombre del negocio</Label>
+            <Label className="text-xs">{t("field_business_name")}</Label>
             <Input
               value={p.business_name ?? ""}
               onChange={(e) => patch((x) => ({ ...x, business_name: e.target.value }))}
-              placeholder="Ej: Hostal Andino"
+              placeholder={t("field_business_name_placeholder")}
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Idioma principal</Label>
+            <Label className="text-xs">{t("field_primary_language")}</Label>
             <select
               value={p.language ?? "es"}
               onChange={(e) => patch((x) => ({ ...x, language: e.target.value }))}
@@ -91,12 +93,12 @@ export function VoicePersonaEditor({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Descripción del negocio</Label>
+          <Label className="text-xs">{t("field_business_description")}</Label>
           <textarea
             value={p.business_description ?? ""}
             onChange={(e) => patch((x) => ({ ...x, business_description: e.target.value }))}
             rows={3}
-            placeholder="Una o dos oraciones que tus agentes pueden usar cuando alguien pregunte qué hacés."
+            placeholder={t("field_business_description_placeholder")}
             className={cn(
               "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
               "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y",
@@ -110,33 +112,33 @@ export function VoicePersonaEditor({
         <div>
           <p className="font-semibold flex items-center gap-2">
             <Megaphone className="size-4 text-orange-500" />
-            Sandra · ventas / outbound
+            {t("sandra_card_title")}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Llama a tus leads. Lo que escriban acá Sandra lo aplica en cada llamada de inmediato.
+            {t("sandra_card_description")}
           </p>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Primera frase</Label>
+          <Label className="text-xs">{t("field_first_message")}</Label>
           <Input
             value={p.sandra?.first_message ?? ""}
             onChange={(e) =>
               patch((x) => ({ ...x, sandra: { ...x.sandra, first_message: e.target.value } }))
             }
-            placeholder={`Ej: Hola, te habla Sandra de ${p.business_name ?? "[tu negocio]"}.`}
+            placeholder={t("sandra_first_message_placeholder", { business: p.business_name ?? t("your_business_fallback") })}
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Propuesta de valor</Label>
+          <Label className="text-xs">{t("field_value_prop")}</Label>
           <textarea
             value={p.sandra?.value_prop ?? ""}
             onChange={(e) =>
               patch((x) => ({ ...x, sandra: { ...x.sandra, value_prop: e.target.value } }))
             }
             rows={3}
-            placeholder="Una o dos oraciones que Sandra puede usar como pitch sin recitarlas textualmente. Ej: Ayudamos a hoteles boutique a llenar habitaciones por WhatsApp sin contratar más recepcionistas."
+            placeholder={t("field_value_prop_placeholder")}
             className={cn(
               "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
               "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y",
@@ -145,14 +147,14 @@ export function VoicePersonaEditor({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Cosas que Sandra NO debe decir</Label>
+          <Label className="text-xs">{t("sandra_forbidden_label")}</Label>
           <textarea
             value={p.sandra?.forbidden_topics ?? ""}
             onChange={(e) =>
               patch((x) => ({ ...x, sandra: { ...x.sandra, forbidden_topics: e.target.value } }))
             }
             rows={2}
-            placeholder="Ej: No prometer fechas de entrega; no compartir precios sin antes calificar el caso."
+            placeholder={t("sandra_forbidden_placeholder")}
             className={cn(
               "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
               "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y",
@@ -166,33 +168,33 @@ export function VoicePersonaEditor({
         <div>
           <p className="font-semibold flex items-center gap-2">
             <Headphones className="size-4 text-cyan-500" />
-            Rebecca · atención al cliente / inbound
+            {t("rebecca_card_title")}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Atiende a tus clientes cuando ellos llaman. Lo que pegues acá es su contexto.
+            {t("rebecca_card_description")}
           </p>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Primera frase</Label>
+          <Label className="text-xs">{t("field_first_message")}</Label>
           <Input
             value={p.rebecca?.first_message ?? ""}
             onChange={(e) =>
               patch((x) => ({ ...x, rebecca: { ...x.rebecca, first_message: e.target.value } }))
             }
-            placeholder={`Ej: Hola, gracias por llamar a ${p.business_name ?? "[tu negocio]"}. ¿En qué puedo ayudarte?`}
+            placeholder={t("rebecca_first_message_placeholder", { business: p.business_name ?? t("your_business_fallback") })}
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">FAQs / información que Rebecca debe saber</Label>
+          <Label className="text-xs">{t("rebecca_faq_label")}</Label>
           <textarea
             value={p.rebecca?.faq ?? ""}
             onChange={(e) =>
               patch((x) => ({ ...x, rebecca: { ...x.rebecca, faq: e.target.value } }))
             }
             rows={6}
-            placeholder="Horarios, política de cancelación, formas de pago, cómo agendar, dirección, lo que tus clientes preguntan seguido. Rebecca lo lee en cada llamada."
+            placeholder={t("rebecca_faq_placeholder")}
             className={cn(
               "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
               "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y",
@@ -201,14 +203,14 @@ export function VoicePersonaEditor({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Cosas que Rebecca NO debe decir</Label>
+          <Label className="text-xs">{t("rebecca_forbidden_label")}</Label>
           <textarea
             value={p.rebecca?.forbidden_topics ?? ""}
             onChange={(e) =>
               patch((x) => ({ ...x, rebecca: { ...x.rebecca, forbidden_topics: e.target.value } }))
             }
             rows={2}
-            placeholder="Ej: No agendar más de 4 personas por reserva. No prometer descuentos sin confirmar con un humano."
+            placeholder={t("rebecca_forbidden_placeholder")}
             className={cn(
               "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
               "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y",
@@ -220,7 +222,7 @@ export function VoicePersonaEditor({
       <div className="flex justify-end">
         <Button onClick={save} disabled={pending} size="lg" className="gap-2">
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          Guardar persona
+          {t("save_persona")}
         </Button>
       </div>
     </div>

@@ -9,7 +9,7 @@ import {
 } from "@/lib/queries/aima";
 import { AimaSettingsForm } from "@/components/aima/aima-settings-form";
 import { cn } from "@/lib/utils";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,7 @@ export default async function AimaMarketingPage({
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("marketing");
+  const locale = await getLocale();
 
   const [settings, runs, stats7d] = await Promise.all([
     getAimaSettings(tenant.id),
@@ -137,7 +138,7 @@ export default async function AimaMarketingPage({
                 )}
                 title={r.error ?? t("run_tooltip", { newLeads: r.leads_new, foundLeads: r.leads_found })}
               >
-                {new Date(r.started_at).toLocaleString("es-BO", {
+                {new Date(r.started_at).toLocaleString(locale, {
                   month: "short",
                   day: "numeric",
                   hour: "2-digit",

@@ -24,22 +24,22 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="es">
+    <html lang="en">
       <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#0a0a0a", color: "#fff" }}>
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div style={{ maxWidth: 420, textAlign: "center" }}>
             <div style={{ fontFamily: "Georgia, serif", fontWeight: 800, fontSize: 24, marginBottom: 16 }}>
               Boliv<span style={{ color: "#00e5a0" }}>AI</span>
             </div>
-            <h1 style={{ fontSize: 20, margin: "0 0 8px" }}>Algo salió mal</h1>
+            <h1 style={{ fontSize: 20, margin: "0 0 8px" }}>Something went wrong</h1>
             <p style={{ color: "#999", fontSize: 14, lineHeight: 1.6, margin: "0 0 20px" }}>
-              Tuvimos un problema inesperado. Ya quedó registrado. Intenta de nuevo.
+              We hit an unexpected problem. It has been logged. Please try again.
             </p>
             <button
               onClick={() => reset()}
               style={{ background: "#00e5a0", color: "#000", fontWeight: 700, border: "none", padding: "10px 24px", borderRadius: 10, cursor: "pointer", fontSize: 14 }}
             >
-              Reintentar
+              Try again
             </button>
             {error?.digest ? (
               <p style={{ color: "#555", fontSize: 11, marginTop: 16 }}>ref: {error.digest}</p>

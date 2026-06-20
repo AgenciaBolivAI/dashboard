@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations, getLocale } from "next-intl/server";
 import { PhoneIncoming, PhoneOutgoing, Phone, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,8 @@ export default async function CallsPage({
   const tenant = await getTenantBySlug(tenantSlug);
   await requireUser();
   await requireTenantAccess(tenant.id);
+  const t = await getTranslations("sandra");
+  const locale = await getLocale();
 
   // Fetch a wider window when searching so matches beyond the first page
   // surface; filter server-side in JS (name + phone), cheap at this scale.
@@ -50,26 +53,23 @@ export default async function CallsPage({
       <div className="mb-6">
         <h1 className="text-3xl font-display font-extrabold tracking-tight flex items-center gap-2">
           <Phone className="size-7 text-primary" />
-          Llamadas
+          {t("calls_page_title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Todas las llamadas de Sandra (outbound) y Rebecca (inbound). Apretá ▶ en
-          cualquier fila para escuchar la grabación dentro del dashboard — no necesitás
-          una cuenta de ElevenLabs.
+          {t("calls_page_subtitle")}
         </p>
       </div>
 
       <div className="mb-4">
-        <RealtimeSearch placeholder="Buscar por nombre o teléfono…" />
+        <RealtimeSearch placeholder={t("calls_search_placeholder")} />
       </div>
 
       {calls.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
           <Phone className="size-10 text-muted-foreground mb-4" />
-          <p className="font-medium">{q ? "Sin resultados para esa búsqueda" : "Aún no hay llamadas"}</p>
+          <p className="font-medium">{q ? t("calls_no_results") : t("calls_empty_title")}</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Cuando Sandra empiece a llamar a tus leads o un cliente llame a tu número,
-            las llamadas aparecen acá con su grabación.
+            {t("calls_empty_description")}
           </p>
         </Card>
       ) : (
@@ -78,11 +78,11 @@ export default async function CallsPage({
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground border-b border-border">
                 <tr>
-                  <th className="text-left px-4 py-3 w-28">Dirección</th>
-                  <th className="text-left px-4 py-3">Cliente / Lead</th>
-                  <th className="text-left px-4 py-3">Cuándo</th>
-                  <th className="text-left px-4 py-3 w-32">Resultado</th>
-                  <th className="text-left px-4 py-3 w-44">Grabación</th>
+                  <th className="text-left px-4 py-3 w-28">{t("calls_col_direction")}</th>
+                  <th className="text-left px-4 py-3">{t("calls_col_customer_lead")}</th>
+                  <th className="text-left px-4 py-3">{t("calls_col_when")}</th>
+                  <th className="text-left px-4 py-3 w-32">{t("calls_col_outcome")}</th>
+                  <th className="text-left px-4 py-3 w-44">{t("calls_col_recording")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -92,12 +92,12 @@ export default async function CallsPage({
                       {c.direction === "inbound" ? (
                         <span className="inline-flex items-center gap-1 text-cyan-600">
                           <PhoneIncoming className="size-3.5" />
-                          Inbound
+                          {t("calls_direction_inbound")}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-orange-600">
                           <PhoneOutgoing className="size-3.5" />
-                          Outbound
+                          {t("calls_direction_outbound")}
                         </span>
                       )}
                     </td>
@@ -117,7 +117,7 @@ export default async function CallsPage({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(c.started_at).toLocaleString("es-BO", {
+                      {new Date(c.started_at).toLocaleString(locale, {
                         dateStyle: "medium",
                         timeStyle: "short",
                         timeZone: tenant.timezone,

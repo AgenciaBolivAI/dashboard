@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Coins, Loader2, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ const PRESETS = [10, 25, 50, 100];
  * "= N credits" preview so the dollar→credit mapping is obvious.
  */
 export function GrantCreditsForm({ tenantId }: { tenantId: string }) {
+  const t = useTranslations("admin_tenant_detail");
   const [state, action, pending] = useActionState(grantTenantCreditsAction, initial);
   const [amount, setAmount] = useState("");
 
@@ -28,13 +30,17 @@ export function GrantCreditsForm({ tenantId }: { tenantId: string }) {
     if (state.error) toast.error(state.error);
     if (state.success) {
       toast.success(
-        `+${(state.credits_added ?? 0).toLocaleString("es")} créditos · nuevo saldo ${(
-          (state.new_balance_credits ?? 0) / 100
-        ).toLocaleString("es", { style: "currency", currency: "USD" })}`,
+        t("grant_success", {
+          credits: (state.credits_added ?? 0).toLocaleString(),
+          balance: ((state.new_balance_credits ?? 0) / 100).toLocaleString(undefined, {
+            style: "currency",
+            currency: "USD",
+          }),
+        }),
       );
       setAmount("");
     }
-  }, [state]);
+  }, [state, t]);
 
   const dollars = parseFloat(amount || "0");
   const credits = Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : 0;
@@ -59,7 +65,7 @@ export function GrantCreditsForm({ tenantId }: { tenantId: string }) {
       <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-2">
         <div className="space-y-1">
           <Label htmlFor="amount_usd" className="text-xs">
-            Monto (USD)
+            {t("grant_amount_usd")}
           </Label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -81,12 +87,12 @@ export function GrantCreditsForm({ tenantId }: { tenantId: string }) {
         </div>
         <div className="space-y-1">
           <Label htmlFor="grant_note" className="text-xs">
-            Nota (opcional)
+            {t("grant_note")}
           </Label>
           <Input
             id="grant_note"
             name="note"
-            placeholder="Ej: cortesía de lanzamiento"
+            placeholder={t("grant_note_placeholder")}
             maxLength={200}
           />
         </div>
@@ -96,12 +102,12 @@ export function GrantCreditsForm({ tenantId }: { tenantId: string }) {
         <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
           <Coins className="size-3" />
           {credits > 0
-            ? `= ${credits.toLocaleString("es")} créditos`
-            : "$1 = 100 créditos"}
+            ? t("grant_credits_preview", { credits: credits.toLocaleString() })
+            : t("grant_credits_hint")}
         </p>
         <Button type="submit" disabled={pending || credits <= 0} size="sm" className="gap-1.5">
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Gift className="size-4" />}
-          Acreditar
+          {t("grant_submit")}
         </Button>
       </div>
     </form>

@@ -327,7 +327,7 @@ export const TOOLS: Record<string, Tool> = {
       if (metric === "spend_credits" || metric === "revenue_cents") { table = "credit_transactions"; tsCol = "created_at"; }
 
       const sel =
-        table === "credit_transactions" ? "created_at, type, credits_delta" : "created_at";
+        table === "credit_transactions" ? "created_at, type, credits_delta, metadata" : "created_at";
       const { data } = await svcAny()
         .from(table)
         .select(sel)
@@ -338,7 +338,11 @@ export const TOOLS: Record<string, Tool> = {
       const value = (r: Record<string, unknown>): number => {
         if (metric === "spend_credits")
           return r.type === "usage" || r.type === "release" ? -(r.credits_delta as number) : 0;
-        if (metric === "revenue_cents") return r.type === "top_up" ? (r.credits_delta as number) : 0;
+        if (metric === "revenue_cents")
+          // Real revenue = metadata.paid_cents; credits_delta is a credit count.
+          return r.type === "top_up"
+            ? Number((r.metadata as Record<string, unknown> | null | undefined)?.paid_cents) || 0
+            : 0;
         return 1; // reservations / leads = count
       };
 

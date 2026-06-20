@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2, Smartphone, RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export function EvolutionProvisioner({ tenantId, tenantStatus, currentInstance }: Props) {
+  const t = useTranslations("admin_tenant_detail");
   const [pending, startTransition] = useTransition();
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
@@ -35,8 +37,8 @@ export function EvolutionProvisioner({ tenantId, tenantStatus, currentInstance }
       setInstanceName(res.instance_name ?? null);
       toast.success(
         isPending
-          ? "Instancia Evolution creada. Escanea el QR para conectar."
-          : "QR regenerado. Escanea para reconectar.",
+          ? t("evo_toast_created")
+          : t("evo_toast_regenerated"),
       );
     });
   }
@@ -47,14 +49,14 @@ export function EvolutionProvisioner({ tenantId, tenantStatus, currentInstance }
         <div>
           <h3 className="font-display font-semibold flex items-center gap-2">
             <Smartphone className="size-4 text-primary" />
-            WhatsApp (Evolution)
+            {t("evo_title")}
           </h3>
           <p className="text-xs text-muted-foreground mt-1 max-w-md">
             {isPending
-              ? "Este tenant aún no tiene una instancia activa de WhatsApp. Crea la instancia + escanea el QR con el WhatsApp del negocio."
+              ? t("evo_desc_pending")
               : isActive
-                ? `Instancia activa: ${currentInstance ?? "—"}. Puedes regenerar el QR si se perdió.`
-                : `Tenant en estado "${tenantStatus}". Crear/reemplazar la instancia abajo.`}
+                ? t("evo_desc_active", { instance: currentInstance ?? "—" })
+                : t("evo_desc_other", { status: tenantStatus })}
           </p>
         </div>
         <Badge
@@ -78,12 +80,12 @@ export function EvolutionProvisioner({ tenantId, tenantStatus, currentInstance }
           ) : (
             <RefreshCw className="size-4" />
           )}
-          {isPending ? "Crear instancia + obtener QR" : "Regenerar QR"}
+          {isPending ? t("evo_create_button") : t("evo_regen_button")}
         </Button>
         {isActive && currentInstance && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CheckCircle2 className="size-3.5 text-green-500" />
-            Instancia: <code className="font-mono">{currentInstance}</code>
+            {t("evo_instance_label")}: <code className="font-mono">{currentInstance}</code>
           </div>
         )}
       </div>
@@ -91,11 +93,12 @@ export function EvolutionProvisioner({ tenantId, tenantStatus, currentInstance }
       {qrBase64 && (
         <div className="border-t pt-4 space-y-3">
           <div>
-            <p className="text-sm font-medium">Escanea con WhatsApp del negocio</p>
+            <p className="text-sm font-medium">{t("evo_scan_title")}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              WhatsApp → Dispositivos vinculados → Vincular dispositivo →
-              Escanear código QR. La instancia <code>{instanceName}</code> queda
-              activa después de la primera lectura.
+              {t.rich("evo_scan_steps", {
+                instance: instanceName ?? "",
+                code: (c) => <code>{c}</code>,
+              })}
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg w-fit shadow-sm">
@@ -109,14 +112,14 @@ export function EvolutionProvisioner({ tenantId, tenantStatus, currentInstance }
           </div>
           {pairingCode && (
             <div className="text-xs text-muted-foreground">
-              ¿No escanea? Código de emparejamiento:{" "}
+              {t("evo_pairing_label")}:{" "}
               <code className="font-mono bg-secondary px-2 py-1 rounded">
                 {pairingCode}
               </code>
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            El QR caduca en ~60 segundos. Si expira, regenéralo aquí mismo.
+            {t("evo_expiry_note")}
           </p>
         </div>
       )}

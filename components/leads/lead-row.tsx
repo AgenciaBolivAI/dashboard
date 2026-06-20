@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -14,14 +15,14 @@ import { LEAD_STATUSES, type LeadStatus } from "@/lib/leads-types";
 import { intentLabel, intentBadgeClass } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
 
-const STATUS_LABEL: Record<LeadStatus, string> = {
-  new: "Nuevo",
-  contacted: "Contactado",
-  warm: "Caliente",
-  converted: "Convertido",
-  not_interested: "No interesado",
-  do_not_contact: "No contactar",
-  lost: "Perdido",
+const STATUS_LABEL_KEY: Record<LeadStatus, string> = {
+  new: "status_label_new",
+  contacted: "status_label_contacted",
+  warm: "status_label_warm",
+  converted: "status_label_converted",
+  not_interested: "status_label_not_interested",
+  do_not_contact: "status_label_do_not_contact",
+  lost: "status_label_lost",
 };
 
 const STATUS_CLASS: Record<LeadStatus, string> = {
@@ -53,8 +54,14 @@ export function LeadRow({
   lead: LeadRowData;
   capturedLabel: string;
 }) {
+  const t = useTranslations("leads");
   const [pending, startTransition] = useTransition();
   const [optimisticStatus, setOptimisticStatus] = useState(lead.status);
+
+  function statusLabel(status: string): string {
+    const key = STATUS_LABEL_KEY[status as LeadStatus];
+    return key ? t(key) : status;
+  }
 
   function handleStatusChange(newStatus: string) {
     if (newStatus === optimisticStatus) return;
@@ -66,17 +73,17 @@ export function LeadRow({
         toast.error(res.error);
         setOptimisticStatus(previous);
       } else {
-        toast.success(`Marcado como ${STATUS_LABEL[newStatus as LeadStatus] ?? newStatus}`);
+        toast.success(t("status_marked_as", { status: statusLabel(newStatus) }));
       }
     });
   }
 
   function handleDelete() {
-    if (!confirm("¿Eliminar este lead?")) return;
+    if (!confirm(t("confirm_delete"))) return;
     startTransition(async () => {
       const res = await deleteLeadAction(tenantId, lead.id);
       if (res.error) toast.error(res.error);
-      else toast.success("Lead eliminado");
+      else toast.success(t("deleted"));
     });
   }
 
@@ -115,7 +122,7 @@ export function LeadRow({
         >
           {LEAD_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {STATUS_LABEL[s]}
+              {statusLabel(s)}
             </option>
           ))}
         </select>

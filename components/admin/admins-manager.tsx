@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useTransition } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Trash2, ShieldPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,32 +20,34 @@ import { formatDate } from "@/lib/utils";
 const initial: AdminState = { error: null };
 
 export function AdminsManager({ staff }: { staff: StaffRow[] }) {
+  const t = useTranslations("admin_users");
+  const locale = useLocale();
   const [state, action, pending] = useActionState(promoteAdminAction, initial);
   const [busy, startBusy] = useTransition();
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
-    if (state.success) toast.success("Promovido");
-  }, [state]);
+    if (state.success) toast.success(t("toast_promoted"));
+  }, [state, t]);
 
   function handleDemote(s: StaffRow) {
-    if (!confirm(`¿Quitar permisos de admin a ${s.email}?`)) return;
+    if (!confirm(t("confirm_demote", { email: s.email }))) return;
     startBusy(async () => {
       const res = await demoteAdminAction(s.user_id);
       if (res.error) toast.error(res.error);
-      else toast.success("Permisos retirados");
+      else toast.success(t("toast_demoted"));
     });
   }
 
   return (
     <div className="space-y-6">
       <section>
-        <h3 className="font-display font-semibold mb-3">Promover a alguien</h3>
+        <h3 className="font-display font-semibold mb-3">{t("promote_title")}</h3>
         <form action={action} className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex-1 space-y-1">
               <Label htmlFor="promote-email" className="sr-only">
-                Email
+                {t("email_label")}
               </Label>
               <Input
                 id="promote-email"
@@ -59,17 +62,16 @@ export function AdminsManager({ staff }: { staff: StaffRow[] }) {
               defaultValue="admin"
               className="h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <option value="admin">Admin</option>
-              <option value="superadmin">Superadmin</option>
+              <option value="admin">{t("role_admin")}</option>
+              <option value="superadmin">{t("role_superadmin")}</option>
             </select>
             <Button type="submit" disabled={pending}>
               <ShieldPlus className="size-4" />
-              {pending ? "Promoviendo…" : "Promover"}
+              {pending ? t("promoting") : t("promote_button")}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            La cuenta del email debe existir. Créala en Supabase → Auth → Users,
-            o invita a la persona a cualquier tenant primero.
+            {t("promote_hint")}
           </p>
         </form>
       </section>
@@ -78,10 +80,10 @@ export function AdminsManager({ staff }: { staff: StaffRow[] }) {
 
       <section>
         <h3 className="font-display font-semibold mb-3">
-          Equipo actual ({staff.length})
+          {t("current_team", { count: staff.length })}
         </h3>
         {staff.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aún no hay nadie con acceso.</p>
+          <p className="text-sm text-muted-foreground">{t("no_access_yet")}</p>
         ) : (
           <div className="space-y-2">
             {staff.map((s) => (
@@ -92,7 +94,7 @@ export function AdminsManager({ staff }: { staff: StaffRow[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{s.email}</p>
                   <p className="text-xs text-muted-foreground">
-                    Desde {formatDate(s.created_at)}
+                    {t("since", { date: formatDate(s.created_at, locale) })}
                   </p>
                 </div>
                 <Badge variant={s.role === "superadmin" ? "default" : "outline"}>

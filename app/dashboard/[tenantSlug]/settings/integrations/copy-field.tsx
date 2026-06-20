@@ -2,13 +2,15 @@
 
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export function CopyField({ value }: { value: string }) {
+  const t = useTranslations("settings_integrations");
   function copy() {
     navigator.clipboard.writeText(value);
-    toast.success("Copiado");
+    toast.success(t("copied"));
   }
   return (
     <div className="flex items-center gap-2">

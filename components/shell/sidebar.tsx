@@ -38,7 +38,10 @@ const NAV_ITEMS = [
   { href: "content", key: "content", icon: Wand2 },
   { href: "shorts", key: "shorts", icon: Video },
   { href: "billing", key: "billing", icon: Coins },
-  { href: "settings", key: "settings", icon: Settings },
+  // Link straight to the real leaf (/settings/general) to skip the
+  // /settings -> /settings/general redirect, but keep `match: "settings"` so
+  // every settings/* subpage still highlights the nav item.
+  { href: "settings/general", key: "settings", icon: Settings, match: "settings" },
 ] as const;
 
 // Internal-only nav items kept for BolivAI's own tenant (single-tenant tables).
@@ -56,10 +59,14 @@ export function Sidebar({ tenantSlug }: { tenantSlug: string }) {
 
   return (
     <nav className="flex flex-col gap-0.5 px-2 py-2">
-      {items.map(({ href, key, icon: Icon }) => {
+      {items.map((item) => {
+        const { href, key, icon: Icon } = item;
         const fullHref = `${base}/${href}`;
+        // Active state matches on `match` (e.g. "settings") so all subpages
+        // light up, even though the link points at a specific leaf.
+        const matchBase = `${base}/${"match" in item ? item.match : href}`;
         const active =
-          pathname === fullHref || pathname.startsWith(`${fullHref}/`);
+          pathname === matchBase || pathname.startsWith(`${matchBase}/`);
         return (
           <Link
             key={href}

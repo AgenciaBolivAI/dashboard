@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Phone, Mail, Globe, Tag, Calendar, ExternalLink } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,10 +35,11 @@ export default async function LeadDetailPage({
   await requireUser();
   await requireTenantAccess(tenant.id);
 
-  const [lead, callHistory, t] = await Promise.all([
+  const [lead, callHistory, t, locale] = await Promise.all([
     getLeadById(tenant.id, id),
     getLeadCallHistory(id, 10),
     getTranslations("leads"),
+    getLocale(),
   ]);
 
   if (!lead) notFound();
@@ -88,7 +89,7 @@ export default async function LeadDetailPage({
             ) : null}
             <span className="inline-flex items-center gap-1">
               <Calendar className="size-3" />
-              {new Date(lead.created_at).toLocaleDateString("es-BO", {
+              {new Date(lead.created_at).toLocaleDateString(locale, {
                 timeZone: tenant.timezone,
               })}
             </span>
@@ -226,7 +227,7 @@ export default async function LeadDetailPage({
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(c.started_at).toLocaleString("es-BO", {
+                    {new Date(c.started_at).toLocaleString(locale, {
                       dateStyle: "medium",
                       timeStyle: "short",
                       timeZone: tenant.timezone,

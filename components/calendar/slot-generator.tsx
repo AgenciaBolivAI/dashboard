@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,8 @@ import { generateSlotsAction, type CalendarState } from "@/lib/actions/calendar"
 
 const initial: CalendarState = { error: null };
 
-const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+// Day-label translation keys, ordered Mon→Sun.
+const DAY_LABEL_KEYS = ["day_mon", "day_tue", "day_wed", "day_thu", "day_fri", "day_sat", "day_sun"] as const;
 // Day of week as returned by Date.getUTCDay(): 0=Sun, 1=Mon...6=Sat.
 // We map our "Lun..Dom" order to those bits.
 const DAY_VALUES = [1, 2, 3, 4, 5, 6, 0];
@@ -33,6 +35,7 @@ export function SlotGenerator({
   tenantId: string;
   staff: StaffOption[];
 }) {
+  const t = useTranslations("calendar");
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(generateSlotsAction, initial);
   const [selectedDays, setSelectedDays] = useState<Set<number>>(
@@ -45,10 +48,13 @@ export function SlotGenerator({
       const created = state.created ?? 0;
       const skipped = state.skipped ?? 0;
       toast.success(
-        `Generados ${created} slots${skipped ? ` (${skipped} omitidos)` : ""}`,
+        skipped
+          ? t("slots_generated_with_skipped", { created, skipped })
+          : t("slots_generated", { created }),
       );
       setOpen(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   function toggleDay(d: number) {
@@ -70,15 +76,14 @@ export function SlotGenerator({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Sparkles className="size-4" />
-          Generar slots
+          {t("generate_slots")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Generar disponibilidad</DialogTitle>
+          <DialogTitle>{t("generate_availability_title")}</DialogTitle>
           <DialogDescription>
-            Crea slots libres en bloque para una persona del equipo. Los días no
-            seleccionados se omiten.
+            {t("generate_availability_desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -91,7 +96,7 @@ export function SlotGenerator({
           />
 
           <div className="space-y-2">
-            <Label htmlFor="staff_id">Persona</Label>
+            <Label htmlFor="staff_id">{t("person")}</Label>
             <select
               id="staff_id"
               name="staff_id"
@@ -108,7 +113,7 @@ export function SlotGenerator({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="start_date">Desde</Label>
+              <Label htmlFor="start_date">{t("from")}</Label>
               <Input
                 id="start_date"
                 name="start_date"
@@ -118,7 +123,7 @@ export function SlotGenerator({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end_date">Hasta</Label>
+              <Label htmlFor="end_date">{t("until")}</Label>
               <Input
                 id="end_date"
                 name="end_date"
@@ -131,7 +136,7 @@ export function SlotGenerator({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="start_time">Hora inicio</Label>
+              <Label htmlFor="start_time">{t("start_time")}</Label>
               <Input
                 id="start_time"
                 name="start_time"
@@ -141,7 +146,7 @@ export function SlotGenerator({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end_time">Hora fin</Label>
+              <Label htmlFor="end_time">{t("end_time")}</Label>
               <Input
                 id="end_time"
                 name="end_time"
@@ -153,7 +158,7 @@ export function SlotGenerator({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slot_minutes">Duración por slot (min)</Label>
+            <Label htmlFor="slot_minutes">{t("slot_duration_min")}</Label>
             <Input
               id="slot_minutes"
               name="slot_minutes"
@@ -166,14 +171,14 @@ export function SlotGenerator({
           </div>
 
           <div className="space-y-2">
-            <Label>Días de la semana</Label>
+            <Label>{t("weekdays")}</Label>
             <div className="flex gap-1.5 flex-wrap">
-              {DAY_LABELS.map((label, i) => {
+              {DAY_LABEL_KEYS.map((labelKey, i) => {
                 const value = DAY_VALUES[i];
                 const active = selectedDays.has(value);
                 return (
                   <button
-                    key={label}
+                    key={labelKey}
                     type="button"
                     onClick={() => toggleDay(value)}
                     className={
@@ -183,7 +188,7 @@ export function SlotGenerator({
                         : "bg-secondary text-muted-foreground hover:bg-secondary/80")
                     }
                   >
-                    {label}
+                    {t(labelKey)}
                   </button>
                 );
               })}
@@ -197,15 +202,15 @@ export function SlotGenerator({
               defaultChecked
               className="rounded border-input"
             />
-            Omitir slots que ya existan en ese horario
+            {t("skip_existing")}
           </label>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-              Cancelar
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Generando…" : "Generar"}
+              {pending ? t("generating") : t("generate")}
             </Button>
           </DialogFooter>
         </form>
