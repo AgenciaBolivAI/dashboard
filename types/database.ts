@@ -238,6 +238,7 @@ export type Database = {
         Row: {
           accent_phrases: Json
           branded_headline: string | null
+          category_label: string | null
           decided_at: string | null
           decided_notes: string | null
           draft_body: string
@@ -263,6 +264,7 @@ export type Database = {
         Insert: {
           accent_phrases?: Json
           branded_headline?: string | null
+          category_label?: string | null
           decided_at?: string | null
           decided_notes?: string | null
           draft_body: string
@@ -288,6 +290,7 @@ export type Database = {
         Update: {
           accent_phrases?: Json
           branded_headline?: string | null
+          category_label?: string | null
           decided_at?: string | null
           decided_notes?: string | null
           draft_body?: string

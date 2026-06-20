@@ -96,7 +96,7 @@ export async function updateCcavaiDraftAction(
   // Read current draft state so we can decide whether to re-render.
   const { data: existingRow, error: readErr } = await svc
     .from("ccavai_drafts")
-    .select("subject_image_url, branded_headline, accent_phrases")
+    .select("subject_image_url, branded_headline, accent_phrases, category_label")
     .eq("id", draftId)
     .single();
   if (readErr || !existingRow) {
@@ -106,6 +106,7 @@ export async function updateCcavaiDraftAction(
     subject_image_url: string | null;
     branded_headline: string | null;
     accent_phrases: unknown;
+    category_label: string | null;
   };
 
   const newBrandedHeadline =
@@ -132,7 +133,10 @@ export async function updateCcavaiDraftAction(
         subject_image: existing.subject_image_url,
         headline: newBrandedHeadline,
         accent_phrases: newAccentPhrases,
-        category_label: "AI NEWS",
+        // Reuse the draft's own badge (already in the tenant's content language).
+        // Never hardcode a language-specific label here — that produced a Spanish
+        // "SERVICIO" badge on English content (and vice-versa) on re-render.
+        category_label: existing.category_label ?? undefined,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "render failed";
@@ -196,7 +200,7 @@ export async function replaceCcavaiSubjectAction(
   const svc = createServiceClient();
   const { data: existingRow, error: readErr } = await svc
     .from("ccavai_drafts")
-    .select("branded_headline, accent_phrases, story_title")
+    .select("branded_headline, accent_phrases, story_title, category_label")
     .eq("id", draftId)
     .eq("tenant_id", tenantId)
     .single();
@@ -207,6 +211,7 @@ export async function replaceCcavaiSubjectAction(
     branded_headline: string | null;
     accent_phrases: unknown;
     story_title: string | null;
+    category_label: string | null;
   };
 
   // Step 1: get a subject data URI either from upload or from gpt-image-1.
@@ -250,7 +255,9 @@ export async function replaceCcavaiSubjectAction(
       subject_image: subjectDataUri,
       headline,
       accent_phrases: accents,
-      category_label: "AI NEWS",
+      // Preserve the draft's own content-language badge instead of forcing a
+      // hardcoded English label (root cause of the badge/content language mismatch).
+      category_label: existing.category_label ?? undefined,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "render failed";
