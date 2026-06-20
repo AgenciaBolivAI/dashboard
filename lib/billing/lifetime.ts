@@ -1,5 +1,5 @@
 /**
- * Founding Member lifetime access — a one-time $30 payment unlocks the platform
+ * Founding Member lifetime access — a one-time $40 payment unlocks the platform
  * for life (no monthly fees). Usage stays pay-as-you-go credits on top.
  *
  * Mirrors the credit top-up flow (lib/billing/credits.ts): a Stripe Checkout in
@@ -10,7 +10,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { getStripe, getAppUrl } from "@/lib/stripe";
 
-export const LIFETIME_PRICE_CENTS = 3000; // $30
+export const LIFETIME_PRICE_CENTS = 4000; // $40
 export const FOUNDING_CAP = 5000;
 
 /** How many tenants already hold lifetime access (for the "X of 5,000" copy). */

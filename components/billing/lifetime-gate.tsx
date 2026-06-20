@@ -58,7 +58,7 @@ export function LifetimeGate({
           <p className="text-sm text-muted-foreground mt-2">{t("subtitle")}</p>
 
           <div className="mt-6 flex items-baseline justify-center gap-2">
-            <span className="font-display text-5xl font-extrabold">$30</span>
+            <span className="font-display text-5xl font-extrabold">$40</span>
             <span className="text-muted-foreground">{t("once")}</span>
           </div>
           <p className="mt-1 font-medium">{t("headline")}</p>

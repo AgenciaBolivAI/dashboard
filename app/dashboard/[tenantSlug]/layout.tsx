@@ -43,7 +43,7 @@ export default async function TenantLayout({
   await requireTenantAccess(tenant.id);
   const isAdmin = await isBolivAIAdmin();
 
-  // Founding Member gate: a tenant must hold lifetime access (the one-time $30)
+  // Founding Member gate: a tenant must hold lifetime access (the one-time $40)
   // to use the platform. BolivAI staff always pass; existing tenants were
   // grandfathered in schema-step35.
   if (!tenant.lifetime_access && !isAdmin) {

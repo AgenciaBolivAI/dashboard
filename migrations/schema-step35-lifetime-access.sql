@@ -1,7 +1,7 @@
 -- =====================================================================
--- BolivAI — Step 35: Founding Member lifetime access ($30 one-time)
+-- BolivAI — Step 35: Founding Member lifetime access ($40 one-time)
 -- =====================================================================
--- New revenue model: a one-time $30 payment unlocks LIFETIME platform access
+-- New revenue model: a one-time $40 payment unlocks LIFETIME platform access
 -- (no monthly fees). Usage is still pay-as-you-go credits on top. The price is
 -- a "Founding Member" launch offer for the first 5,000 members.
 --
@@ -42,7 +42,7 @@ update public.tenants t
 -- lock serializes numbering so two concurrent payments never collide.
 create or replace function public.grant_lifetime_access(
   p_tenant_id  uuid,
-  p_paid_cents int default 3000,
+  p_paid_cents int default 4000,
   p_stripe_pi  text default null
 ) returns table (ok boolean, founding_number int, was_already boolean)
 language plpgsql

@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // Founding Member lifetime-access purchase ($30, one-time).
+        // Founding Member lifetime-access purchase ($40, one-time).
         if (session.metadata?.bolivai_purpose === "lifetime_access") {
           const tenantId = session.metadata.bolivai_tenant_id;
           const pi =
