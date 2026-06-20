@@ -957,7 +957,20 @@
     "login_submitting": "Entrando…",
     "terms_accept": "Aceito os <terms>Termos e Condições</terms> e a <privacy>Política de Privacidade</privacy>.",
     "terms_oauth_notice": "Ao continuar, você concorda com nossos <terms>Termos e Condições</terms> e a <privacy>Política de Privacidade</privacy>.",
-    "terms_required": "Você precisa aceitar os Termos e Condições e a Política de Privacidade para criar uma conta."
+    "terms_required": "Você precisa aceitar os Termos e Condições e a Política de Privacidade para criar uma conta.",
+    "err_email_invalid": "Email inválido",
+    "err_password_required": "Senha obrigatória",
+    "err_invalid_data": "Dados inválidos",
+    "err_wrong_credentials": "Email ou senha incorretos",
+    "err_password_min": "Mínimo de 8 caracteres",
+    "err_passwords_mismatch": "As senhas não coincidem",
+    "err_invitation_invalid": "Convite inválido",
+    "err_invitation_used": "Este convite já foi usado",
+    "err_invitation_expired": "Este convite expirou",
+    "err_invitation_email_mismatch": "O email não corresponde ao do convite",
+    "err_account_exists": "Esta conta já existe. Faça login normalmente.",
+    "err_account_create_failed": "Não foi possível criar a conta",
+    "err_must_login_first": "Você precisa fazer login primeiro"
   },
   "assistant": {
     "page_title": "Assistente",

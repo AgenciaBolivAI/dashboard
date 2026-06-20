@@ -957,7 +957,20 @@
     "login_submitting": "Entrando…",
     "terms_accept": "Acepto los <terms>Términos y Condiciones</terms> y la <privacy>Política de Privacidad</privacy>.",
     "terms_oauth_notice": "Al continuar, aceptas nuestros <terms>Términos y Condiciones</terms> y la <privacy>Política de Privacidad</privacy>.",
-    "terms_required": "Debes aceptar los Términos y Condiciones y la Política de Privacidad para crear una cuenta."
+    "terms_required": "Debes aceptar los Términos y Condiciones y la Política de Privacidad para crear una cuenta.",
+    "err_email_invalid": "Email inválido",
+    "err_password_required": "Contraseña requerida",
+    "err_invalid_data": "Datos inválidos",
+    "err_wrong_credentials": "Email o contraseña incorrectos",
+    "err_password_min": "Mínimo 8 caracteres",
+    "err_passwords_mismatch": "Las contraseñas no coinciden",
+    "err_invitation_invalid": "Invitación inválida",
+    "err_invitation_used": "Esta invitación ya fue usada",
+    "err_invitation_expired": "Esta invitación expiró",
+    "err_invitation_email_mismatch": "El email no coincide con el de la invitación",
+    "err_account_exists": "Esta cuenta ya existe. Inicia sesión normalmente.",
+    "err_account_create_failed": "No se pudo crear la cuenta",
+    "err_must_login_first": "Debes iniciar sesión primero"
   },
   "assistant": {
     "page_title": "Asistente",

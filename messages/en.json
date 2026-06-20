@@ -957,7 +957,20 @@
     "login_submitting": "Signing in…",
     "terms_accept": "I accept the <terms>Terms & Conditions</terms> and the <privacy>Privacy Policy</privacy>.",
     "terms_oauth_notice": "By continuing, you agree to our <terms>Terms & Conditions</terms> and <privacy>Privacy Policy</privacy>.",
-    "terms_required": "You must accept the Terms & Conditions and Privacy Policy to create an account."
+    "terms_required": "You must accept the Terms & Conditions and Privacy Policy to create an account.",
+    "err_email_invalid": "Invalid email",
+    "err_password_required": "Password required",
+    "err_invalid_data": "Invalid data",
+    "err_wrong_credentials": "Incorrect email or password",
+    "err_password_min": "Minimum 8 characters",
+    "err_passwords_mismatch": "Passwords don't match",
+    "err_invitation_invalid": "Invalid invitation",
+    "err_invitation_used": "This invitation has already been used",
+    "err_invitation_expired": "This invitation has expired",
+    "err_invitation_email_mismatch": "The email doesn't match the invitation",
+    "err_account_exists": "This account already exists. Please sign in normally.",
+    "err_account_create_failed": "Could not create the account",
+    "err_must_login_first": "You must sign in first"
   },
   "assistant": {
     "page_title": "Assistant",

@@ -11,16 +11,16 @@ import { TERMS_VERSION } from "@/lib/legal";
 export type AuthState = { error: string | null; success?: boolean };
 
 // ─── Sign in ─────────────────────────────────────────────────────────
-const signInSchema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(1, "Contraseña requerida"),
-  next: z.string().optional(),
-});
-
 export async function signInAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const t = await getTranslations("auth");
+  const signInSchema = z.object({
+    email: z.string().email(t("err_email_invalid")),
+    password: z.string().min(1, t("err_password_required")),
+    next: z.string().optional(),
+  });
   const parsed = signInSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? t("err_invalid_data") };
   }
 
   const supabase = await createClient();
@@ -30,7 +30,7 @@ export async function signInAction(_prev: AuthState, formData: FormData): Promis
   });
 
   if (error) {
-    return { error: "Email o contraseña incorrectos" };
+    return { error: t("err_wrong_credentials") };
   }
 
   revalidatePath("/", "layout");
@@ -42,23 +42,23 @@ export async function signInAction(_prev: AuthState, formData: FormData): Promis
 // The token authenticates that the email was authorized by a tenant admin.
 // Account creation goes through the admin API so it works even when public
 // signups are disabled at the Supabase project level.
-const signUpSchema = z
-  .object({
-    email: z.string().email("Email inválido"),
-    password: z.string().min(8, "Mínimo 8 caracteres"),
-    confirm: z.string(),
-    invitation_token: z.string().optional(),
-    accept_terms: z.string().optional(),
-  })
-  .refine((d) => d.password === d.confirm, {
-    message: "Las contraseñas no coinciden",
-    path: ["confirm"],
-  });
-
 export async function signUpAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const t = await getTranslations("auth");
+  const signUpSchema = z
+    .object({
+      email: z.string().email(t("err_email_invalid")),
+      password: z.string().min(8, t("err_password_min")),
+      confirm: z.string(),
+      invitation_token: z.string().optional(),
+      accept_terms: z.string().optional(),
+    })
+    .refine((d) => d.password === d.confirm, {
+      message: t("err_passwords_mismatch"),
+      path: ["confirm"],
+    });
   const parsed = signUpSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? t("err_invalid_data") };
   }
 
   // Terms & Privacy acceptance is mandatory to create an account. The checkbox
@@ -66,7 +66,6 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
   // `required` attribute) so the consent is always real.
   const termsAccepted = parsed.data.accept_terms === "on" || parsed.data.accept_terms === "true";
   if (!termsAccepted) {
-    const t = await getTranslations("auth");
     return { error: t("terms_required") };
   }
 
@@ -94,14 +93,14 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
       .eq("token", parsed.data.invitation_token!)
       .maybeSingle();
 
-    if (!data) return { error: "Invitación inválida" };
+    if (!data) return { error: t("err_invitation_invalid") };
     invitation = data as unknown as InvitationRow;
-    if (invitation.accepted_at) return { error: "Esta invitación ya fue usada" };
+    if (invitation.accepted_at) return { error: t("err_invitation_used") };
     if (new Date(invitation.expires_at) < new Date()) {
-      return { error: "Esta invitación expiró" };
+      return { error: t("err_invitation_expired") };
     }
     if (invitation.email.toLowerCase() !== email) {
-      return { error: "El email no coincide con el de la invitación" };
+      return { error: t("err_invitation_email_mismatch") };
     }
   }
 
@@ -124,14 +123,14 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
     if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
       const { data: list } = await svc.auth.admin.listUsers({ page: 1, perPage: 200 });
       const match = list?.users?.find((u) => u.email?.toLowerCase() === email);
-      if (!match) return { error: "Esta cuenta ya existe. Inicia sesión normalmente." };
+      if (!match) return { error: t("err_account_exists") };
       userId = match.id;
     } else {
       return { error: createErr.message };
     }
   }
 
-  if (!userId) return { error: "No se pudo crear la cuenta" };
+  if (!userId) return { error: t("err_account_create_failed") };
 
   if (invitation) {
     await acceptInvitationFor(userId, parsed.data.invitation_token!);
@@ -162,11 +161,11 @@ export async function signOutAction() {
 }
 
 // ─── Forgot password ─────────────────────────────────────────────────
-const forgotSchema = z.object({ email: z.string().email() });
-
 export async function forgotPasswordAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const t = await getTranslations("auth");
+  const forgotSchema = z.object({ email: z.string().email() });
   const parsed = forgotSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "Email inválido" };
+  if (!parsed.success) return { error: t("err_email_invalid") };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
@@ -177,19 +176,19 @@ export async function forgotPasswordAction(_prev: AuthState, formData: FormData)
 }
 
 // ─── Reset password ──────────────────────────────────────────────────
-const resetSchema = z
-  .object({
-    password: z.string().min(8, "Mínimo 8 caracteres"),
-    confirm: z.string(),
-  })
-  .refine((d) => d.password === d.confirm, {
-    message: "Las contraseñas no coinciden",
-    path: ["confirm"],
-  });
-
 export async function resetPasswordAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const t = await getTranslations("auth");
+  const resetSchema = z
+    .object({
+      password: z.string().min(8, t("err_password_min")),
+      confirm: z.string(),
+    })
+    .refine((d) => d.password === d.confirm, {
+      message: t("err_passwords_mismatch"),
+      path: ["confirm"],
+    });
   const parsed = resetSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? t("err_invalid_data") };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
@@ -201,6 +200,7 @@ export async function resetPasswordAction(_prev: AuthState, formData: FormData):
 
 // ─── Accept invitation ───────────────────────────────────────────────
 async function acceptInvitationFor(userId: string, token: string) {
+  const t = await getTranslations("auth");
   const svc = createServiceClient();
   const { data: invitation } = await svc
     .from("invitations")
@@ -208,10 +208,10 @@ async function acceptInvitationFor(userId: string, token: string) {
     .eq("token", token)
     .maybeSingle();
 
-  if (!invitation) return { error: "Invitación inválida" };
-  if (invitation.accepted_at) return { error: "Esta invitación ya fue usada" };
+  if (!invitation) return { error: t("err_invitation_invalid") };
+  if (invitation.accepted_at) return { error: t("err_invitation_used") };
   if (new Date(invitation.expires_at as string) < new Date()) {
-    return { error: "Esta invitación expiró" };
+    return { error: t("err_invitation_expired") };
   }
 
   await svc.from("dashboard_users").upsert(
@@ -232,9 +232,10 @@ async function acceptInvitationFor(userId: string, token: string) {
 }
 
 export async function acceptInvitationAction(token: string): Promise<AuthState> {
+  const t = await getTranslations("auth");
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Debes iniciar sesión primero" };
+  if (!user) return { error: t("err_must_login_first") };
 
   const result = await acceptInvitationFor(user.id, token);
   if (result.error) return { error: result.error };
