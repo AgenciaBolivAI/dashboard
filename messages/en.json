@@ -944,7 +944,20 @@
     "oauth_divider": "or continue with",
     "oauth_google": "Continue with Google",
     "oauth_facebook": "Continue with Facebook",
-    "oauth_error": "Couldn’t connect. Please try again."
+    "oauth_error": "Couldn’t connect. Please try again.",
+    "field_email": "Email",
+    "field_password": "Password",
+    "field_confirm": "Confirm password",
+    "create_account": "Create account",
+    "creating_account": "Creating account…",
+    "account_created_title": "Account created!",
+    "account_created_desc": "Sign in to continue with setup.",
+    "sign_in_cta": "Sign in",
+    "login_submit": "Sign in",
+    "login_submitting": "Signing in…",
+    "terms_accept": "I accept the <terms>Terms & Conditions</terms> and the <privacy>Privacy Policy</privacy>.",
+    "terms_oauth_notice": "By continuing, you agree to our <terms>Terms & Conditions</terms> and <privacy>Privacy Policy</privacy>.",
+    "terms_required": "You must accept the Terms & Conditions and Privacy Policy to create an account."
   },
   "assistant": {
     "page_title": "Assistant",

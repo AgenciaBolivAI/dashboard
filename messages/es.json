@@ -944,7 +944,20 @@
     "oauth_divider": "o continúa con",
     "oauth_google": "Continuar con Google",
     "oauth_facebook": "Continuar con Facebook",
-    "oauth_error": "No se pudo conectar. Intenta de nuevo."
+    "oauth_error": "No se pudo conectar. Intenta de nuevo.",
+    "field_email": "Email",
+    "field_password": "Contraseña",
+    "field_confirm": "Confirmar contraseña",
+    "create_account": "Crear cuenta",
+    "creating_account": "Creando cuenta…",
+    "account_created_title": "¡Cuenta creada!",
+    "account_created_desc": "Inicia sesión para continuar con la configuración.",
+    "sign_in_cta": "Iniciar sesión",
+    "login_submit": "Entrar",
+    "login_submitting": "Entrando…",
+    "terms_accept": "Acepto los <terms>Términos y Condiciones</terms> y la <privacy>Política de Privacidad</privacy>.",
+    "terms_oauth_notice": "Al continuar, aceptas nuestros <terms>Términos y Condiciones</terms> y la <privacy>Política de Privacidad</privacy>.",
+    "terms_required": "Debes aceptar los Términos y Condiciones y la Política de Privacidad para crear una cuenta."
   },
   "assistant": {
     "page_title": "Asistente",

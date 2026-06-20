@@ -58,6 +58,30 @@ export default async function SignUpPage({
         {!token ? (
           <div className="mt-6">
             <OAuthButtons next="/onboarding" />
+            <p className="mt-4 text-center text-xs leading-snug text-muted-foreground">
+              {t.rich("terms_oauth_notice", {
+                terms: (chunks) => (
+                  <a
+                    href="https://bolivai.com/terms.html"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-foreground underline underline-offset-2"
+                  >
+                    {chunks}
+                  </a>
+                ),
+                privacy: (chunks) => (
+                  <a
+                    href="https://bolivai.com/privacy.html"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-foreground underline underline-offset-2"
+                  >
+                    {chunks}
+                  </a>
+                ),
+              })}
+            </p>
           </div>
         ) : null}
         <div className="mt-6 text-xs text-muted-foreground">

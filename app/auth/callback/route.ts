@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { TERMS_VERSION } from "@/lib/legal";
 
 /**
  * OAuth + email-confirmation callback.
@@ -52,6 +53,19 @@ async function resolveDestination(next: string): Promise<string> {
     .eq("user_id", user.id)
     .maybeSingle();
   if (staff) return next;
+
+  // Brand-new social signup. The signup page shows a consent notice next to the
+  // Google/Facebook buttons, so reaching here = acceptance. Record it (once) the
+  // same way the password flow does, so consent is provable for every account.
+  if (!user.user_metadata?.terms_accepted_at) {
+    await svc.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        ...user.user_metadata,
+        terms_accepted_at: new Date().toISOString(),
+        terms_version: TERMS_VERSION,
+      },
+    });
+  }
 
   return "/onboarding";
 }

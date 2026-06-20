@@ -2,9 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { TERMS_VERSION } from "@/lib/legal";
 
 export type AuthState = { error: string | null; success?: boolean };
 
@@ -46,6 +48,7 @@ const signUpSchema = z
     password: z.string().min(8, "Mínimo 8 caracteres"),
     confirm: z.string(),
     invitation_token: z.string().optional(),
+    accept_terms: z.string().optional(),
   })
   .refine((d) => d.password === d.confirm, {
     message: "Las contraseñas no coinciden",
@@ -56,6 +59,15 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
   const parsed = signUpSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  // Terms & Privacy acceptance is mandatory to create an account. The checkbox
+  // submits "on" when ticked; enforce server-side too (not just the client
+  // `required` attribute) so the consent is always real.
+  const termsAccepted = parsed.data.accept_terms === "on" || parsed.data.accept_terms === "true";
+  if (!termsAccepted) {
+    const t = await getTranslations("auth");
+    return { error: t("terms_required") };
   }
 
   const svc = createServiceClient();
@@ -98,6 +110,11 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
     email,
     password: parsed.data.password,
     email_confirm: true,
+    // Record the consent we just verified — provable later (which version, when).
+    user_metadata: {
+      terms_accepted_at: new Date().toISOString(),
+      terms_version: TERMS_VERSION,
+    },
   });
 
   if (created?.user?.id) {

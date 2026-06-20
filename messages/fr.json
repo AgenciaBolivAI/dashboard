@@ -944,7 +944,20 @@
     "oauth_divider": "ou continuez avec",
     "oauth_google": "Continuer avec Google",
     "oauth_facebook": "Continuer avec Facebook",
-    "oauth_error": "Connexion impossible. Réessayez."
+    "oauth_error": "Connexion impossible. Réessayez.",
+    "field_email": "E-mail",
+    "field_password": "Mot de passe",
+    "field_confirm": "Confirmer le mot de passe",
+    "create_account": "Créer un compte",
+    "creating_account": "Création du compte…",
+    "account_created_title": "Compte créé !",
+    "account_created_desc": "Connectez-vous pour poursuivre la configuration.",
+    "sign_in_cta": "Se connecter",
+    "login_submit": "Se connecter",
+    "login_submitting": "Connexion…",
+    "terms_accept": "J'accepte les <terms>Conditions générales</terms> et la <privacy>Politique de confidentialité</privacy>.",
+    "terms_oauth_notice": "En continuant, vous acceptez nos <terms>Conditions générales</terms> et notre <privacy>Politique de confidentialité</privacy>.",
+    "terms_required": "Vous devez accepter les Conditions générales et la Politique de confidentialité pour créer un compte."
   },
   "assistant": {
     "page_title": "Assistant",
