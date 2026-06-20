@@ -97,10 +97,14 @@ export default async function OverviewPage({
   const showNextSteps = tenant.status === "pending_whatsapp_setup";
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl space-y-6">
+    <div className="analytics-surface p-6 md:p-8 max-w-7xl space-y-6">
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
+            <span className="live-dot size-1.5 rounded-full bg-primary" />
+            {t("live_label")}
+          </span>
           <h1 className="text-3xl font-display font-extrabold tracking-tight">{t("title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {t("subtitle")} · {tenant.industry ?? t("industry_general")}
@@ -178,7 +182,7 @@ export default async function OverviewPage({
 
       {/* Hero chart + channel mix */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
+        <Card className="panel-pro lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t("chart_conversations_title")}</CardTitle>
             <CardDescription>{t("chart_conversations_sub")}</CardDescription>
@@ -188,7 +192,7 @@ export default async function OverviewPage({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="panel-pro">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t("channels_title")}</CardTitle>
             <CardDescription>{t("channels_sub")}</CardDescription>
@@ -210,7 +214,7 @@ export default async function OverviewPage({
 
       {/* Workforce + recent activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card>
+        <Card className="panel-pro">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t("workforce_title")}</CardTitle>
             <CardDescription>{t("workforce_sub")}</CardDescription>
@@ -219,8 +223,8 @@ export default async function OverviewPage({
             {analytics.workforce.map((w) => {
               const Icon = WORKFORCE_META[w.key]?.icon ?? Sparkles;
               return (
-                <div key={w.key} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-secondary/50">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <div key={w.key} className="group/wf flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary/50">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-inset ring-primary/20 transition-shadow group-hover/wf:shadow-[0_0_14px_-4px_hsl(var(--primary)/0.6)]">
                     <Icon className="size-4" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -234,7 +238,7 @@ export default async function OverviewPage({
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="panel-pro lg:col-span-2">
           <CardHeader className="pb-2 flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base">{t("recent_title")}</CardTitle>
@@ -254,7 +258,7 @@ export default async function OverviewPage({
                   href={`${basePath}/conversations`}
                   className="flex items-center gap-3 py-3 first:pt-0 last:pb-0 hover:bg-secondary/30 -mx-2 px-2 rounded transition"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-secondary to-primary/10 text-xs font-semibold ring-1 ring-inset ring-border">
                     {(c.user.name ?? c.user.whatsapp_number ?? "?").slice(0, 2).toUpperCase()}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -274,7 +278,7 @@ export default async function OverviewPage({
 
       {/* Spend mini + next steps */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className={cn(showNextSteps ? "lg:col-span-1" : "lg:col-span-3")}>
+        <Card className={cn("panel-pro", showNextSteps ? "lg:col-span-1" : "lg:col-span-3")}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t("spend_title")}</CardTitle>
             <CardDescription>{t("spend_sub")}</CardDescription>
@@ -301,7 +305,7 @@ export default async function OverviewPage({
         </Card>
 
         {showNextSteps ? (
-          <Card className="lg:col-span-2">
+          <Card className="panel-pro lg:col-span-2">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">{t("next_steps_title")}</CardTitle>
               <CardDescription>{t("next_steps_intro")}</CardDescription>

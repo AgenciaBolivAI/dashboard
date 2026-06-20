@@ -66,6 +66,7 @@
     "step_define_staff": "Set schedules and staff in Staff and Calendar",
     "step_personalize_prompt": "Customize your agent's prompt in Settings → Agent",
     "subtitle": "Your business at a glance",
+    "live_label": "Live",
     "industry_general": "general",
     "vs_prev": "vs prev.",
     "period_today": "Today",

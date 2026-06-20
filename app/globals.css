@@ -88,3 +88,57 @@
     font-family: theme('fontFamily.display');
   }
 }
+
+/* ─── Premium analytics layer ──────────────────────────────────────────
+   Depth + glow + glass so the dashboard reads as an "intelligence platform".
+   Subtle in light mode, atmospheric in dark. */
+@layer components {
+  /* Dashboard surface: soft brand glow at the top + a faint tech grid that
+     fades into the page. */
+  .analytics-surface { position: relative; isolation: isolate; }
+  .analytics-surface::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 55% at 50% -8%, hsl(var(--primary) / 0.10), transparent 60%),
+      linear-gradient(hsl(var(--border) / 0.6) 1px, transparent 1px) 0 0 / 100% 46px,
+      linear-gradient(90deg, hsl(var(--border) / 0.6) 1px, transparent 1px) 0 0 / 46px 100%;
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 25%, transparent 78%);
+    mask-image: radial-gradient(120% 90% at 50% 0%, #000 25%, transparent 78%);
+    opacity: 0.35;
+  }
+  .dark .analytics-surface::before { opacity: 0.9; }
+
+  /* Glassy panel: a subtle top sheen over the card color + inner highlight,
+     glows on hover. Pairs with the existing .rounded-xl border bg-card. */
+  .panel-pro {
+    background-image: linear-gradient(180deg, hsl(var(--foreground) / 0.025), transparent 42%);
+    box-shadow: inset 0 1px 0 0 hsl(var(--foreground) / 0.05);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .dark .panel-pro {
+    background-image: linear-gradient(180deg, hsl(var(--primary) / 0.05), transparent 46%);
+    box-shadow: inset 0 1px 0 0 hsl(var(--primary) / 0.1);
+  }
+  .panel-pro:hover { border-color: hsl(var(--primary) / 0.35); }
+  .dark .panel-pro:hover {
+    box-shadow: inset 0 1px 0 0 hsl(var(--primary) / 0.14), 0 0 36px -14px hsl(var(--primary) / 0.55);
+  }
+
+  /* Glow on big hero numbers — dark only, keeps light crisp. */
+  .dark .glow-num { text-shadow: 0 0 24px hsl(var(--primary) / 0.4); }
+
+  /* Soft glow around chart strokes — dark only. */
+  .dark .chart-glow { filter: drop-shadow(0 2px 9px hsl(var(--primary) / 0.3)); }
+
+  /* Live status dot with a slow radar pulse. */
+  .live-dot { animation: livePulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  @keyframes livePulse {
+    0% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.55); }
+    70% { box-shadow: 0 0 0 7px hsl(var(--primary) / 0); }
+    100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0); }
+  }
+}

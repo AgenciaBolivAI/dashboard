@@ -66,6 +66,7 @@
     "step_define_staff": "Définissez horaires et équipe dans Équipe et Calendrier",
     "step_personalize_prompt": "Personnalisez le prompt de votre agent dans Paramètres → Agent",
     "subtitle": "Votre activité en un coup d'œil",
+    "live_label": "En direct",
     "industry_general": "général",
     "vs_prev": "vs préc.",
     "period_today": "Aujourd'hui",

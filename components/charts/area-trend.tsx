@@ -37,15 +37,21 @@ export function AreaTrend({
   valueLabel: string;
 }) {
   return (
+    <div className="chart-glow w-full">
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
         <defs>
           <linearGradient id="areaTrendFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
+            <stop offset="55%" stopColor="hsl(var(--primary))" stopOpacity={0.12} />
             <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
           </linearGradient>
+          <linearGradient id="areaTrendStroke" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.55} />
+            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={1} />
+          </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+        <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} strokeDasharray="2 4" />
         <XAxis
           dataKey="day"
           tickFormatter={(d: string) => fmtDay(d, locale)}
@@ -68,14 +74,15 @@ export function AreaTrend({
         <Area
           type="monotone"
           dataKey="count"
-          stroke="hsl(var(--primary))"
-          strokeWidth={2}
+          stroke="url(#areaTrendStroke)"
+          strokeWidth={2.5}
           fill="url(#areaTrendFill)"
           dot={false}
-          activeDot={{ r: 4, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))", strokeWidth: 2 }}
+          activeDot={{ r: 4.5, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))", strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
