@@ -35,7 +35,14 @@ export async function publishDraft(input: {
   } | null;
   if (!draft) return { ok: false, error: "Draft not found" };
 
-  const caption = [draft.draft_title, draft.draft_body, (draft.draft_hashtags ?? []).join(" ")]
+  // Some CCAVAI generations emit the hashtags BOTH inside draft_body and in the
+  // draft_hashtags array. Appending the array again duplicates them in the
+  // published post — only append tags that aren't already present in the body.
+  const bodyText = draft.draft_body ?? "";
+  const extraTags = (draft.draft_hashtags ?? []).filter(
+    (h) => !new RegExp(`(^|\\s)${escapeRegExp(h)}(\\s|$)`, "i").test(bodyText),
+  );
+  const caption = [draft.draft_title, bodyText, extraTags.join(" ")]
     .filter(Boolean)
     .join("\n\n")
     .trim();
@@ -82,8 +89,22 @@ export async function publishDraft(input: {
 
     return { ok: true, url: result.url };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message.slice(0, 300) : "publish_failed" };
+    const raw = e instanceof Error ? e.message : "publish_failed";
+    // The connect token only carries the publishing scopes when
+    // META_ENABLE_PUBLISHING is on AND the tenant reconnected. Until then Meta
+    // returns code 10 / "Requires <perm> permission" — surface a clean code so
+    // the UI explains it instead of dumping the raw Graph error.
+    if (/content_publish permission|pages_manage_posts|\(#10\)|\bcode\\?":?\s*10\b|requires .* permission/i.test(raw)) {
+      return { ok: false, error: "needs_publish_permission" };
+    }
+    return { ok: false, error: raw.slice(0, 300) };
   }
+}
+
+/** Escape a string for safe use inside a RegExp (hashtags can contain no special
+ * chars normally, but be defensive). */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Instagram requires a public JPEG; CCAVAI renders PNG, so convert + re-upload. */

@@ -32,6 +32,17 @@ const PLATFORM_META: Record<CcavaiDraft["platform"], { icon: typeof Linkedin; co
   x: { icon: Linkedin, color: "bg-muted text-foreground border-border", label: "X" },
 };
 
+// Some CCAVAI generations put the hashtags inside draft_body AND in the
+// draft_hashtags array. Return only the tags NOT already present in the body so
+// the preview, Copy, and the published post don't show them twice. Mirrors the
+// dedupe in lib/content/publish.ts.
+function dedupeHashtags(body: string | null, tags: string[] | null): string[] {
+  const b = body ?? "";
+  return (tags ?? []).filter(
+    (h) => !new RegExp(`(^|\\s)${h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`, "i").test(b),
+  );
+}
+
 export function DraftCard({
   tenantId,
   draft,
@@ -63,10 +74,11 @@ export function DraftCard({
   const showPublish =
     publishTarget !== null && optimisticStatus !== "posted" && optimisticStatus !== "archived";
 
+  const extraHashtags = dedupeHashtags(draft.draft_body, draft.draft_hashtags);
   const fullText = [
     draft.draft_title,
     draft.draft_body,
-    draft.draft_hashtags && draft.draft_hashtags.length > 0 ? draft.draft_hashtags.join(" ") : null,
+    extraHashtags.length > 0 ? extraHashtags.join(" ") : null,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -150,6 +162,8 @@ export function DraftCard({
           toast.error(t("err_not_connected", { platform: platform.label }));
         } else if (code.includes("needs_image")) {
           toast.error(t("err_needs_image"));
+        } else if (code === "needs_publish_permission") {
+          toast.error(t("err_needs_publish_permission", { platform: platform.label }));
         } else {
           toast.error(t("toast_publish_failed", { msg: res.error }));
         }
@@ -193,8 +207,8 @@ export function DraftCard({
 
         <p className="text-sm whitespace-pre-wrap leading-relaxed">{draft.draft_body}</p>
 
-        {draft.draft_hashtags && draft.draft_hashtags.length > 0 && (
-          <p className="text-sm text-primary">{draft.draft_hashtags.join(" ")}</p>
+        {extraHashtags.length > 0 && (
+          <p className="text-sm text-primary">{extraHashtags.join(" ")}</p>
         )}
 
         {draft.story_url && (

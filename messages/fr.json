@@ -191,7 +191,8 @@
     "toast_published": "Publié sur {platform}",
     "toast_publish_failed": "Publication impossible : {msg}",
     "err_not_connected": "Connectez {platform} dans Paramètres → Intégrations",
-    "err_needs_image": "Instagram nécessite une image"
+    "err_needs_image": "Instagram nécessite une image",
+    "err_needs_publish_permission": "La publication sur {platform} est en attente d'approbation de l'app. Activez l'autorisation de publication et reconnectez le compte. En attendant, utilisez Télécharger et publiez manuellement."
   },
   "conversations": {
     "page_title": "Conversations",
