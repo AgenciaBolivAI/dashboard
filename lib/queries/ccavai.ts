@@ -113,12 +113,45 @@ export async function getCcavaiSettings(tenantId: string): Promise<CcavaiSetting
 }
 
 export async function getCcavaiStats(
+  tenantId: string,
   window: "today" | "week" | "month" | "7d" | "30d" = "today",
 ): Promise<CcavaiStats | null> {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("ccavai_stats", { p_window: window });
-  const row = Array.isArray(data) ? data[0] : data;
-  return (row ?? null) as CcavaiStats | null;
+  // Tenant-scoped directly off ccavai_drafts/ccavai_runs. The old global
+  // `ccavai_stats(p_window)` RPC was NOT tenant-scoped — it leaked every
+  // tenant's counts to every tenant. Query the tables with an explicit
+  // tenant_id filter (+ RLS) instead.
+  const start = new Date();
+  if (window === "month") {
+    start.setUTCDate(1);
+  } else if (window !== "today") {
+    start.setUTCDate(start.getUTCDate() - (window === "30d" ? 30 : 7));
+  }
+  start.setUTCHours(0, 0, 0, 0);
+  const startISO = start.toISOString();
+
+  const [draftsRes, lastRunRes] = await Promise.all([
+    supabase.from("ccavai_drafts").select("status").eq("tenant_id", tenantId).gte("generated_at", startISO),
+    supabase
+      .from("ccavai_runs")
+      .select("started_at")
+      .eq("tenant_id", tenantId)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const rows = (draftsRes.data ?? []) as { status: string }[];
+  const countByStatus = (s: string) => rows.filter((r) => r.status === s).length;
+  return {
+    drafts_generated: rows.length,
+    pending_review: countByStatus("pending"),
+    approved: countByStatus("approved"),
+    posted: countByStatus("posted"),
+    rejected: countByStatus("rejected"),
+    last_run_at: (lastRunRes.data as { started_at?: string } | null)?.started_at ?? null,
+    window_start: startISO,
+  };
 }
 
 export type ContentReadiness = {

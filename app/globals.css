@@ -5,7 +5,8 @@
 @layer base {
   /* Light theme — default when next-themes attribute is absent or set to "light". */
   :root {
-    --background: 0 0% 100%;
+    /* Faint green-tinted off-white so white cards/panels lift off the page. */
+    --background: 140 24% 98%;
     --foreground: 240 10% 4%;
 
     --card: 0 0% 100%;

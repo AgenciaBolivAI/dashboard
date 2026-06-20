@@ -62,8 +62,8 @@ export default async function ContentPage({
       limit: 300,
     }),
     listCcavaiRuns(tenant.id, 10),
-    getCcavaiStats("today"),
-    getCcavaiStats("7d"),
+    getCcavaiStats(tenant.id, "today"),
+    getCcavaiStats(tenant.id, "7d"),
   ]);
 
   // Which Meta channels are connected → drives the native "Publish" buttons.

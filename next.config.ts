@@ -62,6 +62,9 @@ const config: NextConfig = {
     "react-kapsule",
     "kapsule",
     "accessor-fn",
+    // recharts pulls in many ESM d3-* packages; transpiling avoids Turbopack
+    // resolver hiccups (same rationale as react-force-graph-2d).
+    "recharts",
   ],
   images: {
     remotePatterns: [

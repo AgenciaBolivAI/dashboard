@@ -144,7 +144,7 @@ export default async function TenantLayout({
             <div className="p-2">
               <Link
                 href="/admin"
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
               >
                 Panel BolivAI
               </Link>
@@ -155,7 +155,7 @@ export default async function TenantLayout({
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-border flex items-center justify-between px-4 md:px-6 bg-card">
+        <header className="sticky top-0 z-30 h-16 border-b border-border flex items-center justify-between px-4 md:px-6 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <MobileNav
               current={{
@@ -168,7 +168,7 @@ export default async function TenantLayout({
               options={tenantOptions}
               isAdmin={isAdmin}
             />
-            <span className="text-sm text-muted-foreground truncate">{tenant.name}</span>
+            <span className="text-sm font-medium truncate">{tenant.name}</span>
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <BalanceWidget tenantId={tenant.id} tenantSlug={tenant.slug} />
