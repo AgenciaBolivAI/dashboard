@@ -145,6 +145,7 @@ export async function POST(req: NextRequest) {
               tenantId,
               paidCents: session.amount_total ?? 0,
               stripePaymentIntentId: pi,
+              code: session.metadata?.bolivai_code ?? null,
             });
             console.log(
               `[stripe webhook] lifetime granted ${tenantId} #${r.foundingNumber} (already=${r.wasAlready})`,

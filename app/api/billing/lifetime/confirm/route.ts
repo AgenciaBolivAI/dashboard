@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
       tenantId,
       paidCents: session.amount_total ?? LIFETIME_PRICE_CENTS,
       stripePaymentIntentId: pi,
+      code: session.metadata?.bolivai_code ?? null,
     });
   } catch {
     // The webhook will retry — still send them in.

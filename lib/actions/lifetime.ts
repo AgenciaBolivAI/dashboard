@@ -55,6 +55,7 @@ export async function startLifetimeCheckoutAction(
     customerEmail: user.email ?? undefined,
     discountPct,
     promotionCodeId,
+    codeLabel: code?.trim() || null,
   });
   if (!res.url) return { error: "error" };
   redirect(res.url);
