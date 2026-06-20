@@ -929,7 +929,8 @@
     "confirm_disconnect": "Disconnettere il tuo account Stripe? Non potrai più incassare le fatture finché non ti riconnetti. Le fatture già emesse restano attive su Stripe.",
     "stripe_disconnected": "Stripe disconnesso",
     "disconnecting": "Disconnessione…",
-    "disconnect_stripe": "Disconnetti Stripe"
+    "disconnect_stripe": "Disconnetti Stripe",
+    "continue_onboarding_button": "Completa la configurazione"
   },
   "settings_branding": {
     "title": "Brand",

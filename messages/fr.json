@@ -929,7 +929,8 @@
     "confirm_disconnect": "Déconnecter votre compte Stripe ? Vous ne pourrez plus encaisser de factures jusqu'à la reconnexion. Les factures déjà émises restent actives dans Stripe.",
     "stripe_disconnected": "Stripe déconnecté",
     "disconnecting": "Déconnexion…",
-    "disconnect_stripe": "Déconnecter Stripe"
+    "disconnect_stripe": "Déconnecter Stripe",
+    "continue_onboarding_button": "Terminer la configuration"
   },
   "settings_branding": {
     "title": "Marque",

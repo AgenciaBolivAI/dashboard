@@ -929,7 +929,8 @@
     "confirm_disconnect": "¿Desconectar tu cuenta de Stripe? Dejarás de poder cobrar facturas hasta que vuelvas a conectar. Las facturas ya emitidas siguen activas en Stripe.",
     "stripe_disconnected": "Stripe desconectado",
     "disconnecting": "Desconectando…",
-    "disconnect_stripe": "Desconectar Stripe"
+    "disconnect_stripe": "Desconectar Stripe",
+    "continue_onboarding_button": "Completar configuración"
   },
   "settings_branding": {
     "title": "Marca",

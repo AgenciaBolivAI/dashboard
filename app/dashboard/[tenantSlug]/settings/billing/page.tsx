@@ -121,16 +121,24 @@ export default async function BillingSettingsPage({
               ) : null}
 
               <div className="flex gap-2 flex-wrap">
-                <Button asChild variant="outline">
-                  <a
-                    href="https://dashboard.stripe.com/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <ExternalLink className="size-4" />
-                    {t("open_stripe_button")}
-                  </a>
-                </Button>
+                {tenant.stripe_charges_enabled ? (
+                  // Ready → open their Express dashboard via a platform login link.
+                  <Button asChild variant="outline">
+                    <a href={`/api/stripe/connect/dashboard?tenant_id=${tenant.id}`}>
+                      <ExternalLink className="size-4" />
+                      {t("open_stripe_button")}
+                    </a>
+                  </Button>
+                ) : (
+                  // Still onboarding / under review → send them back to finish it
+                  // (reuses the existing account, just mints a fresh link).
+                  <Button asChild>
+                    <a href={`/api/stripe/connect/init?tenant_id=${tenant.id}`}>
+                      <Zap className="size-4" />
+                      {t("continue_onboarding_button")}
+                    </a>
+                  </Button>
+                )}
                 <DisconnectStripeButton tenantId={tenant.id} />
               </div>
             </div>

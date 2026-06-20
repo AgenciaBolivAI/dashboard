@@ -929,7 +929,8 @@
     "confirm_disconnect": "Disconnect your Stripe account? You won't be able to charge invoices until you reconnect. Invoices already issued stay active in Stripe.",
     "stripe_disconnected": "Stripe disconnected",
     "disconnecting": "Disconnecting…",
-    "disconnect_stripe": "Disconnect Stripe"
+    "disconnect_stripe": "Disconnect Stripe",
+    "continue_onboarding_button": "Complete setup"
   },
   "settings_branding": {
     "title": "Branding",
