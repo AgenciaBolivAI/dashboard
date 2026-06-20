@@ -60,9 +60,9 @@ export function DonutChart({
             </Pie>
           </PieChart>
         </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-1">
           <span className="glow-num font-display text-2xl font-bold leading-none tabular-nums">{centerValue}</span>
-          <span className="mt-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="mt-0.5 max-w-[88px] text-center text-[9px] font-medium uppercase leading-tight tracking-[0.03em] text-muted-foreground">
             {centerLabel}
           </span>
         </div>
