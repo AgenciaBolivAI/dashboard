@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
-import { getStripe } from "@/lib/stripe";
 import {
   createTopupCheckoutSession,
   MIN_TOPUP_CENTS,
@@ -120,9 +119,11 @@ export async function startTopupAction(
 }
 
 /**
- * Disconnect a tenant's Stripe Connect account. Doesn't delete the
- * Stripe account itself (that requires going to Stripe directly) — just
- * forgets the linkage on our side so the tenant can reconnect.
+ * Disconnect a tenant's Stripe Connect account. The account is created by the
+ * platform via the Accounts API (not an OAuth grant), so there's no OAuth token
+ * to revoke — `oauth.deauthorize` would error. We simply forget the linkage on
+ * our side; the tenant can reconnect (which creates a fresh account). The
+ * Stripe account itself isn't deleted (it may hold a balance / payout history).
  */
 export async function disconnectStripeAction(
   tenantId: string,
@@ -131,26 +132,6 @@ export async function disconnectStripeAction(
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
   const supabase = await createClient();
-
-  // Pull current acct_id so we can attempt to revoke the OAuth grant.
-  const { data: row } = await supabase
-    .from("tenants")
-    .select("stripe_account_id")
-    .eq("id", tenantId)
-    .maybeSingle();
-
-  const stripeAccountId = (row as { stripe_account_id?: string } | null)?.stripe_account_id;
-  if (stripeAccountId) {
-    try {
-      const stripe = getStripe();
-      await stripe.oauth.deauthorize({
-        client_id: process.env.STRIPE_CONNECT_CLIENT_ID ?? "",
-        stripe_user_id: stripeAccountId,
-      });
-    } catch {
-      // Soft-fail: even if Stripe rejects (already deauthorized, etc), clear locally.
-    }
-  }
 
   const { error } = await supabase
     .from("tenants")

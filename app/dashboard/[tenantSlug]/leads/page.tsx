@@ -8,7 +8,8 @@ import { listLeads, getLeadIntents, getLeadFacets } from "@/lib/queries/leads";
 import { COUNTRY_BY_CODE } from "@/lib/leads-geo";
 import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
 import { RealtimeSearch } from "@/components/ui/realtime-search";
-import { Pagination, clampPageSize } from "@/components/ui/pagination";
+import { Pagination } from "@/components/ui/pagination";
+import { clampPageSize } from "@/lib/pagination";
 import { intentLabel } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
 

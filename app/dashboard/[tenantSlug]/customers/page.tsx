@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listCustomers } from "@/lib/queries/customers";
 import { CustomersSearch } from "@/components/customers/customers-search";
-import { Pagination, clampPageSize } from "@/components/ui/pagination";
+import { Pagination } from "@/components/ui/pagination";
+import { clampPageSize } from "@/lib/pagination";
 
 export default async function CustomersPage({
   params,

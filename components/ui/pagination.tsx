@@ -4,15 +4,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export const PAGE_SIZE_OPTIONS = [25, 50, 100, 200] as const;
-export const DEFAULT_PAGE_SIZE = 50;
-
-/** Clamp an arbitrary page-size to one of the allowed options. */
-export function clampPageSize(raw: number | undefined, fallback = DEFAULT_PAGE_SIZE): number {
-  if (!raw) return fallback;
-  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(raw) ? raw : fallback;
-}
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE, clampPageSize } from "@/lib/pagination";
 
 /**
  * URL-driven pager. Reads `page` + `pageSize` from the query string and writes
