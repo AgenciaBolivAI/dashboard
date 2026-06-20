@@ -437,7 +437,10 @@
     "day_thu": "Thu",
     "day_fri": "Fri",
     "day_sat": "Sat",
-    "day_sun": "Sun"
+    "day_sun": "Sun",
+    "invoice_error_title": "Couldn’t create the invoice",
+    "invoice_error_missing_data": "The reservation is missing required data.",
+    "invoice_error_reservation_not_found": "Reservation not found."
   },
   "invoices": {
     "title": "Invoices",

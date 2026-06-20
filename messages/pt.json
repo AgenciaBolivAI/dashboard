@@ -437,7 +437,10 @@
     "day_thu": "Qui",
     "day_fri": "Sex",
     "day_sat": "Sáb",
-    "day_sun": "Dom"
+    "day_sun": "Dom",
+    "invoice_error_title": "Não foi possível criar a fatura",
+    "invoice_error_missing_data": "Faltam dados da reserva.",
+    "invoice_error_reservation_not_found": "Reserva não encontrada."
   },
   "invoices": {
     "title": "Faturas",

@@ -110,7 +110,10 @@ export default async function OverviewPage({
             {t("subtitle")} · {tenant.industry ?? t("industry_general")}
           </p>
         </div>
-        <PeriodSelector periods={periodOptions} active={period} basePath={basePath} />
+        {/* basePath MUST be the overview page itself — the dashboard root redirects
+            to /overview and strips ?period, which silently reset every non-default
+            period back to 7d. */}
+        <PeriodSelector periods={periodOptions} active={period} basePath={`${basePath}/overview`} />
       </div>
 
       {/* Primary KPI row */}

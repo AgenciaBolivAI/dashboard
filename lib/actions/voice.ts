@@ -566,15 +566,23 @@ export async function initiateSandraCallAction(
     };
   }
 
-  // Audit log — best-effort, non-fatal if table doesn't accept all columns
+  // Audit log — best-effort, non-fatal. The dedicated columns are
+  // tenant_id/lead_id/status/call_conversation_id; everything else (phone,
+  // EL conversation id, call context) lives in metadata (jsonb). Previously
+  // this wrote non-existent columns (to_number/context/elevenlabs_*), so every
+  // insert errored and the audit trail was silently empty.
   try {
-    await supabase.from("sandra_call_queue" as never).insert({
+    await supabase.from("sandra_call_queue").insert({
       tenant_id: parsed.data.tenant_id,
-      to_number: parsed.data.to_number,
+      lead_id: parsed.data.lead_id ?? null,
       status: "initiated",
-      elevenlabs_conversation_id: conversationId,
-      context: parsed.data.context ?? {},
-    } as never);
+      call_conversation_id: conversationId,
+      metadata: {
+        to_number: parsed.data.to_number,
+        elevenlabs_conversation_id: conversationId,
+        context: parsed.data.context ?? {},
+      },
+    });
   } catch {
     /* non-fatal */
   }
@@ -803,17 +811,21 @@ export async function initiateBatchSandraCallAction(
     };
   }
 
-  // 4. Mirror into sandra_call_queue for audit (best-effort, non-fatal)
+  // 4. Mirror into sandra_call_queue for audit (best-effort, non-fatal). Extra
+  // detail (phone, batch id, dynamic vars) goes in metadata (jsonb); the prior
+  // version wrote non-existent columns so the mirror never persisted.
   try {
     const rows = recipients.map((r) => ({
       tenant_id: parsed.data.tenant_id,
       lead_id: r.conversation_initiation_client_data.dynamic_variables.lead_id,
-      to_number: r.phone_number,
       status: "initiated",
-      elevenlabs_batch_id: batchId ?? null,
-      context: r.conversation_initiation_client_data.dynamic_variables,
+      metadata: {
+        to_number: r.phone_number,
+        elevenlabs_batch_id: batchId ?? null,
+        context: r.conversation_initiation_client_data.dynamic_variables,
+      },
     }));
-    await supabase.from("sandra_call_queue" as never).insert(rows as never);
+    await supabase.from("sandra_call_queue").insert(rows);
   } catch {
     /* non-fatal */
   }

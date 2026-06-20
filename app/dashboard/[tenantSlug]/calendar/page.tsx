@@ -44,10 +44,10 @@ export default async function CalendarPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
-  searchParams: Promise<{ start?: string }>;
+  searchParams: Promise<{ start?: string; invoice_error?: string }>;
 }) {
   const { tenantSlug } = await params;
-  const { start: startParam } = await searchParams;
+  const { start: startParam, invoice_error: invoiceError } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("calendar");
   const locale = await getLocale();
@@ -106,8 +106,33 @@ export default async function CalendarPage({
     year: "numeric",
   })}`;
 
+  // Surface invoice-from-reservation failures that redirect back here. Without
+  // this the user was silently bounced to the calendar with no feedback.
+  const invoiceErrorMessage = invoiceError
+    ? invoiceError === "missing_data"
+      ? t("invoice_error_missing_data")
+      : invoiceError === "reservation_not_found"
+        ? t("invoice_error_reservation_not_found")
+        : decodeURIComponent(invoiceError)
+    : null;
+
   return (
     <div className="p-6 md:p-8 max-w-7xl">
+      {invoiceErrorMessage ? (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div>
+            <p className="font-medium">{t("invoice_error_title")}</p>
+            <p className="text-destructive/80">{invoiceErrorMessage}</p>
+          </div>
+          <Link
+            href={`/dashboard/${tenantSlug}/calendar${startParam ? `?start=${startParam}` : ""}`}
+            className="shrink-0 rounded px-2 py-0.5 text-xs font-medium hover:bg-destructive/15"
+            aria-label="Dismiss"
+          >
+            ✕
+          </Link>
+        </div>
+      ) : null}
       <div className="mb-6 flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-display font-extrabold tracking-tight">

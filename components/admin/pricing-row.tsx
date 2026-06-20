@@ -74,7 +74,7 @@ export function PricingRow({ row }: { row: Row }) {
           {credits} cr
           {dirty && (
             <span className="text-xs text-amber-600 ml-1">
-              (était {row.credits_per_unit})
+              (antes {row.credits_per_unit})
             </span>
           )}
         </td>

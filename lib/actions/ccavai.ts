@@ -98,6 +98,7 @@ export async function updateCcavaiDraftAction(
     .from("ccavai_drafts")
     .select("subject_image_url, branded_headline, accent_phrases, category_label")
     .eq("id", draftId)
+    .eq("tenant_id", tenantId)
     .single();
   if (readErr || !existingRow) {
     return { error: readErr?.message ?? "Draft no encontrado" };
@@ -154,7 +155,8 @@ export async function updateCcavaiDraftAction(
       ...(parsed.data.accent_phrases !== undefined && { accent_phrases: parsed.data.accent_phrases }),
       ...(rebrandedImageUrl !== undefined && { image_url: rebrandedImageUrl }),
     })
-    .eq("id", draftId);
+    .eq("id", draftId)
+    .eq("tenant_id", tenantId);
   if (updErr) return { error: updErr.message };
 
   revalidatePath("/dashboard", "layout");

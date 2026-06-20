@@ -19,6 +19,15 @@ export default async function CustomersPage({
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("customers");
 
+  // Toggle VIP while preserving the active search. Built with URLSearchParams so
+  // the "?" is never dropped — the old string-concat produced "...customers&q=..."
+  // (no leading "?") when VIP was already on, silently losing the search filter.
+  const vipToggleParams = new URLSearchParams();
+  if (vip !== "1") vipToggleParams.set("vip", "1");
+  if (q) vipToggleParams.set("q", q);
+  const vipToggleQs = vipToggleParams.toString();
+  const vipToggleHref = `/dashboard/${tenantSlug}/customers${vipToggleQs ? `?${vipToggleQs}` : ""}`;
+
   const customers = await listCustomers(tenant.id, {
     search: q?.trim() || undefined,
     vipOnly: vip === "1",
@@ -40,7 +49,7 @@ export default async function CustomersPage({
       <div className="flex gap-2 mb-4">
         <CustomersSearch initialValue={q ?? ""} />
         <Link
-          href={`/dashboard/${tenantSlug}/customers${vip === "1" ? "" : "?vip=1"}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+          href={vipToggleHref}
           className={
             "inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm border " +
             (vip === "1"
