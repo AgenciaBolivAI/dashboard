@@ -27,11 +27,11 @@ export async function GET(req: NextRequest) {
   }
 
   const tenantId = session.metadata?.bolivai_tenant_id;
-  if (
-    session.metadata?.bolivai_purpose !== "lifetime_access" ||
-    !tenantId ||
-    session.payment_status !== "paid"
-  ) {
+  // A 100%-off code makes amount_total $0; Stripe marks those
+  // `no_payment_required` (not `paid`) — both mean the session is settled.
+  const settled =
+    session.payment_status === "paid" || session.payment_status === "no_payment_required";
+  if (session.metadata?.bolivai_purpose !== "lifetime_access" || !tenantId || !settled) {
     return NextResponse.redirect(`${base}/dashboard?lifetime=pending`);
   }
 

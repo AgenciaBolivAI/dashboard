@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { startLifetimeCheckoutAction } from "@/lib/actions/lifetime";
 import { signOutAction } from "@/lib/actions/auth";
 
@@ -26,6 +27,7 @@ export function LifetimeGate({
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [canceled, setCanceled] = useState(false);
+  const [code, setCode] = useState("");
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("lifetime") === "canceled") {
@@ -36,8 +38,8 @@ export function LifetimeGate({
   function pay() {
     setErr(null);
     start(async () => {
-      const r = await startLifetimeCheckoutAction(tenantSlug);
-      if (r?.error) setErr(t("error"));
+      const r = await startLifetimeCheckoutAction(tenantSlug, code.trim() || undefined);
+      if (r?.error) setErr(r.error === "invalid_code" ? t("code_invalid") : t("error"));
     });
   }
 
@@ -76,7 +78,17 @@ export function LifetimeGate({
 
           {canPay ? (
             <>
-              <Button className="w-full mt-6" disabled={pending} onClick={pay}>
+              <div className="mt-6 text-left">
+                <label className="text-xs text-muted-foreground">{t("code_label")}</label>
+                <Input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  placeholder={t("code_placeholder")}
+                  maxLength={40}
+                  className="mt-1 text-center font-mono tracking-wider"
+                />
+              </div>
+              <Button className="w-full mt-3" disabled={pending} onClick={pay}>
                 {pending ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> {t("processing")}

@@ -128,17 +128,22 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // Founding Member lifetime-access purchase ($40, one-time).
+        // Founding Member lifetime-access purchase (one-time). A 100%-off code
+        // makes amount_total $0 → Stripe marks it `no_payment_required` with no
+        // payment_intent, so fall back to the session id and accept that status.
         if (session.metadata?.bolivai_purpose === "lifetime_access") {
           const tenantId = session.metadata.bolivai_tenant_id;
           const pi =
-            typeof session.payment_intent === "string"
+            (typeof session.payment_intent === "string"
               ? session.payment_intent
-              : session.payment_intent?.id ?? null;
-          if (tenantId && pi && session.payment_status === "paid") {
+              : session.payment_intent?.id) ?? session.id;
+          const settled =
+            session.payment_status === "paid" ||
+            session.payment_status === "no_payment_required";
+          if (tenantId && settled) {
             const r = await grantLifetimeFromStripe({
               tenantId,
-              paidCents: session.amount_total ?? 3000,
+              paidCents: session.amount_total ?? 0,
               stripePaymentIntentId: pi,
             });
             console.log(

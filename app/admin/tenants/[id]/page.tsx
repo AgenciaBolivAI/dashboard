@@ -18,6 +18,7 @@ import { TenantAdminForm } from "@/components/admin/tenant-admin-form";
 import { GrantCreditsForm } from "@/components/admin/grant-credits-form";
 import { TenantDangerZone } from "@/components/admin/tenant-danger-zone";
 import { EvolutionProvisioner } from "@/components/admin/evolution-provisioner";
+import { LifetimeAccessCard } from "@/components/admin/lifetime-access-card";
 import { Sparkline } from "@/components/admin/sparkline";
 import { fmtUsd, fmtCents, fmtCredits, microsToDollars } from "@/lib/queries/admin-pnl";
 import {
@@ -42,6 +43,11 @@ type AdminTenant = {
   timezone: string;
   custom_domain: string | null;
   created_at: string;
+  lifetime_access: boolean;
+  lifetime_access_at: string | null;
+  founding_member_number: number | null;
+  lifetime_discount_pct: number;
+  lifetime_paid_cents: number | null;
 };
 
 export default async function AdminTenantDetail({
@@ -56,7 +62,7 @@ export default async function AdminTenantDetail({
   const { data: tenant } = await svc
     .from("tenants")
     .select(
-      "id, slug, name, industry, plan, status, workflow_template, gateway, gateway_config, language, timezone, custom_domain, created_at",
+      "id, slug, name, industry, plan, status, workflow_template, gateway, gateway_config, language, timezone, custom_domain, created_at, lifetime_access, lifetime_access_at, founding_member_number, lifetime_discount_pct, lifetime_paid_cents",
     )
     .eq("id", id)
     .maybeSingle();
@@ -216,6 +222,17 @@ export default async function AdminTenantDetail({
           </div>
         </CardContent>
       </Card>
+
+      {/* ── LIFETIME ACCESS (waive / per-tenant discount) ─────────────── */}
+      <div className="mb-6">
+        <LifetimeAccessCard
+          tenantId={t.id}
+          lifetimeAccess={t.lifetime_access}
+          foundingNumber={t.founding_member_number}
+          discountPct={t.lifetime_discount_pct}
+          paidCents={t.lifetime_paid_cents}
+        />
+      </div>
 
       {/* ── GRANT CREDITS (owner comp) ────────────────────────────── */}
       <Card className="mb-6">

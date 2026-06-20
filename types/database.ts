@@ -1801,6 +1801,7 @@ export type Database = {
           legal_name: string | null
           lifetime_access: boolean
           lifetime_access_at: string | null
+          lifetime_discount_pct: number
           lifetime_paid_cents: number | null
           lifetime_stripe_pi: string | null
           logo_url: string | null
@@ -1866,6 +1867,7 @@ export type Database = {
           legal_name?: string | null
           lifetime_access?: boolean
           lifetime_access_at?: string | null
+          lifetime_discount_pct?: number
           lifetime_paid_cents?: number | null
           lifetime_stripe_pi?: string | null
           logo_url?: string | null
@@ -1931,6 +1933,7 @@ export type Database = {
           legal_name?: string | null
           lifetime_access?: boolean
           lifetime_access_at?: string | null
+          lifetime_discount_pct?: number
           lifetime_paid_cents?: number | null
           lifetime_stripe_pi?: string | null
           logo_url?: string | null

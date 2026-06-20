@@ -380,3 +380,42 @@ export async function grantTenantCreditsAction(
     credits_added: row?.credits_added ?? 0,
   };
 }
+
+// ─── Lifetime access: waive + per-tenant discount (admin-only) ────────
+
+/** Grant lifetime access for free (waive the founders fee). Idempotent. */
+export async function waiveLifetimeAction(tenantId: string): Promise<AdminState> {
+  await requireUser();
+  await requireBolivAIAdmin();
+  if (!tenantId) return { error: "tenant_id requerido" };
+  const svc = createServiceClient();
+  const { error } = await svc.rpc("grant_lifetime_access", {
+    p_tenant_id: tenantId,
+    p_paid_cents: 0,
+    p_stripe_pi: "admin_waiver",
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/admin", "layout");
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+/** Set a 0–100% discount on this tenant's founders fee. */
+export async function setLifetimeDiscountAction(
+  tenantId: string,
+  pct: number,
+): Promise<AdminState> {
+  await requireUser();
+  await requireBolivAIAdmin();
+  if (!tenantId) return { error: "tenant_id requerido" };
+  const clamped = Math.min(100, Math.max(0, Math.round(Number(pct) || 0)));
+  const svc = createServiceClient();
+  const { error } = await svc
+    .from("tenants")
+    .update({ lifetime_discount_pct: clamped })
+    .eq("id", tenantId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin", "layout");
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}

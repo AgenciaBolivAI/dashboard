@@ -11,9 +11,15 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getStripe, getAppUrl } from "@/lib/stripe";
 
 export const LIFETIME_PRICE_CENTS = 4000; // $40
-export const FOUNDING_CAP = 5000;
+export const FOUNDING_CAP = 10000;
 
-/** How many tenants already hold lifetime access (for the "X of 5,000" copy). */
+/** The fee a tenant actually pays after their admin-set per-tenant discount. */
+export function effectiveLifetimeCents(discountPct: number): number {
+  const pct = Math.min(100, Math.max(0, Math.round(discountPct || 0)));
+  return Math.round((LIFETIME_PRICE_CENTS * (100 - pct)) / 100);
+}
+
+/** How many tenants already hold lifetime access (for the "X of 10,000" copy). */
 export async function getFoundingCount(): Promise<number> {
   const svc = createServiceClient();
   const { count } = await svc
@@ -23,11 +29,24 @@ export async function getFoundingCount(): Promise<number> {
   return count ?? 0;
 }
 
+/**
+ * Build the Founding Member checkout for a tenant. Applies the tenant's
+ * per-tenant discount to the line-item amount, and optionally pre-applies a
+ * resolved Stripe promotion code. Returns `{ free: true }` when the effective
+ * price is $0 (100% discount) so the caller grants directly without a $0 Stripe
+ * round-trip. A promotion code and the in-checkout code field are mutually
+ * exclusive in Stripe, so we set one or the other.
+ */
 export async function createLifetimeCheckoutSession(input: {
   tenantId: string;
   tenantSlug: string;
   customerEmail?: string;
-}): Promise<{ url: string; sessionId: string }> {
+  discountPct?: number;
+  promotionCodeId?: string | null;
+}): Promise<{ url?: string; sessionId?: string; free?: boolean }> {
+  const effective = effectiveLifetimeCents(input.discountPct ?? 0);
+  if (effective <= 0) return { free: true };
+
   const stripe = getStripe();
   const base = getAppUrl();
 
@@ -39,7 +58,7 @@ export async function createLifetimeCheckoutSession(input: {
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: LIFETIME_PRICE_CENTS,
+          unit_amount: effective,
           product_data: {
             name: "BolivAI — Founding Member (lifetime access)",
             description:
@@ -48,10 +67,15 @@ export async function createLifetimeCheckoutSession(input: {
         },
       },
     ],
+    // A resolved promo code is pre-applied; otherwise let the user enter one on
+    // Stripe's page (the two options can't be combined).
+    ...(input.promotionCodeId
+      ? { discounts: [{ promotion_code: input.promotionCodeId }] }
+      : { allow_promotion_codes: true }),
     metadata: {
       bolivai_purpose: "lifetime_access",
       bolivai_tenant_id: input.tenantId,
-      bolivai_paid_cents: String(LIFETIME_PRICE_CENTS),
+      bolivai_paid_cents: String(effective),
     },
     payment_intent_data: {
       metadata: { bolivai_purpose: "lifetime_access", bolivai_tenant_id: input.tenantId },
