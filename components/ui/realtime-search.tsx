@@ -36,6 +36,7 @@ export function RealtimeSearch({
       const trimmed = value.trim();
       if (trimmed) params.set(paramName, trimmed);
       else params.delete(paramName);
+      params.delete("page"); // a new search resets to the first page
       const qs = params.toString();
       router.replace(`${pathname}${qs ? "?" + qs : ""}`, { scroll: false });
       setTimeout(() => setBusy(false), 100);

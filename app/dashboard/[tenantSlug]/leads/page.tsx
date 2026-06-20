@@ -8,6 +8,7 @@ import { listLeads, getLeadIntents, getLeadFacets } from "@/lib/queries/leads";
 import { COUNTRY_BY_CODE } from "@/lib/leads-geo";
 import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
 import { RealtimeSearch } from "@/components/ui/realtime-search";
+import { Pagination, clampPageSize } from "@/components/ui/pagination";
 import { intentLabel } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,8 @@ type LeadsSearchParams = {
   country?: string;   // ISO alpha-2 (e.g. "US")
   state?: string;     // e.g. "Florida"
   q?: string;         // realtime search — name / phone / email
+  page?: string;      // 1-based page number
+  pageSize?: string;  // rows per page
 };
 
 export default async function LeadsPage({
@@ -64,7 +67,10 @@ export default async function LeadsPage({
     restaurant: t("vertical_restaurant"),
   };
 
-  const [leads, intents, facets] = await Promise.all([
+  const pageSize = clampPageSize(Number(filters.pageSize) || undefined);
+  const page = Math.max(1, Number(filters.page) || 1);
+
+  const [{ rows: leads, total }, intents, facets] = await Promise.all([
     listLeads(tenant.id, {
       status: filters.status && filters.status !== "all" ? filters.status : undefined,
       intent: filters.intent && filters.intent !== "all" ? filters.intent : undefined,
@@ -74,6 +80,8 @@ export default async function LeadsPage({
       country: filters.country && filters.country !== "all" ? filters.country : undefined,
       state: filters.state && filters.state !== "all" ? filters.state : undefined,
       search: filters.q?.trim() || undefined,
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
     }),
     getLeadIntents(tenant.id),
     getLeadFacets(tenant.id),
@@ -95,6 +103,9 @@ export default async function LeadsPage({
       const v = next[k];
       if (v && v !== "all") params.set(k, v);
     }
+    // Keep the chosen page size across filter changes, but reset to page 1 (the
+    // new filtered set may have fewer pages).
+    if (filters.pageSize) params.set("pageSize", filters.pageSize);
     const qs = params.toString();
     return `/dashboard/${tenantSlug}/leads${qs ? "?" + qs : ""}`;
   }
@@ -108,7 +119,7 @@ export default async function LeadsPage({
     filters.country && filters.country !== "all"
       ? (facets.states[filters.country] ?? [])
       : Object.values(facets.states).flat().slice(0, 200);
-  const countText = leads.length === 1 ? t("count_one", { count: leads.length }) : t("count_other", { count: leads.length });
+  const countText = total === 1 ? t("count_one", { count: total }) : t("count_other", { count: total });
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
@@ -228,7 +239,12 @@ export default async function LeadsPage({
           </p>
         </Card>
       ) : (
-        <LeadsTable tenantId={tenant.id} leads={leads as unknown as LeadFromQuery[]} />
+        <>
+          <LeadsTable tenantId={tenant.id} leads={leads as unknown as LeadFromQuery[]} />
+          <div className="mt-4">
+            <Pagination total={total} defaultPageSize={pageSize} />
+          </div>
+        </>
       )}
     </div>
   );

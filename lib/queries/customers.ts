@@ -16,17 +16,17 @@ export type CustomerListRow = {
  */
 export async function listCustomers(
   tenantId: string,
-  opts: { search?: string; vipOnly?: boolean; limit?: number } = {},
-): Promise<CustomerListRow[]> {
+  opts: { search?: string; vipOnly?: boolean; offset?: number; limit?: number } = {},
+): Promise<{ rows: CustomerListRow[]; total: number }> {
   const supabase = await createClient();
   let q = supabase
     .from("users")
     .select(
       "id, name, whatsapp_number, is_vip, created_at, reservations(start_at)",
+      { count: "exact" },
     )
     .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-    .limit(opts.limit ?? 200);
+    .order("created_at", { ascending: false });
 
   if (opts.vipOnly) q = q.eq("is_vip", true);
   if (opts.search) {
@@ -35,7 +35,17 @@ export async function listCustomers(
     q = q.or(`name.ilike.${s},whatsapp_number.ilike.${s}`);
   }
 
-  const { data } = await q;
+  // Pagination window + total count, so the page can show "1–50 of 710" and
+  // page through all customers (was hard-capped at 200, no count).
+  if (opts.offset != null) {
+    const from = opts.offset;
+    const to = from + (opts.limit ?? 50) - 1;
+    q = q.range(from, to);
+  } else {
+    q = q.limit(opts.limit ?? 200);
+  }
+
+  const { data, count } = await q;
   type Raw = {
     id: string;
     name: string | null;
@@ -44,7 +54,7 @@ export async function listCustomers(
     created_at: string;
     reservations: Array<{ start_at: string }> | null;
   };
-  return ((data ?? []) as unknown as Raw[]).map((u) => {
+  const rows = ((data ?? []) as unknown as Raw[]).map((u) => {
     const reservations = u.reservations ?? [];
     const lastResv = reservations
       .map((r) => r.start_at)
@@ -59,6 +69,7 @@ export async function listCustomers(
       last_seen_at: lastResv ?? u.created_at,
     };
   });
+  return { rows, total: count ?? 0 };
 }
 
 export type Customer360 = {

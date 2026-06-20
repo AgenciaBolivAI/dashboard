@@ -42,7 +42,12 @@
     "delete": "Elimina",
     "loading": "Caricamento…",
     "error": "Errore",
-    "success": "Fatto"
+    "success": "Fatto",
+    "pg_per_page": "Per pagina",
+    "pg_showing": "Visualizzati {from}–{to} di {total}",
+    "pg_page_of": "Pagina {page} di {pages}",
+    "pg_prev": "Precedente",
+    "pg_next": "Successivo"
   },
   "overview": {
     "title": "Panoramica",
@@ -473,7 +478,9 @@
     "save_profile": "Salva modifiche",
     "saving": "Salvataggio...",
     "profile_saved": "Profilo aggiornato",
-    "clear_search": "Cancella ricerca"
+    "clear_search": "Cancella ricerca",
+    "count_one": "{count} cliente",
+    "count_other": "{count} clienti"
   },
   "calendar": {
     "title": "Calendario",

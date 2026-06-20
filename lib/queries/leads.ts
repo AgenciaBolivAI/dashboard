@@ -23,24 +23,31 @@ export type LeadFilters = {
   country?: string;   // ISO alpha-2 (e.g. "US", "MX", "BO")
   state?: string;     // free-form, matched against metadata.{state,region}
   search?: string;    // matches name OR phone OR email, case-insensitive partial
+  offset?: number;    // pagination window start (0-based); pairs with limit
   limit?: number;
 };
 
 import { COUNTRY_BY_CODE, getCountryFromPhone, getStateFromMetadata } from "@/lib/leads-geo";
 
+const LEAD_COLS =
+  "id, name, whatsapp_number, email, intent, status, notes, created_at, conversation_id, source, metadata";
+
+/**
+ * Paginated lead listing. Returns the requested window plus the TOTAL count of
+ * leads matching the filters (via PostgREST `count: exact`), so the UI can show
+ * "showing 1–50 of 700" and paginate through the whole set — it previously
+ * hard-capped at 500 rows with no count.
+ */
 export async function listLeads(
   tenantId: string,
   opts: LeadFilters = {},
-): Promise<Lead[]> {
+): Promise<{ rows: Lead[]; total: number }> {
   const supabase = await createClient();
   let q = supabase
     .from("leads")
-    .select(
-      "id, name, whatsapp_number, email, intent, status, notes, created_at, conversation_id, source, metadata",
-    )
+    .select(LEAD_COLS, { count: "exact" })
     .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-    .limit(opts.limit ?? 500);
+    .order("created_at", { ascending: false });
 
   if (opts.status) q = q.eq("status", opts.status);
   if (opts.intent) q = q.eq("intent", opts.intent);
@@ -63,27 +70,35 @@ export async function listLeads(
 
   // Country filter — derived from the phone prefix. Postgres doesn't store
   // the country directly, so we filter by `whatsapp_number LIKE prefix%`.
-  // This is cheap because we already limit to 500 rows by tenant.
   if (opts.country) {
     const c = COUNTRY_BY_CODE[opts.country];
     if (c) q = q.like("whatsapp_number", `${c.prefix}%`);
   }
 
-  const { data } = await q;
-  let rows = (data ?? []) as Lead[];
-
-  // State filter happens client-side because metadata.state and metadata.region
-  // are both valid storage paths. PostgREST's `contains` only matches one key
-  // at a time and would require two queries; this filter at our scale is
-  // negligible.
+  // State filters server-side across all three possible JSONB keys (state /
+  // region / administrative_area_level_1) so the count + pagination stay
+  // accurate. It used to filter client-side AFTER the fetch, so it only ever
+  // saw the first page of rows.
   if (opts.state) {
-    rows = rows.filter((r) => {
-      const s = getStateFromMetadata(r.metadata);
-      return s ? s.toLowerCase() === opts.state!.toLowerCase() : false;
-    });
+    const s = opts.state.replace(/[,()]/g, " ").trim();
+    if (s) {
+      q = q.or(
+        `metadata->>state.ilike.${s},metadata->>region.ilike.${s},metadata->>administrative_area_level_1.ilike.${s}`,
+      );
+    }
   }
 
-  return rows;
+  // Pagination window. Non-paginated callers (CSV export) pass only `limit`.
+  if (opts.offset != null) {
+    const from = opts.offset;
+    const to = from + (opts.limit ?? 50) - 1;
+    q = q.range(from, to);
+  } else {
+    q = q.limit(opts.limit ?? 500);
+  }
+
+  const { data, count } = await q;
+  return { rows: (data ?? []) as Lead[], total: count ?? 0 };
 }
 
 // Re-export for callers that want to derive flags client-side
@@ -96,9 +111,7 @@ export async function getLeadById(
   const supabase = await createClient();
   const { data } = await supabase
     .from("leads")
-    .select(
-      "id, name, whatsapp_number, email, intent, status, notes, created_at, conversation_id, source, metadata",
-    )
+    .select(LEAD_COLS)
     .eq("tenant_id", tenantId)
     .eq("id", leadId)
     .maybeSingle();

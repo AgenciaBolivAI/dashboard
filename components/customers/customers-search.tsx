@@ -38,6 +38,7 @@ export function CustomersSearch({
       const trimmed = value.trim();
       if (trimmed) params.set("q", trimmed);
       else params.delete("q");
+      params.delete("page"); // a new search resets to the first page
       const qs = params.toString();
       router.replace(`${pathname}${qs ? "?" + qs : ""}`, { scroll: false });
       // Use a small delay before clearing busy so the spinner has a moment to show

@@ -42,7 +42,12 @@
     "delete": "Delete",
     "loading": "Loading…",
     "error": "Error",
-    "success": "Done"
+    "success": "Done",
+    "pg_per_page": "Per page",
+    "pg_showing": "Showing {from}–{to} of {total}",
+    "pg_page_of": "Page {page} of {pages}",
+    "pg_prev": "Previous",
+    "pg_next": "Next"
   },
   "overview": {
     "title": "Overview",
@@ -473,7 +478,9 @@
     "save_profile": "Save changes",
     "saving": "Saving...",
     "profile_saved": "Profile updated",
-    "clear_search": "Clear search"
+    "clear_search": "Clear search",
+    "count_one": "{count} customer",
+    "count_other": "{count} customers"
   },
   "calendar": {
     "title": "Calendar",

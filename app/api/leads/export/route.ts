@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const tenant = await getTenantBySlug(tenantSlug);
   await requireTenantAccess(tenant.id);
 
-  const leads = await listLeads(tenant.id, {
+  const { rows: leads } = await listLeads(tenant.id, {
     status: searchParams.get("status") ?? undefined,
     intent: searchParams.get("intent") ?? undefined,
     source: searchParams.get("source") ?? undefined,

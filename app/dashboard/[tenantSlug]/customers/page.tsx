@@ -6,19 +6,23 @@ import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listCustomers } from "@/lib/queries/customers";
 import { CustomersSearch } from "@/components/customers/customers-search";
+import { Pagination, clampPageSize } from "@/components/ui/pagination";
 
 export default async function CustomersPage({
   params,
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
-  searchParams: Promise<{ q?: string; vip?: string }>;
+  searchParams: Promise<{ q?: string; vip?: string; page?: string; pageSize?: string }>;
 }) {
   const { tenantSlug } = await params;
-  const { q, vip } = await searchParams;
+  const { q, vip, page: pageParam, pageSize: pageSizeParam } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("customers");
   const locale = await getLocale();
+
+  const pageSize = clampPageSize(Number(pageSizeParam) || undefined);
+  const page = Math.max(1, Number(pageParam) || 1);
 
   // Toggle VIP while preserving the active search. Built with URLSearchParams so
   // the "?" is never dropped — the old string-concat produced "...customers&q=..."
@@ -26,12 +30,15 @@ export default async function CustomersPage({
   const vipToggleParams = new URLSearchParams();
   if (vip !== "1") vipToggleParams.set("vip", "1");
   if (q) vipToggleParams.set("q", q);
+  if (pageSizeParam) vipToggleParams.set("pageSize", pageSizeParam); // keep page-size, reset page
   const vipToggleQs = vipToggleParams.toString();
   const vipToggleHref = `/dashboard/${tenantSlug}/customers${vipToggleQs ? `?${vipToggleQs}` : ""}`;
 
-  const customers = await listCustomers(tenant.id, {
+  const { rows: customers, total } = await listCustomers(tenant.id, {
     search: q?.trim() || undefined,
     vipOnly: vip === "1",
+    offset: (page - 1) * pageSize,
+    limit: pageSize,
   });
 
   return (
@@ -42,7 +49,8 @@ export default async function CustomersPage({
             {t("page_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {t("page_subtitle")}
+            {total === 1 ? t("count_one", { count: total }) : t("count_other", { count: total })}
+            {vip === "1" ? " · " + t("vip_only") : ""}
           </p>
         </div>
       </div>
@@ -121,6 +129,12 @@ export default async function CustomersPage({
           </CardContent>
         </Card>
       )}
+
+      {total > 0 ? (
+        <div className="mt-4">
+          <Pagination total={total} defaultPageSize={pageSize} />
+        </div>
+      ) : null}
     </div>
   );
 }
