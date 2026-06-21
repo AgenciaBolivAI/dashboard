@@ -45,8 +45,11 @@ export async function POST(request: NextRequest) {
     body.object === "instagram" ? "instagram" : body.object === "page" ? "facebook_messenger" : null;
   if (!channel || !Array.isArray(body.entry)) return NextResponse.json({ ok: true });
 
-  // Resolve + forward without blocking the 200 (Meta retries on slow/non-200).
-  void dispatch(channel, body.entry).catch(() => {});
+  // AWAIT the forward. On Vercel, fire-and-forget work after the response is
+  // frozen — the profile-name lookup latency was enough to kill the forward
+  // before it ran, so inbound messages silently vanished. dispatch is bounded
+  // (~2.5s lookup + a fast POST), well within Meta's webhook window.
+  await dispatch(channel, body.entry).catch(() => {});
   return NextResponse.json({ ok: true });
 }
 
@@ -71,7 +74,7 @@ async function fetchSenderProfile(
   try {
     const res = await fetch(
       `https://graph.facebook.com/v21.0/${senderId}?fields=name,username&access_token=${encodeURIComponent(pageToken)}`,
-      { signal: AbortSignal.timeout(5000) },
+      { signal: AbortSignal.timeout(2500) },
     );
     if (!res.ok) return { name: null, username: null };
     const j = (await res.json()) as { name?: string; username?: string };
