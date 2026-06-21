@@ -1069,6 +1069,112 @@ export const TOOLS: Record<string, Tool> = {
       return { ok: true, message: "Tarea completada." };
     },
   },
+
+  // ── BOLIV configuration tools (Stage 2: configure via conversation) ───────
+  // Admin-level config (settings:edit) — write to the same DB state the
+  // settings UIs do; the agents' n8n ticks read these flags. Confirm-gated.
+
+  set_voice_greeting: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description:
+      "Change the GREETING / opening line the VOICE agents (Sandra outbound, Rebecca inbound) say when a call starts. Use for 'change Sandra's greeting', 'update the opening line'. Confirm with the user, then call with confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        greeting: { type: "string", description: "The new opening line the voice agent will say." },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["greeting"],
+    },
+    run: async (args, tenantId) => {
+      const greeting = String(args.greeting || "").trim().slice(0, 500);
+      if (!greeting) return { error: "El saludo está vacío." };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Cambiar el saludo de los agentes de voz a: "${greeting}". Pide confirmación.` };
+      }
+      const { error } = await svcAny().from("tenants").update({ voice_greeting: greeting }).eq("id", tenantId);
+      if (error) return { error: error.message };
+      return { ok: true, message: "Saludo de voz actualizado." };
+    },
+  },
+
+  set_agent_enabled: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description:
+      "PAUSE or RESUME an agent. agent: 'voice' (Sandra + Rebecca), 'aima' (lead prospecting), 'ccavai' (content), 'vira' (video shorts). enabled=false pauses it, true resumes it. Use for 'pause Sandra', 'stop the content agent', 'turn lead hunting back on'. Confirm, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        agent: { type: "string", enum: ["voice", "aima", "ccavai", "vira"] },
+        enabled: { type: "boolean", description: "false = pause, true = resume." },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["agent", "enabled"],
+    },
+    run: async (args, tenantId) => {
+      const agent = String(args.agent);
+      const enabled = args.enabled === true;
+      const MAP: Record<string, { table: string; col: string }> = {
+        voice: { table: "tenants", col: "voice_enabled" },
+        aima: { table: "aima_settings", col: "scraper_enabled" },
+        ccavai: { table: "ccavai_settings", col: "enabled" },
+        vira: { table: "vira_settings", col: "enabled" },
+      };
+      const m = MAP[agent];
+      if (!m) return { error: "Agente desconocido (voice | aima | ccavai | vira)." };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `${enabled ? "Reanudar" : "Pausar"} el agente "${agent}". Pide confirmación.` };
+      }
+      if (m.table === "tenants") {
+        const { error } = await svcAny().from("tenants").update({ [m.col]: enabled }).eq("id", tenantId);
+        if (error) return { error: error.message };
+      } else {
+        const { error } = await svcAny()
+          .from(m.table)
+          .upsert({ tenant_id: tenantId, [m.col]: enabled, updated_at: new Date().toISOString() }, { onConflict: "tenant_id" });
+        if (error) return { error: error.message };
+      }
+      return { ok: true, message: `Agente ${agent} ${enabled ? "reanudado" : "pausado"}.` };
+    },
+  },
+
+  set_lead_campaign_filters: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description:
+      "Set what AIMA's lead-prospecting campaign targets: the VERTICALS (business types, e.g. 'dental clinic') and/or GEOGRAPHIES (cities/regions, e.g. 'Cochabamba'). Each list REPLACES the current one. Use for 'have AIMA target dental clinics in Cochabamba', 'change the lead campaign filters'. Confirm, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        verticals: { type: "array", items: { type: "string" }, description: "Business types to target (replaces the list)." },
+        geographies: { type: "array", items: { type: "string" }, description: "Cities/regions to target (replaces the list)." },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+    },
+    run: async (args, tenantId) => {
+      const verticals = Array.isArray(args.verticals)
+        ? args.verticals.map(String).map((s) => s.trim().slice(0, 60)).filter(Boolean).slice(0, 20)
+        : undefined;
+      const geographies = Array.isArray(args.geographies)
+        ? args.geographies.map(String).map((s) => s.trim().slice(0, 120)).filter(Boolean).slice(0, 120)
+        : undefined;
+      if (!verticals && !geographies) return { error: "Indica verticales y/o geografías a targetear." };
+      const parts: string[] = [];
+      if (verticals) parts.push(`verticales: ${verticals.join(", ") || "(ninguna)"}`);
+      if (geographies) parts.push(`zonas: ${geographies.join(", ") || "(ninguna)"}`);
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Actualizar el campaign de leads (AIMA) — ${parts.join(" · ")}. Pide confirmación.` };
+      }
+      const patch: Record<string, unknown> = { tenant_id: tenantId, updated_at: new Date().toISOString() };
+      if (verticals) patch.target_verticals = verticals;
+      if (geographies) patch.target_geographies = geographies;
+      const { error } = await svcAny().from("aima_settings").upsert(patch, { onConflict: "tenant_id" });
+      if (error) return { error: error.message };
+      return { ok: true, message: "Filtros del campaign de leads actualizados." };
+    },
+  },
 };
 
 /**
