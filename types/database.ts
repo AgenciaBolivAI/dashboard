@@ -307,6 +307,119 @@ export type Database = {
           },
         ]
       }
+      campaign_steps: {
+        Row: {
+          campaign_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          kind: string
+          params: Json
+          result: Json | null
+          scheduled_at: string | null
+          seq: number
+          started_at: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          campaign_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          params?: Json
+          result?: Json | null
+          scheduled_at?: string | null
+          seq: number
+          started_at?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          campaign_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          params?: Json
+          result?: Json | null
+          scheduled_at?: string | null
+          seq?: number
+          started_at?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_steps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_steps_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          budget_credits: number | null
+          created_at: string
+          created_by: string | null
+          goal: string | null
+          id: string
+          spent_credits: number
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          budget_credits?: number | null
+          created_at?: string
+          created_by?: string | null
+          goal?: string | null
+          id?: string
+          spent_credits?: number
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          budget_credits?: number | null
+          created_at?: string
+          created_by?: string | null
+          goal?: string | null
+          id?: string
+          spent_credits?: number
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       castillo_webhook_secrets: {
         Row: {
           created_at: string

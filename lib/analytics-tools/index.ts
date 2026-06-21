@@ -1175,6 +1175,123 @@ export const TOOLS: Record<string, Tool> = {
       return { ok: true, message: "Filtros del campaign de leads actualizados." };
     },
   },
+
+  // ── BOLIV autonomous campaigns (Stage 3: plan → approve → execute) ────────
+  get_campaigns: {
+    permission: { feature: "marketing", level: "read" },
+    description:
+      "List autonomous CAMPAIGNS and their status (draft/approved/running/paused/done/cancelled) with budget spend. Use for 'what campaigns are running', 'how's the Cochabamba campaign'.",
+    parameters: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 25 } } },
+    run: async (args, tenantId) => {
+      const limit = Math.min(25, Math.max(1, Number(args.limit) || 10));
+      const { data } = await svcAny()
+        .from("campaigns")
+        .select("id, title, status, budget_credits, spent_credits, created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      return { count: (data ?? []).length, campaigns: data ?? [] };
+    },
+  },
+
+  propose_campaign: {
+    permission: { feature: "marketing", level: "edit" },
+    mutates: true,
+    description:
+      "Plan and launch a multi-step autonomous CAMPAIGN. Decompose the goal into ordered steps, each a kind: 'aima_scrape' (find leads — params {verticals:[], geographies:[], max?}), 'sandra_calls' (queue Sandra to call the new leads — params {lead_status?:'new', source?:'aima', limit?, priority?}), 'report' (summarize results — params {about?}), or 'wait'. Set scheduled_at (ISO-8601 datetime) per step to time it ('Tuesday morning' → that date 09:00 in the business timezone); omit for ASAP. Optionally budget_credits caps how many leads Sandra will call. CONFIRMING ACTIVATES the campaign — it then runs automatically. Example: 'find dental clinics in Cochabamba, have Sandra call them Tuesday morning, report Wednesday'. Confirm with the user, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Short campaign name." },
+        goal: { type: "string", description: "The plain-language goal." },
+        budget_credits: { type: "integer", description: "Optional cap on leads Sandra will call." },
+        steps: {
+          type: "array",
+          description: "Ordered steps to execute.",
+          items: {
+            type: "object",
+            properties: {
+              kind: { type: "string", enum: ["aima_scrape", "sandra_calls", "report", "wait"] },
+              params: { type: "object", description: "Step parameters (see the tool description)." },
+              scheduled_at: { type: "string", description: "ISO-8601 datetime; omit for ASAP." },
+            },
+            required: ["kind"],
+          },
+        },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed the plan." },
+      },
+      required: ["title", "steps"],
+    },
+    run: async (args, tenantId) => {
+      const title = String(args.title || "").trim().slice(0, 200);
+      const KINDS = ["aima_scrape", "sandra_calls", "report", "wait"];
+      const raw = Array.isArray(args.steps) ? (args.steps as Array<Record<string, unknown>>) : [];
+      const steps = raw.filter((s) => s && KINDS.includes(String(s.kind))).slice(0, 25);
+      if (!title) return { error: "Falta el título de la campaña." };
+      if (steps.length === 0) return { error: "La campaña no tiene pasos válidos." };
+
+      const arr = (v: unknown): string[] =>
+        Array.isArray(v) ? v.map(String) : typeof v === "string" ? [v] : [];
+      const label = (s: Record<string, unknown>): string => {
+        const k = String(s.kind);
+        const pp = (s.params && typeof s.params === "object" ? s.params : {}) as Record<string, unknown>;
+        const when = typeof s.scheduled_at === "string" && s.scheduled_at ? ` (${s.scheduled_at})` : "";
+        if (k === "aima_scrape") {
+          const v = arr(pp.verticals);
+          const g = arr(pp.geographies);
+          return `Buscar leads${v.length ? ` [${v.join(", ")}]` : ""}${g.length ? ` en ${g.join(", ")}` : ""}${when}`;
+        }
+        if (k === "sandra_calls") return `Sandra llama a los leads${when}`;
+        if (k === "report") return `Reporte de resultados${when}`;
+        return `Esperar${when}`;
+      };
+
+      if (args.confirm !== true) {
+        const planText = steps.map((s, i) => `${i + 1}) ${label(s)}`).join("; ");
+        const budget = typeof args.budget_credits === "number" ? ` · Tope: ${args.budget_credits} leads` : "";
+        return {
+          requires_confirmation: true,
+          summary: `Campaña "${title}": ${planText}${budget}. Confirmar la ACTIVA y se ejecuta automáticamente.`,
+        };
+      }
+
+      const svc = svcAny();
+      const { data: camp, error } = await svc
+        .from("campaigns")
+        .insert({
+          tenant_id: tenantId,
+          title,
+          goal: typeof args.goal === "string" ? args.goal.slice(0, 2000) : null,
+          budget_credits: typeof args.budget_credits === "number" ? Math.max(0, Math.round(args.budget_credits)) : null,
+          status: "approved",
+          approved_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+      if (error) return { error: error.message };
+      const cid = (camp as { id: string }).id;
+
+      const rows = steps.map((s, i) => ({
+        campaign_id: cid,
+        tenant_id: tenantId,
+        seq: i + 1,
+        kind: String(s.kind),
+        params: s.params && typeof s.params === "object" ? s.params : {},
+        scheduled_at: typeof s.scheduled_at === "string" && s.scheduled_at ? s.scheduled_at : null,
+        status: "pending",
+      }));
+      const { error: sErr } = await svc.from("campaign_steps").insert(rows);
+      if (sErr) {
+        await svc.from("campaigns").delete().eq("id", cid);
+        return { error: sErr.message };
+      }
+      return {
+        ok: true,
+        message: `Campaña "${title}" activada con ${rows.length} pasos. Se ejecutará automáticamente.`,
+        campaign_id: cid,
+      };
+    },
+  },
 };
 
 /**
