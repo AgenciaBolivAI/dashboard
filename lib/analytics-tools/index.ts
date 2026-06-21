@@ -18,6 +18,7 @@ import { LEAD_STATUSES } from "@/lib/leads-types";
 import { triggerCcavaiGenerationAction } from "@/lib/actions/ccavai";
 import { triggerAimaScrapeAction } from "@/lib/actions/aima";
 import { getReports, type ReportPeriod } from "@/lib/queries/reports";
+import { getBolivBriefing } from "@/lib/queries/briefing";
 
 // supabase-js is typed to known tables; several analytics helpers query by a
 // dynamic table name, so we use a loosely-typed view of the same client.
@@ -140,6 +141,14 @@ function tally(rows: Record<string, unknown>[], col: string): Record<string, num
 }
 
 export const TOOLS: Record<string, Tool> = {
+  get_briefing: {
+    permission: { feature: "analytics", level: "read" },
+    description:
+      "BOLIV's operating snapshot RIGHT NOW: conversations handled in the last 24h, leads waiting (new/uncontacted), open tasks, today's events, and pending recommendations. Use to answer 'what's my status', 'what needs my attention', 'what happened overnight', 'where do I start'.",
+    parameters: { type: "object", properties: {} },
+    run: async (_args, tenantId) => getBolivBriefing(tenantId, null),
+  },
+
   get_overview: {
     permission: { feature: "analytics", level: "read" },
     description:

@@ -18,7 +18,7 @@
     "billing": "Billing",
     "settings": "Settings",
     "sandra_queue": "Sandra's queue",
-    "assistant": "Assistant",
+    "assistant": "BOLIV",
     "open_menu": "Open menu",
     "close_menu": "Close menu",
     "admin_panel": "BolivAI panel"
@@ -2018,8 +2018,11 @@
     "forgot_submit": "Send link"
   },
   "assistant": {
-    "page_title": "Assistant",
-    "page_subtitle": "Ask the AI about your business — reservations, credits, leads and more.",
+    "page_title": "BOLIV",
+    "page_subtitle": "Your platform operator. Knows your whole business and runs your agents.",
+    "briefing_greeting": "Welcome back.",
+    "briefing_summary": "Your agents handled {conversations} conversations in the last 24h, {leads} leads are waiting, you have {tasks} open tasks and {events} events today.",
+    "briefing_cta": "What do you want to do first?",
     "empty_title": "What do you want to know about your business?",
     "empty_subtitle": "Ask in plain language. I answer from your real data, live.",
     "placeholder": "Type your question…",

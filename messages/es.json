@@ -18,7 +18,7 @@
     "billing": "Facturación",
     "settings": "Ajustes",
     "sandra_queue": "Cola de Sandra",
-    "assistant": "Asistente",
+    "assistant": "BOLIV",
     "open_menu": "Abrir menú",
     "close_menu": "Cerrar menú",
     "admin_panel": "Panel BolivAI"
@@ -2018,8 +2018,11 @@
     "forgot_submit": "Enviar enlace"
   },
   "assistant": {
-    "page_title": "Asistente",
-    "page_subtitle": "Pregúntale a la IA sobre tu negocio — reservas, créditos, leads y más.",
+    "page_title": "BOLIV",
+    "page_subtitle": "Tu operador de plataforma. Conoce todo tu negocio y coordina a tus agentes.",
+    "briefing_greeting": "Bienvenido de vuelta.",
+    "briefing_summary": "Tus agentes atendieron {conversations} conversaciones en las últimas 24 h, {leads} leads esperan, tienes {tasks} tareas pendientes y {events} eventos hoy.",
+    "briefing_cta": "¿Qué quieres hacer primero?",
     "empty_title": "¿Qué quieres saber de tu negocio?",
     "empty_subtitle": "Pregunta en lenguaje natural. Respondo con tus datos reales, en tiempo real.",
     "placeholder": "Escribe tu pregunta…",

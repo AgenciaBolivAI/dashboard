@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useTransition } from "react";
-import { Bot, Loader2, Send, Sparkles, AlertTriangle, Check, X, RotateCcw } from "lucide-react";
+import { Loader2, Send, Sparkles, AlertTriangle, Check, X, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,22 @@ import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type PendingAction = { name: string; args: Record<string, unknown>; summary: string };
+type Briefing = {
+  conversations24h: number;
+  leadsWaiting: number;
+  tasksDue: number;
+  eventsToday: number;
+  recommendations: number;
+};
 
 export function AssistantChat({
   tenantSlug,
   initialMessages = [],
+  briefing,
 }: {
   tenantSlug: string;
   initialMessages?: Msg[];
+  briefing?: Briefing;
 }) {
   const t = useTranslations("assistant");
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
@@ -112,11 +121,24 @@ export function AssistantChat({
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center gap-5">
             <div className="size-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Bot className="size-7 text-primary" />
+              <Sparkles className="size-7 text-primary" />
             </div>
-            <div>
-              <h2 className="text-xl font-display font-bold">{t("empty_title")}</h2>
-              <p className="text-sm text-muted-foreground mt-1 max-w-md">{t("empty_subtitle")}</p>
+            <div className="max-w-xl">
+              <h2 className="text-xl font-display font-bold">{t("briefing_greeting")}</h2>
+              {briefing &&
+              briefing.conversations24h + briefing.leadsWaiting + briefing.tasksDue + briefing.eventsToday > 0 ? (
+                <p className="text-sm text-muted-foreground mt-2">
+                  {t("briefing_summary", {
+                    conversations: briefing.conversations24h,
+                    leads: briefing.leadsWaiting,
+                    tasks: briefing.tasksDue,
+                    events: briefing.eventsToday,
+                  })}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1">{t("empty_subtitle")}</p>
+              )}
+              <p className="text-sm font-medium mt-2">{t("briefing_cta")}</p>
             </div>
             <div className="grid sm:grid-cols-2 gap-2 w-full max-w-xl">
               {suggestions.map((s) => (
