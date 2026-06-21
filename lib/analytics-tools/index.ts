@@ -962,6 +962,104 @@ export const TOOLS: Record<string, Tool> = {
       return { ok: true, message: "Hecho guardado en la memoria del negocio." };
     },
   },
+
+  list_tasks: {
+    permission: { feature: "tasks", level: "read" },
+    description:
+      "List the team's tasks (open by default). Use for 'what tasks are open', 'my to-dos', 'pending work'. Returns title, status, priority, due date.",
+    parameters: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["open", "done"], description: "Default open." },
+        limit: { type: "integer", minimum: 1, maximum: 50 },
+      },
+    },
+    run: async (args, tenantId) => {
+      const status = args.status === "done" ? "done" : "open";
+      const limit = Math.min(50, Math.max(1, Number(args.limit) || 20));
+      const { data } = await svcAny()
+        .from("tasks")
+        .select("id, title, status, priority, due_at, assignee_user_id")
+        .eq("tenant_id", tenantId)
+        .eq("status", status)
+        .order("due_at", { ascending: true, nullsFirst: false })
+        .limit(limit);
+      return { status, count: (data ?? []).length, tasks: data ?? [] };
+    },
+  },
+
+  create_task: {
+    permission: { feature: "tasks", level: "edit" },
+    mutates: true,
+    description:
+      "Create a task / to-do for the business, optionally with a priority and due date. Use for 'remind me to…', 'create a task to call X tomorrow', 'add a follow-up'. Confirm with the user, then call with confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "What needs doing (one line)." },
+        priority: { type: "string", enum: ["low", "medium", "high"] },
+        due_date: { type: "string", description: "Due date as YYYY-MM-DD (optional)." },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["title"],
+    },
+    run: async (args, tenantId) => {
+      const title = String(args.title || "").trim().slice(0, 300);
+      if (!title) return { error: "El título está vacío." };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Crear la tarea: "${title}". Pide confirmación.` };
+      }
+      const priority = ["low", "medium", "high"].includes(String(args.priority))
+        ? String(args.priority)
+        : "medium";
+      const due =
+        typeof args.due_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.due_date)
+          ? new Date(`${args.due_date}T12:00:00Z`).toISOString()
+          : null;
+      const { error } = await svcAny()
+        .from("tasks")
+        .insert({ tenant_id: tenantId, title, priority, due_at: due });
+      if (error) return { error: error.message };
+      return { ok: true, message: "Tarea creada." };
+    },
+  },
+
+  complete_task: {
+    permission: { feature: "tasks", level: "edit" },
+    mutates: true,
+    description:
+      "Mark a task as done. First identify the task (list_tasks for its id), confirm with the user, then call with confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        task_id: { type: "string", description: "The task UUID." },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["task_id"],
+    },
+    run: async (args, tenantId) => {
+      const id = String(args.task_id || "");
+      const { data: own } = await svcAny()
+        .from("tasks")
+        .select("id, title, status")
+        .eq("id", id)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      const row = own as { title: string | null; status: string | null } | null;
+      if (!row) return { error: "Tarea no encontrada para este negocio." };
+      if (row.status === "done") return { error: "Esa tarea ya está hecha." };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Marcar como hecha la tarea "${row.title ?? ""}". Pide confirmación.` };
+      }
+      const { error } = await svcAny()
+        .from("tasks")
+        .update({ status: "done", completed_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("tenant_id", tenantId);
+      if (error) return { error: error.message };
+      return { ok: true, message: "Tarea completada." };
+    },
+  },
 };
 
 /**

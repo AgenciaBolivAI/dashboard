@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_recommendations: {
+        Row: {
+          action_payload: Json
+          action_type: string | null
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          related_id: string | null
+          related_type: string | null
+          source: string
+          status: string
+          tenant_id: string
+          title: string
+        }
+        Insert: {
+          action_payload?: Json
+          action_type?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          related_id?: string | null
+          related_type?: string | null
+          source?: string
+          status?: string
+          tenant_id: string
+          title: string
+        }
+        Update: {
+          action_payload?: Json
+          action_type?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          related_id?: string | null
+          related_type?: string | null
+          source?: string
+          status?: string
+          tenant_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_recommendations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aima_scrape_runs: {
         Row: {
           error: string | null
@@ -1743,6 +1796,65 @@ export type Database = {
           },
         ]
       }
+      tasks: {
+        Row: {
+          assignee_user_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          due_at: string | null
+          id: string
+          notes: string | null
+          priority: string
+          related_id: string | null
+          related_type: string | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_user_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string
+          related_id?: string | null
+          related_type?: string | null
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_user_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_at?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string
+          related_id?: string | null
+          related_type?: string | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_channels: {
         Row: {
           channel: string
@@ -2095,6 +2207,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "usage_metrics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_preferences: {
+        Row: {
+          default_filters: Json
+          layout: Json
+          pinned: Json
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          default_filters?: Json
+          layout?: Json
+          pinned?: Json
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          default_filters?: Json
+          layout?: Json
+          pinned?: Json
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

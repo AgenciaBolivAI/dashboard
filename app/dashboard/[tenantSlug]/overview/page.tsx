@@ -33,6 +33,7 @@ import { KpiCard } from "@/components/overview/kpi-card";
 import { PeriodSelector } from "@/components/overview/period-selector";
 import { AreaTrend } from "@/components/charts/area-trend";
 import { DonutChart } from "@/components/charts/donut-chart";
+import { PersonalizedHome } from "@/components/overview/personalized-home";
 import { cn } from "@/lib/utils";
 
 // Live data — never cache so KPIs/charts reflect the current period.
@@ -115,6 +116,9 @@ export default async function OverviewPage({
             period back to 7d. */}
         <PeriodSelector periods={periodOptions} active={period} basePath={`${basePath}/overview`} />
       </div>
+
+      {/* Personalized "Today" strip: My Tasks, Today's Events, AI recommendations */}
+      <PersonalizedHome tenantId={tenant.id} tenantSlug={tenantSlug} />
 
       {/* Primary KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
