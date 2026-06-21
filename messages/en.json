@@ -1946,6 +1946,13 @@
     "since": "Since {date}"
   },
   "onboarding": {
+    "chat_greeting": "Hi! I'm BOLIV. In a couple of messages we'll get your business set up. What's it called and what do you do?",
+    "chat_subtitle": "Let's set up your workspace by chatting",
+    "chat_placeholder": "Type your answer…",
+    "chat_error": "Something went wrong. Let's try again.",
+    "workspace_ready": "Your workspace is ready!",
+    "prefer_form": "Prefer a form?",
+    "prefer_chat": "Chat with BOLIV instead",
     "page_title": "Set up your agent — BolivAI",
     "err_create_agent": "Couldn't create the agent",
     "agent_ready": "Your agent is ready. Top up credits to activate it.",

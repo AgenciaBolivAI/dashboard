@@ -12,13 +12,22 @@ import { getTenantOverviewMetrics } from "@/lib/queries/metrics";
 import { getTenantRecentTransactions } from "@/lib/queries/admin-tenant-pnl";
 import { getAimaStats } from "@/lib/queries/aima";
 import { getBalanceWithService } from "@/lib/billing/credits";
-import { getRoleOnTenant } from "@/lib/auth";
-import { roleSatisfies, type Permission, type Role } from "@/lib/permissions";
+import { getRoleOnTenant, getUser } from "@/lib/auth";
+import {
+  roleSatisfies,
+  LEGACY_ROLE_PERMISSIONS,
+  FEATURES,
+  type Permission,
+  type Role,
+  type PermissionSet,
+} from "@/lib/permissions";
 import { LEAD_STATUSES } from "@/lib/leads-types";
 import { triggerCcavaiGenerationAction } from "@/lib/actions/ccavai";
 import { triggerAimaScrapeAction } from "@/lib/actions/aima";
 import { getReports, type ReportPeriod } from "@/lib/queries/reports";
 import { getBolivBriefing } from "@/lib/queries/briefing";
+import { loadTeam } from "@/lib/actions/team";
+import { getMemberRoleIds, listRoles } from "@/lib/queries/roles";
 
 // supabase-js is typed to known tables; several analytics helpers query by a
 // dynamic table name, so we use a loosely-typed view of the same client.
@@ -26,6 +35,90 @@ import { getBolivBriefing } from "@/lib/queries/briefing";
 type AnyClient = { from: (t: string) => any };
 function svcAny(): AnyClient {
   return createServiceClient() as unknown as AnyClient;
+}
+
+// ── Team-management helpers (BOLIV team tools) ───────────────────────────────
+/** How many owners the tenant has — for the last-owner guard. */
+async function ownerCount(tenantId: string): Promise<number> {
+  const { data } = await svcAny()
+    .from("dashboard_users")
+    .select("user_id")
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner");
+  return (data ?? []).length;
+}
+
+/** A member's email (for naming their personal custom role). */
+async function memberEmail(userId: string): Promise<string | null> {
+  try {
+    const { data } = await createServiceClient().auth.admin.getUserById(userId);
+    return data.user?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A member's current effective permission set: custom role's permissions if one
+ * is assigned, else the legacy tier preset. Powers grant/revoke seeding.
+ */
+async function resolveMemberPermissions(
+  tenantId: string,
+  userId: string,
+): Promise<{ role: string | null; roleId: string | null; perms: PermissionSet }> {
+  const svc = svcAny();
+  const { data } = await svc
+    .from("dashboard_users")
+    .select("role, role_id")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const row = data as { role: string | null; role_id: string | null } | null;
+  if (!row) return { role: null, roleId: null, perms: {} };
+  if (row.role_id) {
+    const { data: r } = await svc
+      .from("roles")
+      .select("permissions")
+      .eq("id", row.role_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    const p = (r as { permissions?: PermissionSet } | null)?.permissions;
+    return { role: row.role, roleId: row.role_id, perms: p && typeof p === "object" ? p : {} };
+  }
+  return { role: row.role, roleId: null, perms: { ...(LEGACY_ROLE_PERMISSIONS[row.role as Role] ?? {}) } };
+}
+
+/** Apply a per-feature permission delta to a member via a personal custom role. */
+async function applyMemberPermission(
+  tenantId: string,
+  userId: string,
+  nextPerms: PermissionSet,
+  existingRoleId: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const svc = svcAny();
+  if (existingRoleId) {
+    const { error } = await svc
+      .from("roles")
+      .update({ permissions: nextPerms, updated_at: new Date().toISOString() })
+      .eq("id", existingRoleId)
+      .eq("tenant_id", tenantId);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+  const email = await memberEmail(userId);
+  const name = `Personalizado – ${email ?? userId.slice(0, 8)}`;
+  const { data: created, error } = await svc
+    .from("roles")
+    .insert({ tenant_id: tenantId, name, permissions: nextPerms })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  const roleId = (created as { id: string }).id;
+  const { error: aErr } = await svc
+    .from("dashboard_users")
+    .update({ role_id: roleId })
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId);
+  return aErr ? { ok: false, error: aErr.message } : { ok: true };
 }
 
 export type Win = "today" | "24h" | "7d" | "30d" | "90d" | "month" | "all";
@@ -1290,6 +1383,219 @@ export const TOOLS: Record<string, Tool> = {
         message: `Campaña "${title}" activada con ${rows.length} pasos. Se ejecutará automáticamente.`,
         campaign_id: cid,
       };
+    },
+  },
+
+  // ── BOLIV team management (grant/revoke permissions, roles, invite/remove) ─
+  list_team: {
+    permission: { feature: "team", level: "read" },
+    description:
+      "List the team members of this business with email, role tier, and assigned custom role. Returns each member's user_id — REQUIRED by the team write-tools to identify WHO to grant/revoke/change/remove. Also lists pending invitations.",
+    parameters: { type: "object", properties: {} },
+    run: async (_args, tenantId) => {
+      const [team, roleIds, roles] = await Promise.all([
+        loadTeam(tenantId),
+        getMemberRoleIds(tenantId),
+        listRoles(tenantId),
+      ]);
+      const nameById = new Map(roles.map((r) => [r.id, r.name]));
+      return {
+        members: team.members.map((m) => ({
+          user_id: m.user_id,
+          email: m.email,
+          role: m.role,
+          custom_role: roleIds[m.user_id] ? (nameById.get(roleIds[m.user_id]!) ?? null) : null,
+          is_self: m.is_self,
+        })),
+        invitations: team.invitations.map((i) => ({ email: i.email, role: i.role })),
+      };
+    },
+  },
+
+  set_member_role: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description:
+      "Set a team member's built-in ROLE tier: owner | admin | operator | viewer | member. This CLEARS any custom per-feature permissions they had (the tier takes over). Get user_id from list_team. Confirm with the user, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        user_id: { type: "string" },
+        role: { type: "string", enum: ["owner", "admin", "operator", "viewer", "member"] },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["user_id", "role"],
+    },
+    run: async (args, tenantId) => {
+      const userId = String(args.user_id || "");
+      const role = String(args.role || "");
+      if (!["owner", "admin", "operator", "viewer", "member"].includes(role)) return { error: "Rol inválido." };
+      const { data: cur } = await svcAny()
+        .from("dashboard_users")
+        .select("role")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      const curRow = cur as { role?: string } | null;
+      if (!curRow) return { error: "Miembro no encontrado." };
+      if (curRow.role === "owner" && role !== "owner" && (await ownerCount(tenantId)) <= 1) {
+        return { error: "No puedes quitar al último propietario del negocio." };
+      }
+      const email = await memberEmail(userId);
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Cambiar el rol de ${email ?? "el miembro"} a "${role}". Pide confirmación.` };
+      }
+      const { error } = await svcAny()
+        .from("dashboard_users")
+        .update({ role, role_id: null })
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
+      if (error) return { error: error.message };
+      return { ok: true, message: `Rol actualizado a ${role}.` };
+    },
+  },
+
+  grant_member_permission: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description:
+      "GRANT a team member access to a FEATURE at a LEVEL (read | edit | admin). Features: leads, deals, customers, conversations, tickets, tasks, calendar, invoices, knowledge, marketing, content, shorts, reports, analytics, billing, team, settings. Creates/updates a personal custom role seeded from their current access. Get user_id from list_team. Confirm, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        user_id: { type: "string" },
+        feature: { type: "string", enum: [...FEATURES] },
+        level: { type: "string", enum: ["read", "edit", "admin"] },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["user_id", "feature", "level"],
+    },
+    run: async (args, tenantId) => {
+      const userId = String(args.user_id || "");
+      const feature = String(args.feature || "");
+      const level = String(args.level || "");
+      if (!(FEATURES as readonly string[]).includes(feature)) return { error: "Función inválida." };
+      if (!["read", "edit", "admin"].includes(level)) return { error: "Nivel inválido." };
+      const member = await resolveMemberPermissions(tenantId, userId);
+      if (member.role === null) return { error: "Miembro no encontrado." };
+      const email = await memberEmail(userId);
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Otorgar a ${email ?? "el miembro"} el permiso "${feature}: ${level}". Pide confirmación.` };
+      }
+      const nextPerms: PermissionSet = { ...member.perms };
+      (nextPerms as Record<string, string>)[feature] = level;
+      const res = await applyMemberPermission(tenantId, userId, nextPerms, member.roleId);
+      if (!res.ok) return { error: res.error };
+      return { ok: true, message: `Permiso otorgado: ${feature} ${level}.` };
+    },
+  },
+
+  revoke_member_permission: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description:
+      "REVOKE a team member's access to a FEATURE (set it to none). Creates/updates their personal custom role. Get user_id from list_team. Confirm, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        user_id: { type: "string" },
+        feature: { type: "string", enum: [...FEATURES] },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["user_id", "feature"],
+    },
+    run: async (args, tenantId) => {
+      const userId = String(args.user_id || "");
+      const feature = String(args.feature || "");
+      if (!(FEATURES as readonly string[]).includes(feature)) return { error: "Función inválida." };
+      const member = await resolveMemberPermissions(tenantId, userId);
+      if (member.role === null) return { error: "Miembro no encontrado." };
+      const email = await memberEmail(userId);
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Revocar a ${email ?? "el miembro"} el acceso a "${feature}". Pide confirmación.` };
+      }
+      const nextPerms: PermissionSet = { ...member.perms };
+      delete nextPerms[feature as keyof PermissionSet];
+      const res = await applyMemberPermission(tenantId, userId, nextPerms, member.roleId);
+      if (!res.ok) return { error: res.error };
+      return { ok: true, message: `Acceso revocado: ${feature}.` };
+    },
+  },
+
+  invite_member: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description:
+      "Invite a new member by email with a role (owner|admin|operator|viewer|member). Creates an invitation link to share. Confirm with the user, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        email: { type: "string" },
+        role: { type: "string", enum: ["owner", "admin", "operator", "viewer", "member"] },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["email", "role"],
+    },
+    run: async (args, tenantId) => {
+      const email = String(args.email || "").trim().toLowerCase();
+      const role = String(args.role || "member");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Email inválido." };
+      if (!["owner", "admin", "operator", "viewer", "member"].includes(role)) return { error: "Rol inválido." };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Invitar a ${email} como ${role}. Pide confirmación.` };
+      }
+      const me = await getUser();
+      const { data, error } = await svcAny()
+        .from("invitations")
+        .insert({ tenant_id: tenantId, email, role, invited_by: me?.id ?? null })
+        .select("token")
+        .single();
+      if (error) return { error: error.message };
+      const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
+      const url = `${base}/invitations/${(data as { token: string }).token}`;
+      return { ok: true, message: `Invitación creada para ${email} (${role}). Enlace: ${url}` };
+    },
+  },
+
+  remove_member: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description:
+      "Remove a team member from this business. Cannot remove yourself or the last owner. Get user_id from list_team. Confirm, then confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        user_id: { type: "string" },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["user_id"],
+    },
+    run: async (args, tenantId) => {
+      const userId = String(args.user_id || "");
+      const { data: cur } = await svcAny()
+        .from("dashboard_users")
+        .select("role")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      const curRow = cur as { role?: string } | null;
+      if (!curRow) return { error: "Miembro no encontrado." };
+      const me = await getUser();
+      if (me && me.id === userId) return { error: "No puedes quitarte a ti mismo." };
+      if (curRow.role === "owner" && (await ownerCount(tenantId)) <= 1) {
+        return { error: "No puedes quitar al último propietario del negocio." };
+      }
+      const email = await memberEmail(userId);
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Quitar a ${email ?? "el miembro"} del negocio. Pide confirmación.` };
+      }
+      const { error } = await svcAny()
+        .from("dashboard_users")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
+      if (error) return { error: error.message };
+      return { ok: true, message: "Miembro removido." };
     },
   },
 };

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireUser } from "@/lib/auth";
 import { getMyTenants } from "@/lib/tenant";
-import { OnboardingWizard } from "@/components/onboarding/wizard";
+import { OnboardingEntry } from "@/components/onboarding/onboarding-entry";
 
 export async function generateMetadata() {
   const t = await getTranslations("onboarding");
@@ -19,5 +19,5 @@ export default async function OnboardingPage() {
     if (first?.slug) redirect(`/dashboard/${first.slug}/overview`);
   }
 
-  return <OnboardingWizard userEmail={user.email ?? ""} />;
+  return <OnboardingEntry userEmail={user.email ?? ""} />;
 }

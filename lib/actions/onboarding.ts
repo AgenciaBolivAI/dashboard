@@ -26,7 +26,7 @@ const DEFAULT_TEMPLATE_ID = TEMPLATES.find((t) => t.id === "physio")?.id
   ?? TEMPLATES[0]?.id
   ?? "physio";
 
-const provisionSchema = z.object({
+export const provisionSchema = z.object({
   company_name: z.string().trim().min(2, "Mínimo 2 caracteres").max(80),
   industry: z.string().trim().min(2).max(80),
   country: z.string().trim().length(2, "Código ISO de 2 letras").transform((s) => s.toUpperCase()),
@@ -91,32 +91,41 @@ async function findUniqueSlug(seed: string): Promise<string> {
   }
 }
 
-export async function provisionTenantAction(
-  _prev: OnboardingState,
-  formData: FormData,
-): Promise<OnboardingState> {
-  const parsed = provisionSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
-  }
+/** Validated provisioning input — the OUTPUT of provisionSchema (defaults/transforms applied). */
+export type ProvisionInput = z.infer<typeof provisionSchema>;
 
-  const user = await requireUser();
+export type ProvisionResult =
+  | { ok: true; tenantId: string; slug: string }
+  | { ok: false; error: string };
+
+/**
+ * Core tenant provisioning — shared by the form action AND the BOLIV onboarding
+ * chat. The caller MUST have authenticated (requireUser) and validated `input`
+ * through provisionSchema. Performs: double-tenant guard, slug generation with
+ * 23505 retry, tenants insert, dashboard_users(owner) + aima_settings +
+ * credit_accounts seed.
+ */
+export async function provisionTenant(
+  userId: string,
+  userEmail: string | null,
+  input: ProvisionInput,
+): Promise<ProvisionResult> {
   const svc = createServiceClient();
 
-  // Defense in depth — block accidental "create a second tenant" via this route.
+  // Defense in depth — block accidental "create a second tenant".
   const { data: existing } = await svc
     .from("dashboard_users")
     .select("tenant_id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .limit(1);
   if (existing && existing.length > 0) {
-    return { error: "Tu cuenta ya está asociada a un tenant. Contáctanos para crear otro." };
+    return { ok: false, error: "Tu cuenta ya está asociada a un tenant. Contáctanos para crear otro." };
   }
 
   const template = TEMPLATES.find((t) => t.id === DEFAULT_TEMPLATE_ID);
-  if (!template) return { error: "Configuración base no disponible — contacta a soporte." };
+  if (!template) return { ok: false, error: "Configuración base no disponible — contacta a soporte." };
 
-  const seed = baseSlug(parsed.data.company_name);
+  const seed = baseSlug(input.company_name);
 
   // findUniqueSlug is a check-then-insert, so two near-simultaneous signups of
   // the same name can both read "free" and race for the same slug. The DB
@@ -135,27 +144,27 @@ export async function provisionTenantAction(
       .from("tenants")
       .insert({
         slug,
-        name: parsed.data.company_name,
-        industry: parsed.data.industry,
-        address_country: parsed.data.country,
-        timezone: parsed.data.timezone,
-        language: parsed.data.language,
+        name: input.company_name,
+        industry: input.industry,
+        address_country: input.country,
+        timezone: input.timezone,
+        language: input.language,
         workflow_template: template.id,
         gateway: "evolution",
         gateway_config: { instance: `pending_${slug}` },
-        whatsapp_number: parsed.data.whatsapp_number,
+        whatsapp_number: input.whatsapp_number,
         prompt_template: template.promptTemplate,
         prompt_variables: {
           ...template.promptVariables,
-          company_name: parsed.data.company_name,
-          industry: parsed.data.industry,
+          company_name: input.company_name,
+          industry: input.industry,
         },
-        primary_color: parsed.data.primary_color,
-        accent_color: parsed.data.accent_color,
-        logo_url: parsed.data.logo_url ?? null,
+        primary_color: input.primary_color,
+        accent_color: input.accent_color,
+        logo_url: input.logo_url ?? null,
         plan: "credits",
         status: "pending_whatsapp_setup",
-        notification_email: user.email ?? null,
+        notification_email: userEmail ?? null,
         notify_on_new_reservation: true,
         notify_on_reschedule: true,
         notify_on_cancel: true,
@@ -174,14 +183,14 @@ export async function provisionTenantAction(
   }
 
   if (insertErr || !tenantRow) {
-    return { error: insertErr?.message ?? "No se pudo crear el agente" };
+    return { ok: false, error: insertErr?.message ?? "No se pudo crear el agente" };
   }
 
   const tenantId = (tenantRow as { id: string }).id;
 
   // Membership: this user is the owner
   await svc.from("dashboard_users").insert({
-    user_id: user.id,
+    user_id: userId,
     tenant_id: tenantId,
     role: "owner",
   });
@@ -194,5 +203,24 @@ export async function provisionTenantAction(
   ]);
 
   revalidatePath("/", "layout");
-  return { error: null, success: true, slug: tenantRow.slug as string };
+  return { ok: true, tenantId, slug: tenantRow.slug as string };
+}
+
+/**
+ * The onboarding FORM action — a thin wrapper that parses FormData and delegates
+ * to provisionTenant. Contract unchanged so components/onboarding/wizard.tsx is
+ * untouched.
+ */
+export async function provisionTenantAction(
+  _prev: OnboardingState,
+  formData: FormData,
+): Promise<OnboardingState> {
+  const parsed = provisionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const user = await requireUser();
+  const res = await provisionTenant(user.id, user.email ?? null, parsed.data);
+  if (!res.ok) return { error: res.error };
+  return { error: null, success: true, slug: res.slug };
 }

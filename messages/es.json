@@ -1946,6 +1946,13 @@
     "since": "Desde {date}"
   },
   "onboarding": {
+    "chat_greeting": "¡Hola! Soy BOLIV. En un par de mensajes dejamos tu negocio listo. ¿Cómo se llama y a qué se dedica?",
+    "chat_subtitle": "Configuremos tu espacio conversando",
+    "chat_placeholder": "Escribe tu respuesta…",
+    "chat_error": "Tuve un problema. Intentemos de nuevo.",
+    "workspace_ready": "¡Tu espacio está listo!",
+    "prefer_form": "¿Prefieres un formulario?",
+    "prefer_chat": "Prefiero conversar con BOLIV",
     "page_title": "Configura tu agente — BolivAI",
     "err_create_agent": "No se pudo crear el agente",
     "agent_ready": "Tu agente está listo. Recarga créditos para activarlo.",
