@@ -19,3 +19,37 @@ export const DO_NOT_CONTACT_STATUSES: readonly LeadStatus[] = ["do_not_contact"]
 export function isDoNotContact(status: string | null | undefined): boolean {
   return status === "do_not_contact";
 }
+
+/**
+ * The pipeline stages shown as Kanban columns, in flow order. The terminal
+ * non-pipeline states (not_interested / do_not_contact) are excluded from the
+ * board — they still appear in the list view. `lost` is the closed-lost column.
+ */
+export const PIPELINE_STAGES: readonly LeadStatus[] = [
+  "new",
+  "contacted",
+  "warm",
+  "converted",
+  "lost",
+] as const;
+
+/**
+ * Win probability per stage, for the weighted pipeline forecast
+ * (Σ value_cents × probability). 'converted' = won (1.0); closed-lost and the
+ * terminal states = 0.
+ */
+export const STAGE_WIN_PROBABILITY: Record<LeadStatus, number> = {
+  new: 0.1,
+  contacted: 0.25,
+  warm: 0.5,
+  converted: 1,
+  not_interested: 0,
+  do_not_contact: 0,
+  lost: 0,
+};
+
+/** A stage counts toward the OPEN (in-flight) pipeline if 0 < prob < 1. */
+export function isOpenStage(status: string): boolean {
+  const p = STAGE_WIN_PROBABILITY[status as LeadStatus];
+  return p !== undefined && p > 0 && p < 1;
+}

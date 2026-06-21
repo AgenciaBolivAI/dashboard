@@ -95,7 +95,7 @@ export default async function TenantLayout({
   return (
     <div className="min-h-screen flex bg-background" style={themeStyle}>
       {/* Sidebar */}
-      <aside className="hidden md:flex md:w-64 md:flex-col border-r border-border bg-card">
+      <aside className="hidden md:flex md:w-64 md:flex-col border-r border-border bg-card print:hidden">
         <div className="flex h-16 items-center gap-2 px-4 border-b border-border">
           <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
             {tenant.logo_url ? (
@@ -155,7 +155,7 @@ export default async function TenantLayout({
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-30 h-16 border-b border-border flex items-center justify-between px-4 md:px-6 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70">
+        <header className="sticky top-0 z-30 h-16 border-b border-border flex items-center justify-between px-4 md:px-6 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70 print:hidden">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <MobileNav
               current={{

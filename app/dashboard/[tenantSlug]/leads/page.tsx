@@ -7,9 +7,11 @@ import { getTenantBySlug } from "@/lib/tenant";
 import { listLeads, getLeadIntents, getLeadFacets } from "@/lib/queries/leads";
 import { COUNTRY_BY_CODE } from "@/lib/leads-geo";
 import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
+import { LeadsBoard, type BoardLead } from "@/components/leads/leads-board";
 import { LeadsImport } from "@/components/leads/leads-import";
 import { RealtimeSearch } from "@/components/ui/realtime-search";
 import { Pagination } from "@/components/ui/pagination";
+import { LayoutGrid, List } from "lucide-react";
 import { clampPageSize } from "@/lib/pagination";
 import { intentLabel } from "@/lib/leads-intents";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,7 @@ type LeadsSearchParams = {
   q?: string;         // realtime search — name / phone / email
   page?: string;      // 1-based page number
   pageSize?: string;  // rows per page
+  view?: string;      // "board" = Kanban pipeline; default = list
 };
 
 export default async function LeadsPage({
@@ -71,20 +74,32 @@ export default async function LeadsPage({
 
   const pageSize = clampPageSize(Number(filters.pageSize) || undefined);
   const page = Math.max(1, Number(filters.page) || 1);
+  const isBoard = filters.view === "board";
+
+  // Filters shared by both views. The board ignores the status chip (its columns
+  // ARE the statuses) and pulls a wider window across all stages.
+  const sharedFilters = {
+    intent: filters.intent && filters.intent !== "all" ? filters.intent : undefined,
+    source: filters.source && filters.source !== "all" ? filters.source : undefined,
+    city: filters.city && filters.city !== "all" ? filters.city : undefined,
+    vertical: filters.vertical && filters.vertical !== "all" ? filters.vertical : undefined,
+    country: filters.country && filters.country !== "all" ? filters.country : undefined,
+    state: filters.state && filters.state !== "all" ? filters.state : undefined,
+    search: filters.q?.trim() || undefined,
+  };
 
   const [{ rows: leads, total }, intents, facets] = await Promise.all([
-    listLeads(tenant.id, {
-      status: filters.status && filters.status !== "all" ? filters.status : undefined,
-      intent: filters.intent && filters.intent !== "all" ? filters.intent : undefined,
-      source: filters.source && filters.source !== "all" ? filters.source : undefined,
-      city: filters.city && filters.city !== "all" ? filters.city : undefined,
-      vertical: filters.vertical && filters.vertical !== "all" ? filters.vertical : undefined,
-      country: filters.country && filters.country !== "all" ? filters.country : undefined,
-      state: filters.state && filters.state !== "all" ? filters.state : undefined,
-      search: filters.q?.trim() || undefined,
-      offset: (page - 1) * pageSize,
-      limit: pageSize,
-    }),
+    listLeads(
+      tenant.id,
+      isBoard
+        ? { ...sharedFilters, limit: 500 }
+        : {
+            ...sharedFilters,
+            status: filters.status && filters.status !== "all" ? filters.status : undefined,
+            offset: (page - 1) * pageSize,
+            limit: pageSize,
+          },
+    ),
     getLeadIntents(tenant.id),
     getLeadFacets(tenant.id),
   ]);
@@ -108,6 +123,7 @@ export default async function LeadsPage({
     // Keep the chosen page size across filter changes, but reset to page 1 (the
     // new filtered set may have fewer pages).
     if (filters.pageSize) params.set("pageSize", filters.pageSize);
+    if (next.view === "board") params.set("view", "board");
     const qs = params.toString();
     return `/dashboard/${tenantSlug}/leads${qs ? "?" + qs : ""}`;
   }
@@ -134,6 +150,20 @@ export default async function LeadsPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-md border border-input p-0.5">
+            <Button asChild variant={isBoard ? "ghost" : "secondary"} size="sm" className="h-7 gap-1.5">
+              <Link href={hrefFor({ view: undefined })}>
+                <List className="size-3.5" />
+                {t("view_list")}
+              </Link>
+            </Button>
+            <Button asChild variant={isBoard ? "secondary" : "ghost"} size="sm" className="h-7 gap-1.5">
+              <Link href={hrefFor({ view: "board" })}>
+                <LayoutGrid className="size-3.5" />
+                {t("view_board")}
+              </Link>
+            </Button>
+          </div>
           <LeadsImport tenantId={tenant.id} />
           <Button asChild variant="outline" size="sm">
             <a
@@ -152,12 +182,14 @@ export default async function LeadsPage({
       </div>
 
       <div className="mb-4 space-y-3">
-        <FilterRow
-          label={t("filter_status")}
-          options={STATUS_FILTERS}
-          current={filters.status ?? "all"}
-          hrefFor={(id) => hrefFor({ status: id })}
-        />
+        {!isBoard ? (
+          <FilterRow
+            label={t("filter_status")}
+            options={STATUS_FILTERS}
+            current={filters.status ?? "all"}
+            hrefFor={(id) => hrefFor({ status: id })}
+          />
+        ) : null}
         {facets.sources.length > 1 ? (
           <FilterRow
             label={t("filter_source")}
@@ -243,6 +275,12 @@ export default async function LeadsPage({
             {t("empty_description")}
           </p>
         </Card>
+      ) : isBoard ? (
+        <LeadsBoard
+          tenantId={tenant.id}
+          leads={leads as unknown as BoardLead[]}
+          defaultCurrency={tenant.invoice_default_currency}
+        />
       ) : (
         <>
           <LeadsTable tenantId={tenant.id} leads={leads as unknown as LeadFromQuery[]} />

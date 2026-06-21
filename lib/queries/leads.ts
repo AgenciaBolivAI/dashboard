@@ -12,6 +12,11 @@ export type Lead = {
   conversation_id: string | null;
   source: string | null;
   metadata: Record<string, unknown> | null;
+  // Deal fields (pipeline) — see schema-step41.
+  value_cents: number | null;
+  currency: string | null;
+  expected_close_at: string | null;
+  won_at: string | null;
 };
 
 export type LeadFilters = {
@@ -30,7 +35,7 @@ export type LeadFilters = {
 import { COUNTRY_BY_CODE, getCountryFromPhone, getStateFromMetadata } from "@/lib/leads-geo";
 
 const LEAD_COLS =
-  "id, name, whatsapp_number, email, intent, status, notes, created_at, conversation_id, source, metadata";
+  "id, name, whatsapp_number, email, intent, status, notes, created_at, conversation_id, source, metadata, value_cents, currency, expected_close_at, won_at";
 
 /**
  * Paginated lead listing. Returns the requested window plus the TOTAL count of

@@ -17,6 +17,7 @@ import { roleSatisfies, type Permission, type Role } from "@/lib/permissions";
 import { LEAD_STATUSES } from "@/lib/leads-types";
 import { triggerCcavaiGenerationAction } from "@/lib/actions/ccavai";
 import { triggerAimaScrapeAction } from "@/lib/actions/aima";
+import { getReports, type ReportPeriod } from "@/lib/queries/reports";
 
 // supabase-js is typed to known tables; several analytics helpers query by a
 // dynamic table name, so we use a loosely-typed view of the same client.
@@ -287,6 +288,44 @@ export const TOOLS: Record<string, Tool> = {
         by_direction: tally(rows as Record<string, unknown>[], "direction"),
         by_outcome: tally(rows as Record<string, unknown>[], "call_outcome"),
         total_minutes: totalMinutes,
+      };
+    },
+  },
+
+  get_pipeline_report: {
+    permission: { feature: "reports", level: "read" },
+    description:
+      "Sales PIPELINE snapshot over a window (7d/30d/90d/all): total leads, conversion rate (%), the funnel by stage, current OPEN pipeline value, WEIGHTED forecast (Σ value×win-probability) and WON value. Use for 'how's my pipeline', 'what's my forecast', 'conversion rate', 'how much could I close'.",
+    parameters: {
+      type: "object",
+      properties: {
+        period: { type: "string", enum: ["7d", "30d", "90d", "all"], description: "Time window. Default 30d." },
+      },
+    },
+    run: async (args, tenantId) => {
+      const svc = createServiceClient();
+      const { data: tRow } = await svc
+        .from("tenants")
+        .select("invoice_default_currency")
+        .eq("id", tenantId)
+        .maybeSingle();
+      const currency = (tRow as { invoice_default_currency?: string } | null)?.invoice_default_currency ?? "USD";
+      const period = (["7d", "30d", "90d", "all"].includes(String(args.period))
+        ? String(args.period)
+        : "30d") as ReportPeriod;
+      const r = await getReports(tenantId, period, currency);
+      // Trim the daily revenue series — keep the headline figures for the model.
+      return {
+        period: r.period,
+        currency: r.currency,
+        total_leads: r.totalLeads,
+        conversion_rate_pct: r.conversionRatePct,
+        funnel: r.funnel,
+        open_pipeline_cents: r.openPipelineCents,
+        weighted_forecast_cents: r.weightedForecastCents,
+        won_value_cents: r.wonValueCents,
+        pipeline_by_stage: r.pipelineByStage,
+        revenue_total_cents: r.revenueTotalCents,
       };
     },
   },

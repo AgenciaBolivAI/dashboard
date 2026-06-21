@@ -112,9 +112,13 @@ export async function updateLeadStatusAction(
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
   const supabase = await createClient();
+  // Stamp won_at when the deal is won (converted); clear it if it moves back out.
+  const patch: { status: string; won_at?: string | null } = { status: parsedStatus.data };
+  if (parsedStatus.data === "converted") patch.won_at = new Date().toISOString();
+  else patch.won_at = null;
   const { error } = await supabase
     .from("leads")
-    .update({ status: parsedStatus.data })
+    .update(patch)
     .eq("id", leadId)
     .eq("tenant_id", tenantId);
 
@@ -156,6 +160,50 @@ export async function updateLeadNotesAction(
   const { error } = await supabase
     .from("leads")
     .update({ notes: notes.trim() || null })
+    .eq("id", leadId)
+    .eq("tenant_id", tenantId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+const dealSchema = z.object({
+  value_cents: z.number().int().min(0).max(1_000_000_000_000).nullable().optional(),
+  currency: z.string().trim().min(3).max(3).nullable().optional(),
+  expected_close_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+});
+
+/**
+ * Set a lead's DEAL fields (pipeline value / currency / expected close).
+ * value_cents is the smallest currency unit (e.g. cents). operator+ only.
+ */
+export async function updateLeadDealAction(
+  tenantId: string,
+  leadId: string,
+  deal: z.infer<typeof dealSchema>,
+): Promise<LeadState> {
+  const parsed = dealSchema.safeParse(deal);
+  if (!parsed.success) return { error: "Datos de la oportunidad inválidos" };
+
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "operator" });
+
+  const patch: Record<string, unknown> = {};
+  if ("value_cents" in parsed.data) patch.value_cents = parsed.data.value_cents ?? null;
+  if ("currency" in parsed.data) patch.currency = parsed.data.currency?.toUpperCase() ?? null;
+  if ("expected_close_at" in parsed.data) patch.expected_close_at = parsed.data.expected_close_at ?? null;
+  if (Object.keys(patch).length === 0) return { error: null, success: true };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("leads")
+    .update(patch as never)
     .eq("id", leadId)
     .eq("tenant_id", tenantId);
 

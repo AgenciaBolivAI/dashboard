@@ -1171,7 +1171,9 @@ export type Database = {
         Row: {
           conversation_id: string | null
           created_at: string
+          currency: string | null
           email: string | null
+          expected_close_at: string | null
           id: string
           intent: string | null
           metadata: Json
@@ -1181,12 +1183,16 @@ export type Database = {
           status: string
           tenant_id: string
           user_id: string | null
+          value_cents: number | null
           whatsapp_number: string | null
+          won_at: string | null
         }
         Insert: {
           conversation_id?: string | null
           created_at?: string
+          currency?: string | null
           email?: string | null
+          expected_close_at?: string | null
           id?: string
           intent?: string | null
           metadata?: Json
@@ -1196,12 +1202,16 @@ export type Database = {
           status?: string
           tenant_id: string
           user_id?: string | null
+          value_cents?: number | null
           whatsapp_number?: string | null
+          won_at?: string | null
         }
         Update: {
           conversation_id?: string | null
           created_at?: string
+          currency?: string | null
           email?: string | null
+          expected_close_at?: string | null
           id?: string
           intent?: string | null
           metadata?: Json
@@ -1211,7 +1221,9 @@ export type Database = {
           status?: string
           tenant_id?: string
           user_id?: string | null
+          value_cents?: number | null
           whatsapp_number?: string | null
+          won_at?: string | null
         }
         Relationships: [
           {
