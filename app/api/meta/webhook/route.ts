@@ -57,7 +57,7 @@ type MetaMessaging = {
   sender?: { id: string };
   recipient?: { id: string };
   timestamp?: number;
-  message?: { mid?: string; text?: string };
+  message?: { mid?: string; text?: string; is_echo?: boolean };
   postback?: { payload?: string; title?: string };
 };
 type MetaEntry = { id: string; time?: number; messaging?: MetaMessaging[] };
@@ -100,6 +100,11 @@ async function dispatch(channel: string, entries: MetaEntry[]) {
     if (!row || row.status !== "active") continue; // unknown/paused channel → drop
 
     for (const m of entry.messaging ?? []) {
+      // Ignore ECHOES — the account's OWN outgoing messages (the bot's Graph
+      // replies + manual replies from the IG/FB app). Meta echoes them back
+      // with the sender being the connected account itself (entry.id); treating
+      // them as inbound spawns a self-conversation ("BolivAI") and can loop.
+      if (m.message?.is_echo || m.sender?.id === entry.id) continue;
       const text = m.message?.text ?? m.postback?.payload;
       if (!m.sender?.id || !text) continue;
 
