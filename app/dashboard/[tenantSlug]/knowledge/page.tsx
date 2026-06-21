@@ -10,6 +10,7 @@ import {
 } from "@/lib/queries/knowledge";
 import { KnowledgeManager } from "@/components/knowledge/knowledge-manager";
 import { VoiceSyncStatus } from "@/components/knowledge/voice-sync-status";
+import { RealtimeSearch } from "@/components/ui/realtime-search";
 import { cn } from "@/lib/utils";
 
 export default async function KnowledgePage({
@@ -17,11 +18,12 @@ export default async function KnowledgePage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<{ type?: string; q?: string }>;
 }) {
   const { tenantSlug } = await params;
-  const { type: typeParam } = await searchParams;
+  const { type: typeParam, q } = await searchParams;
   const type: KnowledgeType = typeParam === "pain" ? "pain" : "documents";
+  const search = q?.trim() || undefined;
 
   const t = await getTranslations("knowledge");
   const locale = await getLocale();
@@ -33,7 +35,7 @@ export default async function KnowledgePage({
 
   const tenant = await getTenantBySlug(tenantSlug);
   const [chunks, sources, stats] = await Promise.all([
-    listKnowledge(tenant.id, type),
+    listKnowledge(tenant.id, type, { search }),
     listSources(tenant.id, type),
     getKnowledgeStats(tenant.id),
   ]);
@@ -72,7 +74,7 @@ export default async function KnowledgePage({
           return (
             <Link
               key={tab.id}
-              href={`/dashboard/${tenantSlug}/knowledge?type=${tab.id}`}
+              href={`/dashboard/${tenantSlug}/knowledge?type=${tab.id}${search ? `&q=${encodeURIComponent(search)}` : ""}`}
               className={cn(
                 "px-4 py-2 text-sm font-medium whitespace-nowrap transition border-b-2 -mb-px",
                 active
@@ -87,6 +89,10 @@ export default async function KnowledgePage({
             </Link>
           );
         })}
+      </div>
+
+      <div className="mb-4">
+        <RealtimeSearch placeholder={t("search_placeholder")} />
       </div>
 
       <KnowledgeManager

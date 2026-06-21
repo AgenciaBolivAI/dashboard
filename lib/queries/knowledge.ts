@@ -24,28 +24,45 @@ export type PainChunk = {
 
 export type AnyChunk = FaqChunk | PainChunk;
 
+/** Strip the PostgREST `.or()` grammar separators from a free-text term. */
+function sanitizeSearch(raw: string): string {
+  return raw.replace(/[,()*]/g, " ").trim();
+}
+
 export async function listKnowledge(
   tenantId: string,
   type: KnowledgeType,
+  opts: { search?: string } = {},
 ): Promise<AnyChunk[]> {
   const supabase = await createClient();
+  const term = opts.search ? sanitizeSearch(opts.search) : "";
 
   if (type === "documents") {
-    const { data } = await supabase
+    let q = supabase
       .from("documents")
       .select("id, source, content, question, answer, response_template, created_at")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500);
+    if (term) {
+      q = q.or(`content.ilike.*${term}*,question.ilike.*${term}*,answer.ilike.*${term}*,source.ilike.*${term}*`);
+    }
+    const { data } = await q;
     return (data ?? []) as FaqChunk[];
   }
 
-  const { data } = await supabase
+  let q = supabase
     .from("pain")
     .select("id, source, content, symptom, diagnosis, recommendation, created_at")
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .limit(500);
+  if (term) {
+    q = q.or(
+      `content.ilike.*${term}*,symptom.ilike.*${term}*,diagnosis.ilike.*${term}*,recommendation.ilike.*${term}*,source.ilike.*${term}*`,
+    );
+  }
+  const { data } = await q;
   return (data ?? []) as PainChunk[];
 }
 

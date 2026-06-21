@@ -3,7 +3,79 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
+
+/** Fields a CSV import can map onto a customer (users table). */
+export const IMPORTABLE_CUSTOMER_FIELDS = [
+  "name",
+  "whatsapp_number",
+  "email",
+  "business_name",
+  "point_of_contact",
+  "notes",
+] as const;
+export type ImportableCustomerField = (typeof IMPORTABLE_CUSTOMER_FIELDS)[number];
+
+export type ImportCustomersResult =
+  | { ok: true; inserted: number; skipped: number }
+  | { ok: false; error: string };
+
+/**
+ * Bulk-import customers from a mapped CSV (the field-mapping flow). tenant_id is
+ * injected server-side; rows with no name/phone/email are skipped. Caps at
+ * 5000 rows. operator+ only. Mirrors importLeadsAction.
+ */
+export async function importCustomersAction(
+  tenantId: string,
+  rows: Array<Partial<Record<ImportableCustomerField, string>>>,
+): Promise<ImportCustomersResult> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "operator" });
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ok: false, error: "No rows to import." };
+  }
+
+  const capped = rows.slice(0, 5000);
+  let skipped = 0;
+  const records: Record<string, unknown>[] = [];
+
+  for (const r of capped) {
+    const name = (r.name ?? "").trim();
+    const phoneRaw = (r.whatsapp_number ?? "").trim();
+    const email = (r.email ?? "").trim();
+    if (!name && !phoneRaw && !email) {
+      skipped++;
+      continue;
+    }
+    records.push({
+      tenant_id: tenantId,
+      name: name || null,
+      whatsapp_number: phoneRaw ? phoneRaw.replace(/[^\d+]/g, "") || null : null,
+      email: email || null,
+      business_name: (r.business_name ?? "").trim() || null,
+      point_of_contact: (r.point_of_contact ?? "").trim() || null,
+      tenant_notes: (r.notes ?? "").trim() || null,
+    });
+  }
+
+  if (records.length === 0) {
+    return { ok: false, error: "No valid rows (every row was missing name, phone and email)." };
+  }
+
+  const svc = createServiceClient();
+  let inserted = 0;
+  for (let i = 0; i < records.length; i += 500) {
+    const chunk = records.slice(i, i + 500);
+    const { error } = await svc.from("users").insert(chunk as never);
+    if (error) return { ok: false, error: error.message };
+    inserted += chunk.length;
+  }
+
+  revalidatePath("/dashboard", "layout");
+  return { ok: true, inserted, skipped };
+}
 
 export type CustomerActionState = {
   error: string | null;

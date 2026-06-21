@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listCustomers } from "@/lib/queries/customers";
 import { CustomersSearch } from "@/components/customers/customers-search";
+import { CustomersImport } from "@/components/customers/customers-import";
 import { Pagination } from "@/components/ui/pagination";
 import { clampPageSize } from "@/lib/pagination";
 
@@ -55,16 +56,19 @@ export default async function CustomersPage({
             {vip === "1" ? " · " + t("vip_only") : ""}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <a
-            href={`/api/customers/export?tenantSlug=${tenantSlug}${vip === "1" ? "&vip=1" : ""}${
-              q ? `&q=${encodeURIComponent(q)}` : ""
-            }`}
-          >
-            <Download className="size-4" />
-            {t("export_csv")}
-          </a>
-        </Button>
+        <div className="flex items-center gap-2">
+          <CustomersImport tenantId={tenant.id} />
+          <Button asChild variant="outline">
+            <a
+              href={`/api/customers/export?tenantSlug=${tenantSlug}${vip === "1" ? "&vip=1" : ""}${
+                q ? `&q=${encodeURIComponent(q)}` : ""
+              }`}
+            >
+              <Download className="size-4" />
+              {t("export_csv")}
+            </a>
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-2 mb-4">

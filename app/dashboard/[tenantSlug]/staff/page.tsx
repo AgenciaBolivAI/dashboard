@@ -6,27 +6,35 @@ import {
   type ServiceOption,
 } from "@/components/staff/staff-manager";
 import { getStaffServiceMap } from "@/lib/queries/staff-services";
+import { RealtimeSearch } from "@/components/ui/realtime-search";
 import { getTranslations } from "next-intl/server";
 
 export default async function StaffPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams: Promise<{ q?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const { q } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("staff");
+  const term = q?.trim().replace(/[,()*]/g, " ").trim();
 
   const supabase = await createClient();
 
+  let staffQuery = supabase
+    .from("staff")
+    .select("id, name, email, role, active")
+    .eq("tenant_id", tenant.id)
+    .order("active", { ascending: false })
+    .order("name");
+  if (term) staffQuery = staffQuery.or(`name.ilike.*${term}*,email.ilike.*${term}*,role.ilike.*${term}*`);
+
   const [{ data: staffRows }, { data: serviceRows }, servicesByStaff] =
     await Promise.all([
-      supabase
-        .from("staff")
-        .select("id, name, email, role, active")
-        .eq("tenant_id", tenant.id)
-        .order("active", { ascending: false })
-        .order("name"),
+      staffQuery,
       supabase
         .from("services")
         .select("id, name, duration_min, active")
@@ -48,6 +56,10 @@ export default async function StaffPage({
         <p className="text-sm text-muted-foreground mt-1">
           {t("page_description")}
         </p>
+      </div>
+
+      <div className="mb-4">
+        <RealtimeSearch placeholder={t("search_placeholder")} />
       </div>
 
       <StaffManager
