@@ -3,7 +3,7 @@ import { Instrument_Sans, Syne } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { ThemeProvider } from "@/components/shell/theme-provider";
 import { CookieConsent } from "@/components/legal/cookie-consent";
 import "./globals.css";
@@ -72,6 +72,14 @@ export default async function RootLayout({
   // Both helpers read the `locale` cookie under the hood.
   const locale = await getLocale();
   const messages = await getMessages();
+  const tc = await getTranslations("cookies");
+  const cookieLabels = {
+    title: tc("title"),
+    body: tc("body"),
+    learnMore: tc("learn_more"),
+    accept: tc("accept"),
+    reject: tc("reject"),
+  };
 
   return (
     <html
@@ -86,10 +94,11 @@ export default async function RootLayout({
           </NextIntlClientProvider>
         </ThemeProvider>
         {/* Vercel analytics are cookieless (no consent needed). Google Analytics
-            drops a cookie, so it loads only after cookie consent (CookieConsent). */}
+            drops a cookie, so it loads only after cookie consent. Labels are
+            passed in (server-translated) so the banner needs no intl context. */}
         <Analytics />
         <SpeedInsights />
-        <CookieConsent gaId={GA_ID} />
+        <CookieConsent gaId={GA_ID} labels={cookieLabels} />
       </body>
     </html>
   );

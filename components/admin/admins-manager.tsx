@@ -53,7 +53,7 @@ export function AdminsManager({ staff }: { staff: StaffRow[] }) {
                 id="promote-email"
                 name="email"
                 type="email"
-                placeholder="staff@bolivai.com"
+                placeholder="email@example.com"
                 required
               />
             </div>

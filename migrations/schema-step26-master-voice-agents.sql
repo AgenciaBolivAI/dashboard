@@ -51,7 +51,7 @@ set voice_persona = jsonb_build_object(
   ),
   'rebecca', jsonb_build_object(
     'first_message',      'Hola, gracias por llamar a BolivAI. Soy Rebecca, ¿en qué puedo ayudarte?',
-    'faq',                'Self-service signup en bolivai.cloud/signup. Demos las agenda Sandra. Soporte: hola@bolivai.com.',
+    'faq',                'Self-service signup en bolivai.cloud/signup. Demos las agenda Sandra. Soporte: info@bolivai.com.',
     'forbidden_topics',   'No agendar demos en este canal (eso lo hace Sandra). No compartir precios sin antes calificar.'
   )
 )
