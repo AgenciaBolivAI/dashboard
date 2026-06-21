@@ -309,9 +309,10 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted":
       case "customer.subscription.paused": {
         const sub = event.data.object as Stripe.Subscription;
-        // We don't have a dedicated subscription row — just flag the
-        // most recent open invoice in this sub as void (paused/canceled
-        // means no more cycles).
+        // No dedicated subscription row — mark the recurrence as ended so we
+        // stop expecting new cycles. We intentionally do NOT change invoice
+        // status: an already-open/unpaid invoice stays owed (the customer
+        // still owes it); only future cycles stop.
         await supabase
           .from("invoices")
           .update({ recurrence_end_date: new Date().toISOString().slice(0, 10) })

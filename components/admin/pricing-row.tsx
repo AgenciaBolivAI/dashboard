@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useActionState } from "react";
+import { useState, useTransition, useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Save, Loader2, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ type Row = {
 
 export function PricingRow({ row }: { row: Row }) {
   const t = useTranslations("admin_pricing");
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [state, action, pending] = useActionState(updateCreditPricingAction, initial);
   const [credits, setCredits] = useState(row.credits_per_unit);
@@ -41,11 +43,15 @@ export function PricingRow({ row }: { row: Row }) {
     JSON.stringify(row.vendor_cost_micros, null, 2),
   );
 
-  // Reflect server-action result via toast
-  if (state.success) {
-    // Note: useActionState retains last state, so we only toast once per change.
-    // The router.refresh from revalidatePath will repaint with new server data.
-  }
+  // Confirm + repaint on a successful save. (revalidatePath in the action
+  // doesn't refresh this client component's controlled inputs on its own.)
+  useEffect(() => {
+    if (state.success) {
+      toast.success(t("saved"));
+      router.refresh();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   const dirty =
     credits !== row.credits_per_unit ||

@@ -111,7 +111,7 @@ export async function getCustomer360(
   userId: string,
 ): Promise<Customer360 | null> {
   const supabase = await createClient();
-  const [userRes, resvRes, invRes] = await Promise.all([
+  const [userRes, resvRes] = await Promise.all([
     supabase
       .from("users")
       .select(
@@ -129,13 +129,6 @@ export async function getCustomer360(
       .eq("tenant_id", tenantId)
       .order("start_at", { ascending: false })
       .limit(50),
-    // Invoices have no user_id FK — link via customer_phone for the same tenant.
-    supabase
-      .from("users")
-      .select("whatsapp_number")
-      .eq("id", userId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle(),
   ]);
 
   if (!userRes.data) return null;
@@ -152,8 +145,7 @@ export async function getCustomer360(
     created_at: string;
   };
 
-  const phone = (invRes.data as { whatsapp_number?: string | null } | null)
-    ?.whatsapp_number ?? null;
+  const phone = user.whatsapp_number ?? null;
   const e164 = phone ? `+${phone.replace(/^\+/, "")}` : null;
 
   // Pull invoices either by phone (most common path — agent-booked) or by

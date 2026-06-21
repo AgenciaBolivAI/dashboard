@@ -323,7 +323,9 @@
     "channel_all": "Tous",
     "channel_whatsapp": "WhatsApp",
     "channel_instagram": "Instagram",
-    "channel_messenger": "Messenger"
+    "channel_messenger": "Messenger",
+    "operator_placeholder": "Écrivez en tant qu'opérateur…",
+    "operator_hint": "Entrée pour envoyer · Maj+Entrée pour un saut de ligne · Le bot est en pause"
   },
   "leads": {
     "title": "Leads",
@@ -1280,7 +1282,13 @@
     "col_language": "Langue",
     "col_queued": "En file",
     "view_clips": "Voir les clips",
-    "view_detail": "Voir le détail"
+    "view_detail": "Voir le détail",
+    "submit_no_url": "Collez un lien vidéo",
+    "submit_queued": "Vidéo en file. VIRA commence à la traiter.",
+    "submit_title": "Nouvelle vidéo",
+    "submit_desc": "Collez un lien YouTube, Vimeo ou un mp4 direct. VIRA le télécharge, le transcrit, repère les meilleurs moments et les découpe.",
+    "submit_url_label": "URL de la vidéo",
+    "submit_process": "Traiter"
   },
   "sandra": {
     "page_title": "File d'attente de Sandra",
@@ -1483,7 +1491,8 @@
     "current_sum_label": "Somme actuelle",
     "vendor_mismatch_note": "(ne correspond pas à cost_per_unit_micros : {value})",
     "save": "Enregistrer",
-    "last_updated_label": "Dernière mise à jour"
+    "last_updated_label": "Dernière mise à jour",
+    "saved": "Tarifs enregistrés"
   },
   "admin_brain": {
     "page_title": "Company Brain",

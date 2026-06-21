@@ -12,7 +12,7 @@
  */
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireUser } from "@/lib/auth";
+import { requireUser, getRoleOnTenant } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -36,9 +36,6 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  // Lightweight auth — anyone with a dashboard session can view their
-  // tenant's drafts. The path traversal is already constrained by the
-  // draft id being a uuid the action layer enforces tenant scoping on.
   try {
     await requireUser();
   } catch {
@@ -53,7 +50,7 @@ export async function GET(
   const svc = createServiceClient();
   const { data, error } = await svc
     .from("ccavai_drafts")
-    .select(column)
+    .select(`${column}, tenant_id`)
     .eq("id", id)
     .single();
 
@@ -61,6 +58,18 @@ export async function GET(
     return placeholder();
   }
   const row = data as Record<string, string | null>;
+
+  // Tenant-scope the read. This route can't take a tenant param (it's an
+  // <img src>), and it uses the RLS-bypassing service client — so resolve the
+  // draft's tenant and confirm the caller is a member (or BolivAI staff).
+  // Without this, any signed-in user could fetch another tenant's draft image
+  // by id (cross-tenant IDOR). Return the placeholder (not 403) so we don't
+  // leak whether a given id exists.
+  const tenantId = row.tenant_id;
+  if (!tenantId || !(await getRoleOnTenant(tenantId))) {
+    return placeholder();
+  }
+
   const dataUri = row[column];
   if (!dataUri) {
     return placeholder();

@@ -575,7 +575,7 @@ export async function initiateSandraCallAction(
     await supabase.from("sandra_call_queue").insert({
       tenant_id: parsed.data.tenant_id,
       lead_id: parsed.data.lead_id ?? null,
-      status: "initiated",
+      status: "calling",
       call_conversation_id: conversationId,
       metadata: {
         to_number: parsed.data.to_number,
@@ -818,7 +818,7 @@ export async function initiateBatchSandraCallAction(
     const rows = recipients.map((r) => ({
       tenant_id: parsed.data.tenant_id,
       lead_id: r.conversation_initiation_client_data.dynamic_variables.lead_id,
-      status: "initiated",
+      status: "calling",
       metadata: {
         to_number: r.phone_number,
         elevenlabs_batch_id: batchId ?? null,

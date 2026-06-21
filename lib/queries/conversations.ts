@@ -45,13 +45,20 @@ export async function listConversations(
   const { data: rows } = await q;
   if (!rows || rows.length === 0) return [];
 
-  // Fetch latest message per conversation
+  // Recent messages for the listed conversations, newest first; we keep the
+  // latest per conversation below. Bounded explicitly so a tenant with a huge
+  // history doesn't pull tens of thousands of rows per inbox render (and so we
+  // don't silently hit PostgREST's implicit 1000-row cap). Conversations are
+  // ordered by last_message_at desc, so this window covers the most-recently-
+  // active ones — exactly the previews shown at the top. (At large scale the
+  // proper fix is to denormalize the last message onto `conversations`.)
   const ids = rows.map((r: { id: string }) => r.id);
   const { data: msgs } = await supabase
     .from("chat_history")
     .select("conversation_id, role, content, created_at")
     .in("conversation_id", ids)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(1000);
 
   const latestByConv = new Map<string, { role: string; content: string; created_at: string }>();
   for (const m of (msgs ?? []) as Array<{

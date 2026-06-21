@@ -390,7 +390,8 @@ export async function voidInvoiceAction(
   const { error } = await supabase
     .from("invoices")
     .update({ status: "void" })
-    .eq("id", invoiceId);
+    .eq("id", invoiceId)
+    .eq("tenant_id", tenantId);
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard", "layout");
@@ -470,7 +471,8 @@ export async function markPaidManuallyAction(
       paid_at: new Date().toISOString(),
       amount_paid_cents: row.total_cents,
     })
-    .eq("id", invoiceId);
+    .eq("id", invoiceId)
+    .eq("tenant_id", tenantId);
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard", "layout");

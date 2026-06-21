@@ -323,7 +323,9 @@
     "channel_all": "Todos",
     "channel_whatsapp": "WhatsApp",
     "channel_instagram": "Instagram",
-    "channel_messenger": "Messenger"
+    "channel_messenger": "Messenger",
+    "operator_placeholder": "Escribe como operador…",
+    "operator_hint": "Enter para enviar · Shift+Enter para salto de línea · El bot está pausado"
   },
   "leads": {
     "title": "Leads",
@@ -1280,7 +1282,13 @@
     "col_language": "Idioma",
     "col_queued": "Encolado",
     "view_clips": "Ver clips",
-    "view_detail": "Ver detalle"
+    "view_detail": "Ver detalle",
+    "submit_no_url": "Pega un link de video",
+    "submit_queued": "Video encolado. VIRA empieza a procesarlo.",
+    "submit_title": "Nuevo video",
+    "submit_desc": "Pega un link de YouTube, Vimeo, o un mp4 directo. VIRA lo descarga, lo transcribe, identifica los mejores momentos y los corta.",
+    "submit_url_label": "URL del video",
+    "submit_process": "Procesar"
   },
   "sandra": {
     "page_title": "Cola de Sandra",
@@ -1483,7 +1491,8 @@
     "current_sum_label": "Suma actual",
     "vendor_mismatch_note": "(no coincide con cost_per_unit_micros: {value})",
     "save": "Guardar",
-    "last_updated_label": "Última actualización"
+    "last_updated_label": "Última actualización",
+    "saved": "Precios guardados"
   },
   "admin_brain": {
     "page_title": "Company Brain",

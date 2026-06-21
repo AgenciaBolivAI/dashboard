@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2, Send, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
@@ -16,13 +17,14 @@ export function SubmitJobForm({
   tenantId: string;
 }) {
   const router = useRouter();
+  const t = useTranslations("shorts");
   const [url, setUrl] = useState("");
   const [submitting, startSubmit] = useTransition();
 
   function handleSubmit() {
     const trimmed = url.trim();
     if (!trimmed) {
-      toast.error("Pega un link de video");
+      toast.error(t("submit_no_url"));
       return;
     }
     startSubmit(async () => {
@@ -31,7 +33,7 @@ export function SubmitJobForm({
         toast.error(res.error);
         return;
       }
-      toast.success("Video encolado. VIRA empieza a procesarlo.");
+      toast.success(t("submit_queued"));
       setUrl("");
       router.refresh();
     });
@@ -43,18 +45,17 @@ export function SubmitJobForm({
         <div>
           <h3 className="font-display font-semibold flex items-center gap-2">
             <LinkIcon className="size-4 text-rose-500" />
-            Nuevo video
+            {t("submit_title")}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Pega un link de YouTube, Vimeo, o un mp4 directo. VIRA lo descarga,
-            lo transcribe, identifica los mejores momentos y los corta.
+            {t("submit_desc")}
           </p>
         </div>
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="vira-url" className="text-xs">
-          URL del video
+          {t("submit_url_label")}
         </Label>
         <div className="flex gap-2">
           <Input
@@ -81,7 +82,7 @@ export function SubmitJobForm({
             ) : (
               <Send className="size-4" />
             )}
-            Procesar
+            {t("submit_process")}
           </Button>
         </div>
       </div>

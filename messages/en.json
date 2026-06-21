@@ -323,7 +323,9 @@
     "channel_all": "All",
     "channel_whatsapp": "WhatsApp",
     "channel_instagram": "Instagram",
-    "channel_messenger": "Messenger"
+    "channel_messenger": "Messenger",
+    "operator_placeholder": "Type as operator…",
+    "operator_hint": "Enter to send · Shift+Enter for a new line · The bot is paused"
   },
   "leads": {
     "title": "Leads",
@@ -1280,7 +1282,13 @@
     "col_language": "Language",
     "col_queued": "Queued",
     "view_clips": "View clips",
-    "view_detail": "View detail"
+    "view_detail": "View detail",
+    "submit_no_url": "Paste a video link",
+    "submit_queued": "Video queued. VIRA is starting to process it.",
+    "submit_title": "New video",
+    "submit_desc": "Paste a YouTube, Vimeo, or direct mp4 link. VIRA downloads it, transcribes it, finds the best moments and clips them.",
+    "submit_url_label": "Video URL",
+    "submit_process": "Process"
   },
   "sandra": {
     "page_title": "Sandra queue",
@@ -1483,7 +1491,8 @@
     "current_sum_label": "Current sum",
     "vendor_mismatch_note": "(does not match cost_per_unit_micros: {value})",
     "save": "Save",
-    "last_updated_label": "Last updated"
+    "last_updated_label": "Last updated",
+    "saved": "Pricing saved"
   },
   "admin_brain": {
     "page_title": "Company Brain",

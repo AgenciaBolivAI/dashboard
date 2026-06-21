@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { sendOperatorMessageAction, type HitlState } from "@/lib/actions/hitl";
 const initial: HitlState = { error: null };
 
 export function OperatorInput({ conversationId }: { conversationId: string }) {
+  const t = useTranslations("conversations");
   const [state, action, pending] = useActionState(sendOperatorMessageAction, initial);
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -35,7 +37,7 @@ export function OperatorInput({ conversationId }: { conversationId: string }) {
           rows={2}
           required
           maxLength={4000}
-          placeholder="Escribe como operador…"
+          placeholder={t("operator_placeholder")}
           className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -49,7 +51,7 @@ export function OperatorInput({ conversationId }: { conversationId: string }) {
         </Button>
       </div>
       <p className="mt-1.5 text-[10px] text-muted-foreground">
-        Enter para enviar · Shift+Enter para salto de línea · El bot está pausado
+        {t("operator_hint")}
       </p>
     </form>
   );
