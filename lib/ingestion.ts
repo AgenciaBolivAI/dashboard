@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import OpenAI from "openai";
+import { embed } from "@/lib/llm";
 
 /**
  * Extracts plain text from a user-uploaded file. Supported types:
@@ -158,21 +158,19 @@ export function chunkText(
 }
 
 /**
- * Calls OpenAI text-embedding-3-small (1536 dims). Batches in groups of 96
+ * Embeds chunks through the LLM client factory (`lib/llm` → text-embedding-3-small,
+ * 1536 dims today; self-host config-flip ready). Batches in groups of 96
  * because we may have hundreds of chunks per upload.
  */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
   const out: number[][] = [];
 
   for (let i = 0; i < texts.length; i += 96) {
     const batch = texts.slice(i, i + 96);
-    const result = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: batch,
-    });
-    for (const d of result.data) out.push(d.embedding);
+    // 60s budget per batch — embedding many chunks can run longer than the 15s default.
+    const vecs = await embed(batch, { timeoutMs: 60_000 });
+    for (const v of vecs) out.push(v);
   }
 
   return out;

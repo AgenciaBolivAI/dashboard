@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Download } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -141,6 +141,12 @@ export default async function CalendarPage({
           <p className="text-sm text-muted-foreground mt-1">{weekLabel}</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <a href={`/api/reservations/export?tenantSlug=${tenantSlug}`}>
+              <Download className="size-4" />
+              {t("export_csv")}
+            </a>
+          </Button>
           <SlotGenerator
             tenantId={tenant.id}
             staff={staff.map((s) => ({ id: s.id, name: s.name }))}

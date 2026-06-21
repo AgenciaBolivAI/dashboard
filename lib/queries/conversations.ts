@@ -19,18 +19,40 @@ export type ConversationListItem = {
   } | null;
 };
 
+/**
+ * Sanitize a free-text term for a PostgREST `.or()` filter: the comma and
+ * parentheses are the filter grammar's separators, so strip them (plus `*`,
+ * which we add ourselves as the ilike wildcard) to avoid breaking the query.
+ */
+function sanitizeSearch(raw: string): string {
+  return raw.replace(/[,()*]/g, " ").trim();
+}
+
+export type ConversationListOpts = {
+  status?: string;
+  channel?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+};
+
 export async function listConversations(
   tenantId: string,
-  opts: { status?: string; channel?: string; limit?: number; offset?: number } = {},
+  opts: ConversationListOpts = {},
 ): Promise<ConversationListItem[]> {
   const supabase = await createClient();
+  const term = opts.search ? sanitizeSearch(opts.search) : "";
+
+  // Searching matches the customer's name / phone / channel id, which live on
+  // the joined users row — so we need an INNER join to exclude non-matches.
+  // Without a search we keep the LEFT join so contactless conversations show.
+  const userJoin = term
+    ? `users:user_id!inner ( id, name, whatsapp_number, channel_user_id )`
+    : `users:user_id ( id, name, whatsapp_number, channel_user_id )`;
 
   let q = supabase
     .from("conversations")
-    .select(
-      `id, status, channel, hitl_taken_over, last_message_at,
-       users:user_id ( id, name, whatsapp_number, channel_user_id )`,
-    )
+    .select(`id, status, channel, hitl_taken_over, last_message_at, ${userJoin}`)
     .eq("tenant_id", tenantId)
     .order("last_message_at", { ascending: false })
     .range(opts.offset ?? 0, (opts.offset ?? 0) + (opts.limit ?? 50) - 1);
@@ -41,6 +63,13 @@ export async function listConversations(
 
   // Channel filter (orthogonal to status) — lets the inbox be sorted per channel.
   if (opts.channel) q = q.eq("channel", opts.channel);
+
+  if (term) {
+    q = q.or(
+      `name.ilike.*${term}*,whatsapp_number.ilike.*${term}*,channel_user_id.ilike.*${term}*`,
+      { referencedTable: "users" },
+    );
+  }
 
   const { data: rows } = await q;
   if (!rows || rows.length === 0) return [];
@@ -100,6 +129,38 @@ export async function listConversations(
       last_message: latestByConv.get(row.id) ?? null,
     };
   });
+}
+
+/**
+ * Total conversations matching the same status/channel/search filters — drives
+ * pagination. Mirrors the filter logic in listConversations exactly.
+ */
+export async function countConversations(
+  tenantId: string,
+  opts: { status?: string; channel?: string; search?: string } = {},
+): Promise<number> {
+  const supabase = await createClient();
+  const term = opts.search ? sanitizeSearch(opts.search) : "";
+  const sel = term ? "id, users:user_id!inner(id)" : "id";
+
+  let q = supabase
+    .from("conversations")
+    .select(sel, { count: "exact", head: true })
+    .eq("tenant_id", tenantId);
+
+  if (opts.status === "active") q = q.eq("status", "active").eq("hitl_taken_over", false);
+  else if (opts.status === "hitl") q = q.eq("hitl_taken_over", true);
+  else if (opts.status === "closed") q = q.eq("status", "closed");
+  if (opts.channel) q = q.eq("channel", opts.channel);
+  if (term) {
+    q = q.or(
+      `name.ilike.*${term}*,whatsapp_number.ilike.*${term}*,channel_user_id.ilike.*${term}*`,
+      { referencedTable: "users" },
+    );
+  }
+
+  const { count } = await q;
+  return count ?? 0;
 }
 
 export type ConversationDetail = {

@@ -8,8 +8,15 @@ import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { listVoiceConversations } from "@/lib/queries/voice-conversations";
 import { RecordingPlayer } from "@/components/voice/recording-player";
 import { RealtimeSearch } from "@/components/ui/realtime-search";
+import { Pagination } from "@/components/ui/pagination";
+import { clampPageSize } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
+
+// Voice calls come from brain.episodes (JSONB metadata + post-fetch lead-name
+// resolution), so we page over a bounded working set rather than a SQL range.
+// 500 is a generous window for a read-only call log; beyond it, refine by search.
+const CALLS_WINDOW = 500;
 
 const OUTCOME_CLASS: Record<string, string> = {
   success: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
@@ -22,22 +29,25 @@ export default async function CallsPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; pageSize?: string }>;
 }) {
   const { tenantSlug } = await params;
-  const { q } = await searchParams;
+  const { q, page: pageParam, pageSize: pageSizeParam } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   await requireUser();
   await requireTenantAccess(tenant.id);
   const t = await getTranslations("sandra");
   const locale = await getLocale();
 
-  // Fetch a wider window when searching so matches beyond the first page
-  // surface; filter server-side in JS (name + phone), cheap at this scale.
-  const all = await listVoiceConversations(tenant.id, q ? 500 : 100);
+  const pageSize = clampPageSize(Number(pageSizeParam), 50);
+  const page = Math.max(1, Number(pageParam) || 1);
+
+  // Fetch the working window, filter server-side in JS (name + phone), then
+  // page over the filtered set so total/range stay accurate to what's shown.
+  const all = await listVoiceConversations(tenant.id, CALLS_WINDOW);
   const needle = q?.trim().toLowerCase() ?? "";
   const digits = needle.replace(/\D/g, "");
-  const calls = needle
+  const filtered = needle
     ? all.filter((c) => {
         const name = (c.lead_name ?? "").toLowerCase();
         const phone = `${c.caller_phone ?? ""}${c.lead_phone ?? ""}`;
@@ -47,6 +57,8 @@ export default async function CallsPage({
         );
       })
     : all;
+  const total = filtered.length;
+  const calls = filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
@@ -159,6 +171,8 @@ export default async function CallsPage({
           </CardContent>
         </Card>
       )}
+
+      {total > 0 ? <Pagination total={total} defaultPageSize={50} className="mt-4" /> : null}
     </div>
   );
 }

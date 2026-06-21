@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireBolivAIAdmin } from "@/lib/auth";
+import { embedOne, chatCompletion } from "@/lib/llm";
 
 export type BrainSearchHit = {
   source: "doc" | "decision";
@@ -55,30 +56,11 @@ export async function searchCompanyBrainAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return { error: "OPENAI_API_KEY no configurado" };
-
   const t0 = Date.now();
   // Embed the query
   let queryEmbedding: number[];
   try {
-    const res = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: parsed.data.query,
-      }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!res.ok) {
-      return { error: `OpenAI embed ${res.status}: ${(await res.text()).slice(0, 200)}` };
-    }
-    const json = (await res.json()) as { data: { embedding: number[] }[] };
-    queryEmbedding = json.data[0]!.embedding;
+    queryEmbedding = await embedOne(parsed.data.query);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { error: `Embed failed: ${msg}` };
@@ -152,30 +134,17 @@ export async function searchCompanyBrainAction(
 
     const user = `Pregunta: ${parsed.data.query}\n\nFuentes relevantes:\n\n${sourceBlock}`;
 
-    try {
-      const synthRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          temperature: 0.2,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: user },
-          ],
-        }),
-        signal: AbortSignal.timeout(20_000),
-      });
-      if (synthRes.ok) {
-        const json = (await synthRes.json()) as {
-          choices: { message: { content: string } }[];
-        };
-        answer = json.choices[0]?.message?.content?.trim() ?? null;
-      }
-    } catch {
-      // Answer is optional — if synthesis fails, hits still render
-      answer = null;
-    }
+    // Synthesis via the LLM client factory (lib/llm) — self-host config-flip ready.
+    const synth = await chatCompletion({
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      temperature: 0.2,
+      timeoutMs: 20_000,
+    });
+    // Answer is optional — if synthesis fails, hits still render.
+    answer = synth.ok ? (synth.message.content?.trim() ?? null) : null;
   }
 
   return {
@@ -209,9 +178,6 @@ export async function recordDecisionAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return { error: "OPENAI_API_KEY no configurado" };
-
   // Embed (title + problem + choice + reasoning) so the decision is findable
   // by question that asks about any of those facets.
   const embedText = [
@@ -223,17 +189,7 @@ export async function recordDecisionAction(
 
   let embedding: number[];
   try {
-    const res = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "text-embedding-3-small", input: embedText }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!res.ok) {
-      return { error: `OpenAI embed ${res.status}: ${(await res.text()).slice(0, 200)}` };
-    }
-    const json = (await res.json()) as { data: { embedding: number[] }[] };
-    embedding = json.data[0]!.embedding;
+    embedding = await embedOne(embedText);
   } catch (e) {
     return { error: `Embed failed: ${e instanceof Error ? e.message : String(e)}` };
   }

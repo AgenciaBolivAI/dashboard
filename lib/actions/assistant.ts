@@ -5,6 +5,8 @@ import { getTenantBySlug } from "@/lib/tenant";
 import { runAssistant, type ChatMsg, type PendingAction } from "@/lib/analytics-tools/run";
 import { dispatchTool, WRITE_TOOL_NAMES } from "@/lib/analytics-tools/index";
 import { getBalanceWithService, debitCredits } from "@/lib/billing/credits";
+import { buildBusinessContext } from "@/lib/assistant-context";
+import { persistAssistantTurn, clearAssistantHistory } from "@/lib/queries/assistant";
 
 export type AskAssistantResult =
   | { ok: true; answer: string; toolsUsed: string[]; pendingAction?: PendingAction | null }
@@ -43,11 +45,15 @@ export async function askAssistantAction(
     };
   }
 
+  // Business-context memory (Phase 0b): the AI knows the business each call.
+  const businessContext = await buildBusinessContext(tenant).catch(() => undefined);
+
   const res = await runAssistant({
     tenantId: tenant.id,
     tenantName: tenant.name,
     timezone: tenant.timezone ?? "UTC",
     history: trimmed,
+    businessContext,
   });
 
   // Only charge for a successful answer (not for OpenAI errors). Best-effort —
@@ -59,6 +65,15 @@ export async function askAssistantAction(
     actionKey: "assistant.query",
     units: 1,
     actorUserId: user.id,
+  }).catch(() => {});
+  // Persist this exchange (Phase 0c) so the thread carries across sessions.
+  // Best-effort: a storage hiccup must not fail an answered question.
+  await persistAssistantTurn({
+    tenantId: tenant.id,
+    userId: user.id,
+    question: trimmed[trimmed.length - 1].content,
+    answer: res.answer,
+    toolsUsed: res.toolsUsed,
   }).catch(() => {});
   return { ok: true, answer: res.answer, toolsUsed: res.toolsUsed, pendingAction: res.pendingAction ?? null };
 }
@@ -93,4 +108,16 @@ export async function executeAssistantActionAction(
     return { ok: false, error: String(result.error) };
   }
   return { ok: true, message: (result && result.message) || "Hecho." };
+}
+
+/**
+ * Wipe the current user's assistant thread for this tenant ("new conversation").
+ * Per-user + tenant-scoped; never touches another member's history.
+ */
+export async function clearAssistantHistoryAction(tenantSlug: string): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  const tenant = await getTenantBySlug(tenantSlug);
+  await requireTenantAccess(tenant.id);
+  await clearAssistantHistory(tenant.id, user.id).catch(() => {});
+  return { ok: true };
 }

@@ -20,6 +20,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { chatCompletion } from "../lib/llm";
 
 function loadEnvLocal(): void {
   try {
@@ -161,29 +162,22 @@ EXTRACTION RULES:
 
 async function extract(doc: DocRow): Promise<Extraction | null> {
   const userMsg = `Document title: ${doc.title}\nSource: ${doc.source_path}\n\n${doc.content.slice(0, 12000)}`;
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMsg },
-      ],
-    }),
+  // Routed through the LLM client factory (lib/llm) — self-host config-flip ready.
+  const completion = await chatCompletion({
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userMsg },
+    ],
+    temperature: 0.2,
+    responseFormat: { type: "json_object" },
+    timeoutMs: 60_000,
   });
-  if (!res.ok) {
-    console.warn(`  extraction error ${res.status}: ${(await res.text()).slice(0, 150)}`);
+  if (!completion.ok) {
+    console.warn(`  extraction error: ${completion.error}`);
     return null;
   }
-  const json = (await res.json()) as { choices: { message: { content: string } }[] };
   try {
-    return JSON.parse(json.choices[0]!.message.content) as Extraction;
+    return JSON.parse(completion.message.content ?? "") as Extraction;
   } catch {
     return null;
   }

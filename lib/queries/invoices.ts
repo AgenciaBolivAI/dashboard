@@ -59,25 +59,63 @@ const SELECT_COLS =
 
 export type InvoiceListFilter = InvoiceStatus | "all" | "recurring";
 
+/** Strip the PostgREST `.or()` grammar separators from a free-text term. */
+function sanitizeSearch(raw: string): string {
+  return raw.replace(/[,()*]/g, " ").trim();
+}
+
+// Apply the status + search filters shared by listInvoices / countInvoices.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyInvoiceFilters<T extends { eq: any; is: any; or: any }>(
+  q: T,
+  status: InvoiceListFilter | undefined,
+  term: string,
+): T {
+  if (status === "recurring") {
+    // "Active subscriptions" — recurring rows whose end date hasn't been stamped
+    q = q.eq("is_recurring", true).is("recurrence_end_date", null);
+  } else if (status && status !== "all") {
+    q = q.eq("status", status);
+  }
+  if (term) {
+    q = q.or(`number.ilike.*${term}*,customer_name.ilike.*${term}*,customer_email.ilike.*${term}*`);
+  }
+  return q;
+}
+
 export async function listInvoices(
   tenantId: string,
-  opts: { status?: InvoiceListFilter; limit?: number } = {},
+  opts: { status?: InvoiceListFilter; search?: string; limit?: number; offset?: number } = {},
 ): Promise<Invoice[]> {
   const supabase = await createClient();
+  const term = opts.search ? sanitizeSearch(opts.search) : "";
+  const offset = opts.offset ?? 0;
+  const limit = opts.limit ?? 100;
   let q = supabase
     .from("invoices")
     .select(SELECT_COLS)
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
-    .limit(opts.limit ?? 100);
-  if (opts.status === "recurring") {
-    // "Active subscriptions" — recurring rows whose end date hasn't been stamped
-    q = q.eq("is_recurring", true).is("recurrence_end_date", null);
-  } else if (opts.status && opts.status !== "all") {
-    q = q.eq("status", opts.status);
-  }
+    .range(offset, offset + limit - 1);
+  q = applyInvoiceFilters(q, opts.status, term);
   const { data } = await q;
   return (data ?? []) as Invoice[];
+}
+
+/** Total invoices matching the same status/search filters — drives pagination. */
+export async function countInvoices(
+  tenantId: string,
+  opts: { status?: InvoiceListFilter; search?: string } = {},
+): Promise<number> {
+  const supabase = await createClient();
+  const term = opts.search ? sanitizeSearch(opts.search) : "";
+  let q = supabase
+    .from("invoices")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId);
+  q = applyInvoiceFilters(q, opts.status, term);
+  const { count } = await q;
+  return count ?? 0;
 }
 
 export async function getInvoice(

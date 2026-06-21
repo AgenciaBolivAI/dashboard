@@ -1,6 +1,8 @@
 import { Bot } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { getTenantBySlug } from "@/lib/tenant";
+import { getUser } from "@/lib/auth";
+import { getAssistantHistory } from "@/lib/queries/assistant";
 import { AssistantChat } from "@/components/assistant/assistant-chat";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +14,12 @@ export default async function AssistantPage({
 }) {
   const { tenantSlug } = await params;
   // Access is enforced by the tenant layout (requireTenantAccess).
-  await getTenantBySlug(tenantSlug);
+  const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("assistant");
+
+  // Hydrate the user's persisted thread (Phase 0c) so context carries over.
+  const user = await getUser();
+  const initialMessages = user ? await getAssistantHistory(tenant.id, user.id) : [];
 
   return (
     <div className="flex flex-col h-full">
@@ -24,7 +30,7 @@ export default async function AssistantPage({
         </h1>
         <p className="text-sm text-muted-foreground mt-1">{t("page_subtitle")}</p>
       </div>
-      <AssistantChat tenantSlug={tenantSlug} />
+      <AssistantChat tenantSlug={tenantSlug} initialMessages={initialMessages} />
     </div>
   );
 }

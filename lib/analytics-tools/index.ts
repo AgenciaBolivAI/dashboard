@@ -13,20 +13,10 @@ import { getTenantRecentTransactions } from "@/lib/queries/admin-tenant-pnl";
 import { getAimaStats } from "@/lib/queries/aima";
 import { getBalanceWithService } from "@/lib/billing/credits";
 import { getRoleOnTenant } from "@/lib/auth";
+import { roleSatisfies, type Permission, type Role } from "@/lib/permissions";
 import { LEAD_STATUSES } from "@/lib/leads-types";
 import { triggerCcavaiGenerationAction } from "@/lib/actions/ccavai";
 import { triggerAimaScrapeAction } from "@/lib/actions/aima";
-
-// Write actions require operator+ on the tenant. getRoleOnTenant reads the
-// session — the model never supplies the role.
-const ROLE_RANK = ["viewer", "member", "operator", "admin", "owner", "bolivai_admin"];
-async function ensureOperator(tenantId: string): Promise<string | null> {
-  const role = await getRoleOnTenant(tenantId);
-  if (!role || ROLE_RANK.indexOf(role) < ROLE_RANK.indexOf("operator")) {
-    return "No tienes permiso para esta acción (requiere rol operador o superior).";
-  }
-  return null;
-}
 
 // supabase-js is typed to known tables; several analytics helpers query by a
 // dynamic table name, so we use a loosely-typed view of the same client.
@@ -110,6 +100,15 @@ type Handler = (args: Record<string, unknown>, tenantId: string) => Promise<unkn
 type Tool = {
   description: string;
   parameters: Record<string, unknown>;
+  /**
+   * The (feature, level) a user must hold to be OFFERED and to RUN this tool.
+   * Enforced centrally in dispatchTool against the caller's role — the model is
+   * never offered, and can never execute, a tool the acting user couldn't run
+   * by hand. Read tools use level "read"; write tools use "edit".
+   */
+  permission: Permission;
+  /** Write tool: previews + requires an explicit confirm before it executes. */
+  mutates?: boolean;
   run: Handler;
 };
 
@@ -141,6 +140,7 @@ function tally(rows: Record<string, unknown>[], col: string): Record<string, num
 
 export const TOOLS: Record<string, Tool> = {
   get_overview: {
+    permission: { feature: "analytics", level: "read" },
     description:
       "Month-to-date headline counters for the business: conversations, leads, confirmed reservations, and WhatsApp messages.",
     parameters: { type: "object", properties: {} },
@@ -148,6 +148,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_credit_balance: {
+    permission: { feature: "billing", level: "read" },
     description:
       "Current credit balance: available, reserved, lifetime spent, and whether the account is low or at zero.",
     parameters: { type: "object", properties: {} },
@@ -155,6 +156,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_pricing: {
+    permission: { feature: "billing", level: "read" },
     description:
       "The CURRENT price list (credits charged per action) — LIVE from the billing system, always up to date. Use this for ANY question about how much something costs / qué cuesta / precio / tarifa. Quote prices in CREDITS ONLY (never dollars/USD). NEVER quote prices from memory or the guide — they may be outdated.",
     parameters: { type: "object", properties: {} },
@@ -171,6 +173,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_spend_by_action: {
+    permission: { feature: "billing", level: "read" },
     description:
       "Credits spent broken down by what they were spent on (action_key), over a window. Use action_key 'whatsapp.agent_turn' for WhatsApp-only spend, 'voice.*' for calls, 'content.*' for CCAVAI, 'marketing.*' for AIMA/leads.",
     parameters: { type: "object", properties: { window: windowParam }, required: ["window"] },
@@ -197,6 +200,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_reservations: {
+    permission: { feature: "calendar", level: "read" },
     description:
       "Reservation counts over a window, broken down by status (confirmed/cancelled/completed/no_show). Set date_field='created_at' for 'reservations MADE in period' (default) or 'start_at' for 'appointments HAPPENING in period' (use for no-shows).",
     parameters: {
@@ -227,6 +231,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_leads: {
+    permission: { feature: "leads", level: "read" },
     description: "Lead counts over a window (by when the lead was created), broken down by status and source.",
     parameters: {
       type: "object",
@@ -258,6 +263,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_voice_summary: {
+    permission: { feature: "conversations", level: "read" },
     description:
       "Voice call counts over a window by direction (inbound/outbound) and outcome (booked, voicemail, no_pickup, etc.), plus total minutes.",
     parameters: { type: "object", properties: { window: windowParam }, required: ["window"] },
@@ -286,6 +292,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_marketing_stats: {
+    permission: { feature: "marketing", level: "read" },
     description:
       "AIMA marketing/lead-generation stats over a window: leads sourced, emails sent/opened/replied, leads in Sandra's call queue, demos booked.",
     parameters: {
@@ -303,6 +310,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   compare_period: {
+    permission: { feature: "analytics", level: "read" },
     description:
       "Compare a metric for the current window vs the immediately preceding window of equal length, with a per-day breakdown. Use this to explain WHY something went up or down (e.g. reservations last week). metric: reservations | leads | spend_credits | revenue_cents.",
     parameters: {
@@ -374,6 +382,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   list_conversations: {
+    permission: { feature: "conversations", level: "read" },
     description:
       "List recent conversations WITH the customer's name + phone, status and last activity. Use for 'with whom', 'who did I talk to', 'which conversations' — anything needing names, not just a count.",
     parameters: {
@@ -427,6 +436,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   list_customers: {
+    permission: { feature: "customers", level: "read" },
     description:
       "List customers (contacts) with name, phone and email. Optionally filter to those acquired within a window. Use for 'who are my customers', 'list my clients'.",
     parameters: {
@@ -451,6 +461,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   list_leads_detail: {
+    permission: { feature: "leads", level: "read" },
     description:
       "List individual leads with name, phone, status, intent and source over a window. Use for 'which leads', 'who are my new leads', not just counts.",
     parameters: {
@@ -477,6 +488,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   list_reservations_detail: {
+    permission: { feature: "calendar", level: "read" },
     description:
       "List individual reservations with customer name, phone, status and time over a window. Use for 'which appointments', 'who has a booking', not just counts.",
     parameters: {
@@ -505,6 +517,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   get_recent_transactions: {
+    permission: { feature: "billing", level: "read" },
     description: "The most recent credit ledger entries (top-ups and usage), newest first.",
     parameters: {
       type: "object",
@@ -517,6 +530,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   query_business_data: {
+    permission: { feature: "analytics", level: "read" },
     description:
       "General-purpose READ-ONLY query over the business's own data — the fallback for ANY data question no specific tool covers. " +
       "Tables: reservations, leads, users (customers), conversations, voice_conversations, invoices, services, staff, " +
@@ -612,6 +626,7 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   search_available_slots: {
+    permission: { feature: "calendar", level: "read" },
     description:
       "Find open appointment slots for a date + service (read-only). Needed before rescheduling: get the reservation's service_id + duration_minutes (via query_business_data on reservations), then call this for the desired date to pick a new_slot_id.",
     parameters: {
@@ -638,12 +653,16 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   // ── Write actions ───────────────────────────────────────────────────────
-  // All require operator+ and require confirm:true to execute. With confirm
-  // absent/false they only return a preview (no mutation) — the hard safety
-  // gate. The model must identify the exact target + get the user's explicit
-  // confirmation before passing confirm:true.
+  // Each declares permission level "edit" + mutates:true. The permission gate
+  // is enforced ONCE in dispatchTool against the caller's role (the model never
+  // supplies the role); on top of that, confirm:true is required to execute —
+  // with confirm absent/false they only return a preview (no mutation), the
+  // hard safety gate. The model must identify the exact target + get the user's
+  // explicit confirmation before passing confirm:true.
 
   cancel_reservation: {
+    permission: { feature: "calendar", level: "edit" },
+    mutates: true,
     description:
       "Cancel a booking/reservation by id. DESTRUCTIVE: it notifies the customer by email. First identify the exact reservation (list_reservations_detail / query_business_data), show it to the user, and get their explicit confirmation; only then call again with confirm:true.",
     parameters: {
@@ -656,8 +675,6 @@ export const TOOLS: Record<string, Tool> = {
       required: ["reservation_id"],
     },
     run: async (args, tenantId) => {
-      const noPerm = await ensureOperator(tenantId);
-      if (noPerm) return { error: noPerm };
       const rid = String(args.reservation_id || "");
       const svc = createServiceClient();
       const { data: own } = await svc
@@ -685,6 +702,8 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   update_lead_status: {
+    permission: { feature: "leads", level: "edit" },
+    mutates: true,
     description:
       `Change a lead's status (one of: ${LEAD_STATUSES.join(", ")}). Identify the lead and confirm with the user, then call with confirm:true.`,
     parameters: {
@@ -697,8 +716,6 @@ export const TOOLS: Record<string, Tool> = {
       required: ["lead_id", "status"],
     },
     run: async (args, tenantId) => {
-      const noPerm = await ensureOperator(tenantId);
-      if (noPerm) return { error: noPerm };
       const lid = String(args.lead_id || "");
       const status = String(args.status || "");
       if (!(LEAD_STATUSES as readonly string[]).includes(status)) {
@@ -726,6 +743,8 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   trigger_content_generation: {
+    permission: { feature: "content", level: "edit" },
+    mutates: true,
     description:
       "Start a CCAVAI content-generation run now (social drafts). mode: mixed | news | brand. Non-destructive. Confirm with the user, then confirm:true.",
     parameters: {
@@ -736,8 +755,6 @@ export const TOOLS: Record<string, Tool> = {
       },
     },
     run: async (args, tenantId) => {
-      const noPerm = await ensureOperator(tenantId);
-      if (noPerm) return { error: noPerm };
       const mode = ["mixed", "news", "brand"].includes(String(args.mode)) ? String(args.mode) : "mixed";
       if (args.confirm !== true) {
         return { requires_confirmation: true, summary: `Generar contenido nuevo (modo: ${mode}). Pide confirmación.` };
@@ -749,6 +766,8 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   trigger_lead_search: {
+    permission: { feature: "marketing", level: "edit" },
+    mutates: true,
     description:
       "Start an AIMA lead-search run now (scrapes Google Maps for leads in the configured verticals/cities). Non-destructive. Confirm with the user, then confirm:true.",
     parameters: {
@@ -756,8 +775,6 @@ export const TOOLS: Record<string, Tool> = {
       properties: { confirm: { type: "boolean" } },
     },
     run: async (args, tenantId) => {
-      const noPerm = await ensureOperator(tenantId);
-      if (noPerm) return { error: noPerm };
       if (args.confirm !== true) {
         return { requires_confirmation: true, summary: "Iniciar una búsqueda de leads con AIMA ahora. Pide confirmación." };
       }
@@ -768,6 +785,8 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   reschedule_reservation: {
+    permission: { feature: "calendar", level: "edit" },
+    mutates: true,
     description:
       "Move a booking to a new time slot. First get the reservation (query_business_data → id, service_id, duration_minutes, start_at), then search_available_slots to pick a new_slot_id, show the new time to the user, get confirmation, then call with confirm:true.",
     parameters: {
@@ -780,8 +799,6 @@ export const TOOLS: Record<string, Tool> = {
       required: ["reservation_id", "new_slot_id"],
     },
     run: async (args, tenantId) => {
-      const noPerm = await ensureOperator(tenantId);
-      if (noPerm) return { error: noPerm };
       const rid = String(args.reservation_id || "");
       const svc = createServiceClient();
       const { data: own } = await svc
@@ -809,6 +826,8 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   set_customer_vip: {
+    permission: { feature: "customers", level: "edit" },
+    mutates: true,
     description:
       "Mark a customer as VIP or remove VIP. Identify the customer (list_customers / query_business_data on users) and confirm, then call with confirm:true.",
     parameters: {
@@ -821,8 +840,6 @@ export const TOOLS: Record<string, Tool> = {
       required: ["user_id", "is_vip"],
     },
     run: async (args, tenantId) => {
-      const noPerm = await ensureOperator(tenantId);
-      if (noPerm) return { error: noPerm };
       const uid = String(args.user_id || "");
       const isVip = args.is_vip === true;
       const svc = createServiceClient();
@@ -844,6 +861,8 @@ export const TOOLS: Record<string, Tool> = {
   },
 
   add_customer_note: {
+    permission: { feature: "customers", level: "edit" },
+    mutates: true,
     description:
       "Append a private note to a customer's profile (not visible to the customer, not used by the agent). Identify the customer and confirm, then call with confirm:true.",
     parameters: {
@@ -856,8 +875,6 @@ export const TOOLS: Record<string, Tool> = {
       required: ["user_id", "note"],
     },
     run: async (args, tenantId) => {
-      const noPerm = await ensureOperator(tenantId);
-      if (noPerm) return { error: noPerm };
       const uid = String(args.user_id || "");
       const note = String(args.note || "").slice(0, 1000).trim();
       if (!note) return { error: "La nota está vacía." };
@@ -879,35 +896,83 @@ export const TOOLS: Record<string, Tool> = {
       return { ok: true, user_id: uid };
     },
   },
+
+  remember_fact: {
+    permission: { feature: "knowledge", level: "edit" },
+    mutates: true,
+    description:
+      "Save a DURABLE fact about this business to long-term memory (tenant_facts) so you recall it in future conversations — e.g. 'the owner takes no Sunday bookings', 'prefers WhatsApp over email', 'high season is December'. Use ONLY for stable business facts worth remembering, not one-off data. Confirm with the user, then call with confirm:true.",
+    parameters: {
+      type: "object",
+      properties: {
+        fact: { type: "string", description: "The fact to remember, one concise sentence." },
+        confirm: { type: "boolean", description: "Set true ONLY after the user confirmed." },
+      },
+      required: ["fact"],
+    },
+    run: async (args, tenantId) => {
+      const fact = String(args.fact || "").slice(0, 500).trim();
+      if (!fact) return { error: "El hecho está vacío." };
+      if (args.confirm !== true) {
+        return { requires_confirmation: true, summary: `Recordar este hecho del negocio: "${fact}". Pide confirmación.` };
+      }
+      const { error } = await svcAny()
+        .from("tenant_facts")
+        .insert({ tenant_id: tenantId, fact, source: "assistant" });
+      if (error) return { error: error.message };
+      return { ok: true, message: "Hecho guardado en la memoria del negocio." };
+    },
+  },
 };
 
-/** Tools that mutate data — gated behind the UI confirm card (zero-trust). */
-export const WRITE_TOOL_NAMES = new Set<string>([
-  "cancel_reservation",
-  "reschedule_reservation",
-  "update_lead_status",
-  "set_customer_vip",
-  "add_customer_note",
-  "trigger_content_generation",
-  "trigger_lead_search",
-]);
+/**
+ * Tools that mutate data — gated behind the UI confirm card (zero-trust).
+ * Derived from each tool's `mutates` flag so this stays in sync automatically
+ * as tools are added (single source of truth).
+ */
+export const WRITE_TOOL_NAMES = new Set<string>(
+  Object.entries(TOOLS)
+    .filter(([, t]) => t.mutates)
+    .map(([name]) => name),
+);
 
-/** OpenAI function-calling specs for all tools. */
-export function toolSpecs() {
-  return Object.entries(TOOLS).map(([name, t]) => ({
-    type: "function" as const,
-    function: { name, description: t.description, parameters: t.parameters },
-  }));
+/**
+ * OpenAI-compatible function-calling specs. When `role` is provided, only the
+ * tools that role is permitted to use are offered — the model is never even
+ * shown a capability the acting user couldn't perform by hand. Omit `role` to
+ * get the full set (e.g. for documentation/introspection).
+ */
+export function toolSpecs(role?: Role | null) {
+  return Object.entries(TOOLS)
+    .filter(([, t]) => role === undefined || roleSatisfies(role, t.permission.feature, t.permission.level))
+    .map(([name, t]) => ({
+      type: "function" as const,
+      function: { name, description: t.description, parameters: t.parameters },
+    }));
 }
 
-/** Dispatch one tool call. tenantId comes from the session, never the model. */
+/**
+ * Dispatch one tool call. tenantId comes from the session, never the model.
+ * Enforces the tool's required permission against the caller's role HERE — the
+ * single choke point both the assistant loop and the UI confirm path go
+ * through, so a model can never run a capability the user lacks. Pass `role`
+ * to avoid re-resolving it per call; omit it and dispatchTool resolves it from
+ * the session.
+ */
 export async function dispatchTool(
   name: string,
   args: Record<string, unknown>,
   tenantId: string,
+  role?: Role | null,
 ): Promise<unknown> {
   const tool = TOOLS[name];
   if (!tool) return { error: `unknown tool: ${name}` };
+  const effectiveRole = role !== undefined ? role : await getRoleOnTenant(tenantId);
+  if (!roleSatisfies(effectiveRole, tool.permission.feature, tool.permission.level)) {
+    return {
+      error: `No tienes permiso para esta acción (requiere ${tool.permission.feature}: ${tool.permission.level}).`,
+    };
+  }
   try {
     return await tool.run(args, tenantId);
   } catch (e) {

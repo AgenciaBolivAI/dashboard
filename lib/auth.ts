@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { roleSatisfies, type Feature, type Level } from "@/lib/permissions";
 
 export type DashboardRole = "owner" | "admin" | "operator" | "viewer" | "member";
 export type EffectiveRole = DashboardRole | "bolivai_admin";
@@ -99,4 +100,33 @@ export async function requireTenantAccess(
 export async function requireBolivAIAdmin() {
   const isAdmin = await isBolivAIAdmin();
   if (!isAdmin) redirect("/dashboard");
+}
+
+/**
+ * True if the current user has at least `level` on `feature` for this tenant.
+ * The permission-model counterpart to `requireTenantAccess({ minRole })`:
+ * resolves the user's role → permission set (see lib/permissions). Phase 4 RBAC
+ * swaps the role→permissions source for custom roles without touching callers.
+ */
+export async function hasPermission(
+  tenantId: string,
+  feature: Feature,
+  level: Level,
+): Promise<boolean> {
+  const role = await getRoleOnTenant(tenantId);
+  return roleSatisfies(role, feature, level);
+}
+
+/**
+ * Throws (redirects) if the current user lacks `level` on `feature`.
+ * Use in server actions / route handlers the way `requireTenantAccess` is used.
+ */
+export async function requirePermission(
+  tenantId: string,
+  feature: Feature,
+  level: Level,
+) {
+  if (!(await hasPermission(tenantId, feature, level))) {
+    redirect("/dashboard");
+  }
 }

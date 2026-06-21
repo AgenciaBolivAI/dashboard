@@ -5,8 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
-import { listInvoices, getInvoiceSummary } from "@/lib/queries/invoices";
+import { listInvoices, countInvoices, getInvoiceSummary } from "@/lib/queries/invoices";
 import { lookupUserIdsByPhones } from "@/lib/queries/user-lookup";
+import { RealtimeSearch } from "@/components/ui/realtime-search";
+import { Pagination } from "@/components/ui/pagination";
+import { clampPageSize } from "@/lib/pagination";
 import { formatMoney } from "@/lib/format";
 
 export default async function InvoicesPage({
@@ -14,13 +17,18 @@ export default async function InvoicesPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string; pageSize?: string }>;
 }) {
   const { tenantSlug } = await params;
-  const { status: statusFilter } = await searchParams;
+  const { status: statusFilter, q, page: pageParam, pageSize: pageSizeParam } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
   const status = (statusFilter ?? "all") as NonNullable<Parameters<typeof listInvoices>[1]>["status"];
   const t = await getTranslations("invoices");
+
+  const search = q?.trim() || undefined;
+  const pageSize = clampPageSize(Number(pageSizeParam), 50);
+  const page = Math.max(1, Number(pageParam) || 1);
+  const offset = (page - 1) * pageSize;
 
   const STATUS_LABEL: Record<string, { label: string; variant: "default" | "outline" | "success" | "destructive" }> = {
     draft: { label: t("status_draft"), variant: "outline" },
@@ -31,8 +39,9 @@ export default async function InvoicesPage({
     uncollectible: { label: t("status_uncollectible"), variant: "destructive" },
   };
 
-  const [invoices, summary] = await Promise.all([
-    listInvoices(tenant.id, { status }),
+  const [invoices, total, summary] = await Promise.all([
+    listInvoices(tenant.id, { status, search, limit: pageSize, offset }),
+    countInvoices(tenant.id, { status, search }),
     getInvoiceSummary(tenant.id, tenant.invoice_default_currency),
   ]);
 
@@ -117,10 +126,11 @@ export default async function InvoicesPage({
           { v: "recurring", label: t("tab_subscriptions") },
         ].map((tab) => {
           const isActive = (statusFilter ?? "all") === tab.v;
-          const href =
-            tab.v === "all"
-              ? `/dashboard/${tenantSlug}/invoices`
-              : `/dashboard/${tenantSlug}/invoices?status=${tab.v}`;
+          const sp = new URLSearchParams();
+          if (tab.v !== "all") sp.set("status", tab.v);
+          if (search) sp.set("q", search);
+          const qs = sp.toString();
+          const href = `/dashboard/${tenantSlug}/invoices${qs ? "?" + qs : ""}`;
           return (
             <Link
               key={tab.v}
@@ -138,6 +148,10 @@ export default async function InvoicesPage({
         })}
       </div>
 
+      <div className="mb-4">
+        <RealtimeSearch placeholder={t("search_placeholder")} />
+      </div>
+
       {invoices.length === 0 ? (
         <Card className="py-16 flex flex-col items-center text-center">
           <FileText className="size-10 text-muted-foreground mb-4" />
@@ -148,7 +162,7 @@ export default async function InvoicesPage({
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground border-b border-border">
                 <tr>
@@ -226,6 +240,8 @@ export default async function InvoicesPage({
           </CardContent>
         </Card>
       )}
+
+      {total > 0 ? <Pagination total={total} defaultPageSize={50} className="mt-4" /> : null}
     </div>
   );
 }

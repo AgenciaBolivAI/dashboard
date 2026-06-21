@@ -24,6 +24,7 @@
  */
 import { NextResponse } from "next/server";
 import { checkBearer } from "@/lib/security/bearer";
+import { embedOne } from "@/lib/llm";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -45,30 +46,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "query too short" }, { status: 400 });
   }
 
-  const openaiKey = process.env.OPENAI_API_KEY;
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!openaiKey || !supabaseUrl || !serviceKey) {
+  if (!supabaseUrl || !serviceKey) {
     return NextResponse.json({ error: "server not configured" }, { status: 500 });
   }
 
-  // 1. Embed the query
+  // 1. Embed the query (via the LLM client factory — self-host config-flip ready)
   let queryEmbedding: number[];
   try {
-    const embRes = await fetch("https://api.openai.com/v1/embeddings", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "text-embedding-3-small", input: query }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!embRes.ok) {
-      return NextResponse.json(
-        { error: `openai embed ${embRes.status}: ${(await embRes.text()).slice(0, 200)}` },
-        { status: 502 },
-      );
-    }
-    const json = (await embRes.json()) as { data: { embedding: number[] }[] };
-    queryEmbedding = json.data[0]!.embedding;
+    queryEmbedding = await embedOne(query);
   } catch (e) {
     return NextResponse.json(
       { error: `embed failed: ${e instanceof Error ? e.message : String(e)}` },

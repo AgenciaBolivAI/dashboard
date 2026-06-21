@@ -22,6 +22,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, basename } from "node:path";
 import { createHash } from "node:crypto";
+import { embedOne } from "../lib/llm";
 
 // Minimal .env.local loader — no dotenv dependency
 function loadEnvLocal(): void {
@@ -326,24 +327,10 @@ function sha256(s: string): string {
 }
 
 async function embed(text: string): Promise<number[]> {
-  // text-embedding-3-small: 1536 dimensions, $0.020 per 1M tokens
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "text-embedding-3-small",
-      input: text.slice(0, 30_000), // ~7500 tokens cap; text-embedding-3-small handles 8192
-    }),
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`OpenAI embed failed ${res.status}: ${errText.slice(0, 200)}`);
-  }
-  const json = (await res.json()) as { data: { embedding: number[] }[] };
-  return json.data[0]!.embedding;
+  // Routed through the LLM client factory (lib/llm) so re-ingesting honors the
+  // same LLM_EMBED_* config as the running app — a self-host flip stays in sync.
+  // text-embedding-3-small: 1536 dims. ~7500 token cap; small handles 8192.
+  return embedOne(text.slice(0, 30_000), { timeoutMs: 30_000 });
 }
 
 async function main() {

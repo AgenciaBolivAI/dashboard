@@ -49,7 +49,7 @@ export default async function KnowledgePage({
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6">
         <StatCard label={t("stat_faq_chunks")} value={stats.documentsCount} locale={locale} />
         <StatCard label={t("stat_clinical_chunks")} value={stats.painCount} locale={locale} />
         <StatCard

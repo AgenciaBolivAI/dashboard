@@ -7,6 +7,7 @@ import { getTenantBySlug } from "@/lib/tenant";
 import { listLeads, getLeadIntents, getLeadFacets } from "@/lib/queries/leads";
 import { COUNTRY_BY_CODE } from "@/lib/leads-geo";
 import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
+import { LeadsImport } from "@/components/leads/leads-import";
 import { RealtimeSearch } from "@/components/ui/realtime-search";
 import { Pagination } from "@/components/ui/pagination";
 import { clampPageSize } from "@/lib/pagination";
@@ -132,15 +133,18 @@ export default async function LeadsPage({
             {filtered && " " + t("filtered_suffix")}
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <a
-            href={`/api/leads/export?tenantSlug=${tenantSlug}&${exportQs.toString()}`}
-            download
-          >
-            <Download className="size-4" />
-            {t("export_csv")}
-          </a>
-        </Button>
+        <div className="flex items-center gap-2">
+          <LeadsImport tenantId={tenant.id} />
+          <Button asChild variant="outline" size="sm">
+            <a
+              href={`/api/leads/export?tenantSlug=${tenantSlug}&${exportQs.toString()}`}
+              download
+            >
+              <Download className="size-4" />
+              {t("export_csv")}
+            </a>
+          </Button>
+        </div>
       </div>
 
       <div className="mb-4">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useTransition } from "react";
-import { Bot, Loader2, Send, Sparkles, AlertTriangle, Check, X } from "lucide-react";
+import { Bot, Loader2, Send, Sparkles, AlertTriangle, Check, X, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -9,19 +9,27 @@ import { Input } from "@/components/ui/input";
 import {
   askAssistantAction,
   executeAssistantActionAction,
+  clearAssistantHistoryAction,
 } from "@/lib/actions/assistant";
 import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type PendingAction = { name: string; args: Record<string, unknown>; summary: string };
 
-export function AssistantChat({ tenantSlug }: { tenantSlug: string }) {
+export function AssistantChat({
+  tenantSlug,
+  initialMessages = [],
+}: {
+  tenantSlug: string;
+  initialMessages?: Msg[];
+}) {
   const t = useTranslations("assistant");
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
   const [proposed, setProposed] = useState<PendingAction | null>(null);
   const [executing, setExecuting] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,8 +80,34 @@ export function AssistantChat({ tenantSlug }: { tenantSlug: string }) {
     setMessages((m) => [...m, { role: "assistant", content: t("action_cancelled") }]);
   }
 
+  function clearConversation() {
+    if (clearing || pending || executing) return;
+    setClearing(true);
+    setProposed(null);
+    setMessages([]);
+    (async () => {
+      await clearAssistantHistoryAction(tenantSlug);
+      setClearing(false);
+    })();
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-9rem)] max-w-3xl mx-auto">
+      {messages.length > 0 ? (
+        <div className="flex justify-end px-4 pt-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={clearConversation}
+            disabled={clearing || pending || executing}
+            className="gap-1.5 text-muted-foreground"
+          >
+            {clearing ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+            {t("new_conversation")}
+          </Button>
+        </div>
+      ) : null}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center gap-5">

@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { ConversationRow } from "@/components/conversations/conversation-row";
 import { getTranslations } from "next-intl/server";
-import { MessagesSquare } from "lucide-react";
+import { MessagesSquare, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConversationStatusBadge } from "@/components/conversations/status-badge";
 import { LiveListRefresher } from "@/components/conversations/live-list-refresher";
+import { RealtimeSearch } from "@/components/ui/realtime-search";
+import { Pagination } from "@/components/ui/pagination";
 import { getTenantBySlug } from "@/lib/tenant";
-import { listConversations } from "@/lib/queries/conversations";
+import { listConversations, countConversations } from "@/lib/queries/conversations";
+import { clampPageSize } from "@/lib/pagination";
 import { formatRelative, cn } from "@/lib/utils";
 
 export default async function ConversationsPage({
@@ -15,12 +19,21 @@ export default async function ConversationsPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
-  searchParams: Promise<{ status?: string; channel?: string }>;
+  searchParams: Promise<{ status?: string; channel?: string; q?: string; page?: string; pageSize?: string }>;
 }) {
   const { tenantSlug } = await params;
-  const { status, channel } = await searchParams;
+  const { status, channel, q, page: pageParam, pageSize: pageSizeParam } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
-  const items = await listConversations(tenant.id, { status, channel, limit: 100 });
+
+  const search = q?.trim() || undefined;
+  const pageSize = clampPageSize(Number(pageSizeParam), 50);
+  const page = Math.max(1, Number(pageParam) || 1);
+  const offset = (page - 1) * pageSize;
+
+  const [items, total] = await Promise.all([
+    listConversations(tenant.id, { status, channel, search, limit: pageSize, offset }),
+    countConversations(tenant.id, { status, channel, search }),
+  ]);
   const t = await getTranslations("conversations");
 
   const FILTERS = [
@@ -38,13 +51,15 @@ export default async function ConversationsPage({
   ];
 
   // Build an href that flips one filter while preserving the other (status +
-  // channel are orthogonal).
+  // channel are orthogonal) and the active search. Changing a filter resets
+  // pagination (we simply omit page).
   function buildHref(next: { status?: string; channel?: string }): string {
     const s = next.status ?? status;
     const c = next.channel ?? channel;
     const sp = new URLSearchParams();
     if (s && s !== "all") sp.set("status", s);
     if (c && c !== "all") sp.set("channel", c);
+    if (search) sp.set("q", search);
     const qs = sp.toString();
     return `/dashboard/${tenantSlug}/conversations${qs ? "?" + qs : ""}`;
   }
@@ -58,11 +73,27 @@ export default async function ConversationsPage({
             {t("page_title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {items.length === 1
-              ? t("count_one", { count: items.length })
-              : t("count_other", { count: items.length })}
+            {total === 1
+              ? t("count_one", { count: total })
+              : t("count_other", { count: total })}
           </p>
         </div>
+        <Button asChild variant="outline">
+          <a
+            href={`/api/conversations/export?tenantSlug=${tenantSlug}${
+              status && status !== "all" ? `&status=${status}` : ""
+            }${channel && channel !== "all" ? `&channel=${channel}` : ""}${
+              search ? `&q=${encodeURIComponent(search)}` : ""
+            }`}
+          >
+            <Download className="size-4" />
+            {t("export_csv")}
+          </a>
+        </Button>
+      </div>
+
+      <div className="mb-3">
+        <RealtimeSearch placeholder={t("search_placeholder")} />
       </div>
 
       <div className="mb-3 flex gap-1.5 flex-wrap">
@@ -118,27 +149,31 @@ export default async function ConversationsPage({
         </Card>
       ) : (
         <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("col_customer")}</TableHead>
-                <TableHead>{t("col_last_message")}</TableHead>
-                <TableHead className="w-32">{t("col_status")}</TableHead>
-                <TableHead className="w-32">{t("col_ago")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((c) => (
-                <ConversationRow
-                  key={c.id}
-                  tenantSlug={tenantSlug}
-                  item={c}
-                />
-              ))}
-            </TableBody>
-          </Table>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("col_customer")}</TableHead>
+                  <TableHead>{t("col_last_message")}</TableHead>
+                  <TableHead className="w-32">{t("col_status")}</TableHead>
+                  <TableHead className="w-32">{t("col_ago")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((c) => (
+                  <ConversationRow
+                    key={c.id}
+                    tenantSlug={tenantSlug}
+                    item={c}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </Card>
       )}
+
+      {total > 0 ? <Pagination total={total} defaultPageSize={50} className="mt-4" /> : null}
     </div>
   );
 }

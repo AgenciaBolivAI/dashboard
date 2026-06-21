@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { UserSearch, Star } from "lucide-react";
+import { UserSearch, Star, Download } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listCustomers } from "@/lib/queries/customers";
@@ -54,6 +55,16 @@ export default async function CustomersPage({
             {vip === "1" ? " · " + t("vip_only") : ""}
           </p>
         </div>
+        <Button asChild variant="outline">
+          <a
+            href={`/api/customers/export?tenantSlug=${tenantSlug}${vip === "1" ? "&vip=1" : ""}${
+              q ? `&q=${encodeURIComponent(q)}` : ""
+            }`}
+          >
+            <Download className="size-4" />
+            {t("export_csv")}
+          </a>
+        </Button>
       </div>
 
       <div className="flex gap-2 mb-4">
@@ -82,7 +93,7 @@ export default async function CustomersPage({
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground border-b border-border">
                 <tr>

@@ -7,11 +7,11 @@
  */
 import { toolSpecs, dispatchTool, WRITE_TOOL_NAMES } from "./index";
 import { PLATFORM_GUIDE } from "./platform-guide";
+import { chatCompletion } from "@/lib/llm";
+import { getRoleOnTenant } from "@/lib/auth";
 
 export type PendingAction = { name: string; args: Record<string, unknown>; summary: string };
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL = "gpt-4o-mini";
 const MAX_TURNS = 5;
 
 export type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -27,15 +27,17 @@ export async function runAssistant(opts: {
   tenantName: string;
   timezone: string;
   history: ChatMsg[];
+  /** Per-tenant business-context block (Phase 0b) injected into the prompt. */
+  businessContext?: string;
 }): Promise<AssistantResult> {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return { answer: "", toolsUsed: [], error: "OPENAI_API_KEY no configurado" };
-
   const today = new Date().toISOString().slice(0, 10);
   const system = [
     `Eres el asistente de "${opts.tenantName}" en BolivAI: respondes (1) preguntas sobre los DATOS de este negocio y (2) preguntas de CÓMO USAR la plataforma.`,
     `Hoy es ${today} (zona horaria del negocio: ${opts.timezone}).`,
     "",
+    ...(opts.businessContext
+      ? ["=== CONTEXTO DEL NEGOCIO ===", opts.businessContext, ""]
+      : []),
     "Cómo decidir:",
     "- Pregunta sobre DATOS del negocio (cifras, clientes, reservas, leads, créditos gastados, tendencias) → usa las HERRAMIENTAS. Llama SIEMPRE a una herramienta para cifras reales; NUNCA inventes números. Si no hay una herramienta específica, usa query_business_data. Para 'con quién/cuáles/quiénes' usa las list_*. Para 'por qué subió/bajó' usa compare_period. No digas que no puedes sin intentar una herramienta primero.",
     "- Pregunta de PRECIOS / cuánto cuesta algo / tarifas → SIEMPRE llama a get_pricing (precios EN VIVO). NUNCA cites cifras de precios de la guía ni de memoria. Cita los precios SOLO en créditos (p. ej. '5 créditos por respuesta') — NUNCA en dólares, USD ni ninguna otra moneda.",
@@ -65,30 +67,23 @@ export async function runAssistant(opts: {
   // are pushed back verbatim, so the type is loose on purpose.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const messages: any[] = [{ role: "system", content: system }, ...opts.history];
-  const tools = toolSpecs();
+  // Resolve the caller's role ONCE: the model is only offered tools this role
+  // can use, and every dispatch re-checks against the same role. Never the model.
+  const role = await getRoleOnTenant(opts.tenantId);
+  const tools = toolSpecs(role);
   const toolsUsed: string[] = [];
   let pendingAction: PendingAction | null = null;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
-    let res: Response;
-    try {
-      res = await fetch(OPENAI_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, messages, tools, tool_choice: "auto", temperature: 0.2 }),
-        signal: AbortSignal.timeout(60_000),
-      });
-    } catch (e) {
-      return { answer: "", toolsUsed, error: e instanceof Error ? e.message : "openai unreachable" };
-    }
-    if (!res.ok) {
-      return { answer: "", toolsUsed, error: `OpenAI ${res.status}: ${(await res.text()).slice(0, 200)}` };
-    }
-    const json = (await res.json()) as {
-      choices?: { message?: { content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[];
-    };
-    const msg = json.choices?.[0]?.message;
-    if (!msg) return { answer: "", toolsUsed, error: "respuesta vacía de OpenAI" };
+    const completion = await chatCompletion({
+      messages,
+      tools,
+      toolChoice: "auto",
+      temperature: 0.2,
+      timeoutMs: 60_000,
+    });
+    if (!completion.ok) return { answer: "", toolsUsed, error: completion.error };
+    const msg = completion.message;
     messages.push(msg);
 
     if (msg.tool_calls?.length) {
@@ -104,7 +99,7 @@ export async function runAssistant(opts: {
         // Real execution only happens via the UI confirm card (executeAssistantAction).
         const isWrite = WRITE_TOOL_NAMES.has(tc.function.name);
         const callArgs = isWrite ? { ...args, confirm: false } : args;
-        const result = await dispatchTool(tc.function.name, callArgs, opts.tenantId);
+        const result = await dispatchTool(tc.function.name, callArgs, opts.tenantId, role);
         if (
           isWrite &&
           result &&
