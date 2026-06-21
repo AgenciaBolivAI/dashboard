@@ -3,6 +3,7 @@ import { BarChart3, TrendingUp, Target, Trophy } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { getTenantBySlug } from "@/lib/tenant";
+import { requirePermission } from "@/lib/auth";
 import { getReports, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
 import { AreaTrend } from "@/components/charts/area-trend";
 import { ReportsToolbar } from "@/components/reports/reports-toolbar";
@@ -35,6 +36,7 @@ export default async function ReportsPage({
   const { tenantSlug } = await params;
   const { period: periodParam } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  await requirePermission(tenant.id, "reports", "read");
   const t = await getTranslations("reports");
   const tl = await getTranslations("leads");
   const locale = await getLocale();

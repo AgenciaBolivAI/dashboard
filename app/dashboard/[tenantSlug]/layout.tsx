@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { requireUser, requireTenantAccess, isBolivAIAdmin, getRoleOnTenant } from "@/lib/auth";
+import {
+  requireUser,
+  requireTenantAccess,
+  isBolivAIAdmin,
+  getRoleOnTenant,
+  getEffectivePermissions,
+} from "@/lib/auth";
 import { getTenantBySlug, getMyTenants } from "@/lib/tenant";
 import { getFoundingCount, FOUNDING_CAP } from "@/lib/billing/lifetime";
 import { LifetimeGate } from "@/components/billing/lifetime-gate";
@@ -61,6 +67,11 @@ export default async function TenantLayout({
       />
     );
   }
+
+  // RBAC: the user's effective per-feature permissions on this tenant. Drives
+  // the sidebar (features the role can't READ are hidden). Legacy tiers grant
+  // read everywhere, so only custom roles narrow the nav — no regression.
+  const permissions = await getEffectivePermissions(tenant.id);
 
   const memberships = await getMyTenants();
   const tenantOptions: TenantOption[] = memberships
@@ -135,7 +146,7 @@ export default async function TenantLayout({
         <Separator />
 
         <div className="flex-1 overflow-y-auto">
-          <Sidebar tenantSlug={tenant.slug} />
+          <Sidebar tenantSlug={tenant.slug} permissions={permissions} />
         </div>
 
         {isAdmin ? (
@@ -167,6 +178,7 @@ export default async function TenantLayout({
               }}
               options={tenantOptions}
               isAdmin={isAdmin}
+              permissions={permissions}
             />
             <span className="text-sm font-medium truncate">{tenant.name}</span>
           </div>

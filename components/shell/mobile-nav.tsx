@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Menu, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
+import type { PermissionSet } from "@/lib/permissions";
 import { TenantSwitcher, type TenantOption } from "./tenant-switcher";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -20,10 +21,12 @@ export function MobileNav({
   current,
   options,
   isAdmin,
+  permissions,
 }: {
   current: TenantOption;
   options: TenantOption[];
   isAdmin: boolean;
+  permissions?: PermissionSet;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -107,7 +110,7 @@ export function MobileNav({
         <Separator />
 
         <div className="flex-1 overflow-y-auto">
-          <Sidebar tenantSlug={current.slug} />
+          <Sidebar tenantSlug={current.slug} permissions={permissions} />
         </div>
 
         {isAdmin ? (

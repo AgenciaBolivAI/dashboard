@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ListTodo } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { getTenantBySlug } from "@/lib/tenant";
-import { getUser } from "@/lib/auth";
+import { getUser, requirePermission } from "@/lib/auth";
 import { listTasks, type TaskStatus } from "@/lib/queries/tasks";
 import { loadTeam } from "@/lib/actions/team";
 import { RealtimeSearch } from "@/components/ui/realtime-search";
@@ -23,6 +23,7 @@ export default async function TasksPage({
   const { tenantSlug } = await params;
   const { status, q, mine, page: pageParam, pageSize: pageSizeParam } = await searchParams;
   const tenant = await getTenantBySlug(tenantSlug);
+  await requirePermission(tenant.id, "tasks", "read");
   const t = await getTranslations("tasks");
   const user = await getUser();
 

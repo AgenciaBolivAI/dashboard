@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { ConversationStatusBadge } from "@/components/conversations/status-badge";
 import { LiveThread } from "@/components/conversations/live-thread";
 import { HitlControls } from "@/components/conversations/hitl-controls";
+import { ConvertToTicket } from "@/components/conversations/convert-to-ticket";
 import { OperatorInput } from "@/components/conversations/operator-input";
 import { getTenantBySlug } from "@/lib/tenant";
 import { getConversationDetail } from "@/lib/queries/conversations";
@@ -62,7 +63,15 @@ export default async function ConversationDetailPage({
               hitl={convo.hitl_taken_over}
             />
           </div>
-          <HitlControls conversationId={convo.id} isHitl={convo.hitl_taken_over} />
+          <div className="flex items-center gap-2">
+            <ConvertToTicket
+              tenantId={tenant.id}
+              tenantSlug={tenantSlug}
+              conversationId={convo.id}
+              isTicket={convo.is_ticket}
+            />
+            <HitlControls conversationId={convo.id} isHitl={convo.hitl_taken_over} />
+          </div>
         </div>
 
         <LiveThread conversationId={convo.id} initialMessages={convo.messages} />

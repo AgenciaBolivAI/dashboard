@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { roleSatisfies, type Feature, type Level } from "@/lib/permissions";
+import {
+  permissionsForRole,
+  levelSatisfies,
+  type Feature,
+  type Level,
+  type Role,
+  type PermissionSet,
+} from "@/lib/permissions";
 
 export type DashboardRole = "owner" | "admin" | "operator" | "viewer" | "member";
 export type EffectiveRole = DashboardRole | "bolivai_admin";
@@ -103,18 +110,53 @@ export async function requireBolivAIAdmin() {
 }
 
 /**
+ * The current user's effective FEATURE → LEVEL map for this tenant. Resolution
+ * order: bolivai_admin → full admin; else a CUSTOM role (dashboard_users.role_id
+ * → roles.permissions) if assigned; else the legacy tier preset. Returns {} for
+ * a user with no membership.
+ */
+export async function getEffectivePermissions(tenantId: string): Promise<PermissionSet> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return {};
+  if (await isBolivAIAdmin()) return permissionsForRole("bolivai_admin");
+
+  const { data } = await supabase
+    .from("dashboard_users")
+    .select("role, role_id")
+    .eq("user_id", user.id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!data) return {};
+  const row = data as { role: string | null; role_id: string | null };
+
+  if (row.role_id) {
+    const { data: roleRow } = await supabase
+      .from("roles")
+      .select("permissions")
+      .eq("id", row.role_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    const perms = (roleRow as { permissions?: PermissionSet } | null)?.permissions;
+    if (perms && typeof perms === "object") return perms;
+  }
+  return permissionsForRole((row.role as Role) ?? null);
+}
+
+/**
  * True if the current user has at least `level` on `feature` for this tenant.
- * The permission-model counterpart to `requireTenantAccess({ minRole })`:
- * resolves the user's role → permission set (see lib/permissions). Phase 4 RBAC
- * swaps the role→permissions source for custom roles without touching callers.
+ * The permission-model counterpart to `requireTenantAccess({ minRole })`.
+ * Honors custom roles (Phase 4 RBAC) via getEffectivePermissions.
  */
 export async function hasPermission(
   tenantId: string,
   feature: Feature,
   level: Level,
 ): Promise<boolean> {
-  const role = await getRoleOnTenant(tenantId);
-  return roleSatisfies(role, feature, level);
+  const perms = await getEffectivePermissions(tenantId);
+  return levelSatisfies(perms[feature] ?? "none", level);
 }
 
 /**

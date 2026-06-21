@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
+import { deleteReservationEvent } from "@/lib/google-calendar";
 
 export type CalendarState = {
   error: string | null;
@@ -310,7 +311,7 @@ export async function cancelReservationAction(
   // Defense in depth: scope by tenant before invoking the RPC.
   const { data: own } = await supabase
     .from("reservations")
-    .select("id")
+    .select("id, google_event_id")
     .eq("id", reservationId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -321,6 +322,11 @@ export async function cancelReservationAction(
     p_reason: reason ?? undefined,
   });
   if (error) return { error: error.message };
+
+  // Mirror the cancellation to Google Calendar (best-effort; no-op when the
+  // tenant hasn't connected Google). Awaited so it runs on Vercel serverless.
+  const googleEventId = (own as { google_event_id?: string | null }).google_event_id;
+  if (googleEventId) await deleteReservationEvent(tenantId, googleEventId);
 
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };

@@ -2,8 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { getTenantBySlug } from "@/lib/tenant";
 import { getRoleOnTenant } from "@/lib/auth";
 import { loadTeam, loadTeamBudgets } from "@/lib/actions/team";
+import { listRoles, getMemberRoleIds } from "@/lib/queries/roles";
 import { TeamManager } from "./team-manager";
 import { BudgetsManager } from "./budgets-manager";
+import { RolesManager } from "./roles-manager";
 import { getTranslations } from "next-intl/server";
 
 export default async function TeamPage({
@@ -17,10 +19,14 @@ export default async function TeamPage({
   const t = await getTranslations("settings_team");
   const tt = await getTranslations("team");
 
-  // Groups + budgets are admin-only; non-admins still see the members list.
+  // Groups + budgets + roles are admin-only; non-admins still see the members list.
   const role = await getRoleOnTenant(tenant.id);
   const isAdmin = role === "owner" || role === "admin" || role === "bolivai_admin";
   const budgetData = isAdmin ? await loadTeamBudgets(tenant.id) : null;
+  const tr = await getTranslations("roles");
+  const [roles, memberRoleIds] = isAdmin
+    ? await Promise.all([listRoles(tenant.id), getMemberRoleIds(tenant.id)])
+    : [[], {}];
 
   return (
     <div className="space-y-6">
@@ -37,6 +43,23 @@ export default async function TeamPage({
           />
         </CardContent>
       </Card>
+
+      {isAdmin ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{tr("title")}</CardTitle>
+            <CardDescription>{tr("description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RolesManager
+              tenantId={tenant.id}
+              roles={roles}
+              members={members.map((m) => ({ user_id: m.user_id, email: m.email }))}
+              memberRoleIds={memberRoleIds}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {budgetData ? (
         <Card>

@@ -167,6 +167,7 @@ export type ConversationDetail = {
   id: string;
   status: string;
   channel: string;
+  is_ticket: boolean;
   hitl_taken_over: boolean;
   hitl_operator_id: string | null;
   last_message_at: string;
@@ -195,7 +196,7 @@ export async function getConversationDetail(
   const { data: convo } = await supabase
     .from("conversations")
     .select(
-      `id, status, channel, hitl_taken_over, hitl_operator_id, last_message_at, created_at,
+      `id, status, channel, is_ticket, hitl_taken_over, hitl_operator_id, last_message_at, created_at,
        users:user_id ( id, name, whatsapp_number, channel_user_id, email )`,
     )
     .eq("id", conversationId)
@@ -214,6 +215,7 @@ export async function getConversationDetail(
     id: string;
     status: string;
     channel: string;
+    is_ticket: boolean;
     hitl_taken_over: boolean;
     hitl_operator_id: string | null;
     last_message_at: string;
@@ -231,6 +233,7 @@ export async function getConversationDetail(
     id: c.id,
     status: c.status,
     channel: c.channel,
+    is_ticket: c.is_ticket ?? false,
     hitl_taken_over: c.hitl_taken_over,
     hitl_operator_id: c.hitl_operator_id,
     last_message_at: c.last_message_at,

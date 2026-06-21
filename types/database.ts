@@ -589,39 +589,63 @@ export type Database = {
       }
       conversations: {
         Row: {
+          assignee_user_id: string | null
           channel: string
           created_at: string
           hitl_operator_id: string | null
           hitl_taken_over: boolean
           hitl_taken_over_at: string | null
           id: string
+          is_ticket: boolean
           last_message_at: string
+          priority: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          sla_due_at: string | null
           status: string
+          tags: string[] | null
           tenant_id: string
+          ticket_status: string | null
           user_id: string
         }
         Insert: {
+          assignee_user_id?: string | null
           channel?: string
           created_at?: string
           hitl_operator_id?: string | null
           hitl_taken_over?: boolean
           hitl_taken_over_at?: string | null
           id?: string
+          is_ticket?: boolean
           last_message_at?: string
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          sla_due_at?: string | null
           status?: string
+          tags?: string[] | null
           tenant_id: string
+          ticket_status?: string | null
           user_id: string
         }
         Update: {
+          assignee_user_id?: string | null
           channel?: string
           created_at?: string
           hitl_operator_id?: string | null
           hitl_taken_over?: boolean
           hitl_taken_over_at?: string | null
           id?: string
+          is_ticket?: boolean
           last_message_at?: string
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          sla_due_at?: string | null
           status?: string
+          tags?: string[] | null
           tenant_id?: string
+          ticket_status?: string | null
           user_id?: string
         }
         Relationships: [
@@ -835,6 +859,7 @@ export type Database = {
           created_at: string
           id: string
           role: string
+          role_id: string | null
           tenant_id: string
           user_id: string
         }
@@ -842,6 +867,7 @@ export type Database = {
           created_at?: string
           id?: string
           role?: string
+          role_id?: string | null
           tenant_id: string
           user_id: string
         }
@@ -849,10 +875,18 @@ export type Database = {
           created_at?: string
           id?: string
           role?: string
+          role_id?: string | null
           tenant_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "dashboard_users_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "dashboard_users_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -1407,6 +1441,8 @@ export type Database = {
           customer_phone: string | null
           duration_minutes: number
           end_at: string
+          google_calendar_synced_at: string | null
+          google_event_id: string | null
           id: string
           meeting_provider: string | null
           meeting_room_name: string | null
@@ -1427,6 +1463,8 @@ export type Database = {
           customer_phone?: string | null
           duration_minutes: number
           end_at: string
+          google_calendar_synced_at?: string | null
+          google_event_id?: string | null
           id?: string
           meeting_provider?: string | null
           meeting_room_name?: string | null
@@ -1447,6 +1485,8 @@ export type Database = {
           customer_phone?: string | null
           duration_minutes?: number
           end_at?: string
+          google_calendar_synced_at?: string | null
+          google_event_id?: string | null
           id?: string
           meeting_provider?: string | null
           meeting_room_name?: string | null
@@ -1494,6 +1534,44 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          id: string
+          is_system: boolean
+          name: string
+          permissions: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name: string
+          permissions?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          permissions?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -2679,6 +2757,8 @@ export type Database = {
           customer_phone: string | null
           duration_minutes: number
           end_at: string
+          google_calendar_synced_at: string | null
+          google_event_id: string | null
           id: string
           meeting_provider: string | null
           meeting_room_name: string | null
@@ -2899,6 +2979,8 @@ export type Database = {
           customer_phone: string | null
           duration_minutes: number
           end_at: string
+          google_calendar_synced_at: string | null
+          google_event_id: string | null
           id: string
           meeting_provider: string | null
           meeting_room_name: string | null
