@@ -117,8 +117,11 @@ export async function subscribePageToApp(pageId: string, pageToken: string): Pro
 }
 
 /**
- * Send a text reply. `externalId` is the page_id (Messenger) or ig user id
- * (Instagram); `recipientId` is the PSID / IGSID. Page token authorizes both.
+ * Send a text reply. `externalId` MUST be the FB **page id** for both channels
+ * — Messenger sends via the page, and Instagram messages also send via the
+ * linked page id (sending via the IG user id returns "(#3) capability"). For
+ * Messenger the page id == the channel external_id; for Instagram it's
+ * `tenant_channels.config.page_id`. `recipientId` is the PSID / IGSID.
  */
 export async function sendMessage(args: {
   externalId: string;

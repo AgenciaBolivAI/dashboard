@@ -159,14 +159,19 @@ export async function sendOperatorMessageAction(
         .maybeSingle();
       const chan = tc as { external_id: string; config: Record<string, unknown> } | null;
       const pageToken = chan?.config?.page_access_token as string | undefined;
-      if (!chan?.external_id || !pageToken) {
+      // Messages send through the FB PAGE endpoint for BOTH channels. For
+      // Messenger the page id == external_id; for Instagram the messaging
+      // endpoint is the linked page id (config.page_id), NOT the IG id — using
+      // the IG id returns "(#3) Application does not have the capability".
+      const sendId = (chan?.config?.page_id as string) ?? chan?.external_id;
+      if (!sendId || !pageToken) {
         return { error: "El canal de Meta no está conectado. Reconéctalo en Ajustes → Integraciones." };
       }
       if (!ctx.users.channel_user_id) {
         return { error: "No se encontró el destinatario de este canal." };
       }
       await sendMetaMessage({
-        externalId: chan.external_id,
+        externalId: sendId,
         pageToken,
         recipientId: ctx.users.channel_user_id,
         text: parsed.data.text,

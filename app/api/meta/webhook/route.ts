@@ -59,6 +59,28 @@ type MetaMessaging = {
 };
 type MetaEntry = { id: string; time?: number; messaging?: MetaMessaging[] };
 
+/**
+ * Best-effort display name for a Messenger/IG sender. The page token can read
+ * the name (+ IG username) of users who've messaged the page. Non-fatal: a
+ * failure just leaves the name null (the inbox falls back to a generic label).
+ */
+async function fetchSenderProfile(
+  senderId: string,
+  pageToken: string,
+): Promise<{ name: string | null; username: string | null }> {
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${senderId}?fields=name,username&access_token=${encodeURIComponent(pageToken)}`,
+      { signal: AbortSignal.timeout(5000) },
+    );
+    if (!res.ok) return { name: null, username: null };
+    const j = (await res.json()) as { name?: string; username?: string };
+    return { name: j.name ?? null, username: j.username ?? null };
+  } catch {
+    return { name: null, username: null };
+  }
+}
+
 async function dispatch(channel: string, entries: MetaEntry[]) {
   const svc = createServiceClient() as unknown as SupabaseClient;
   const agentUrl = process.env.META_AGENT_WEBHOOK_URL; // n8n IG/Messenger agent
@@ -78,14 +100,25 @@ async function dispatch(channel: string, entries: MetaEntry[]) {
       const text = m.message?.text ?? m.postback?.payload;
       if (!m.sender?.id || !text) continue;
 
+      const pageToken = (row.config?.page_access_token as string) ?? null;
+      // Messages SEND through the FB page id for both channels — IG send via the
+      // IG id fails with "(#3) capability". For Messenger page_id == external_id.
+      const pageId = (row.config?.page_id as string) ?? entry.id;
+      const profile = pageToken
+        ? await fetchSenderProfile(m.sender.id, pageToken)
+        : { name: null, username: null };
+
       const event = {
         tenant_id: row.tenant_id,
         channel,
         external_id: entry.id,
-        page_access_token: (row.config?.page_access_token as string) ?? null,
+        page_id: pageId,
+        page_access_token: pageToken,
         sender_id: m.sender.id,
         provider_message_id: m.message?.mid ?? null,
         text,
+        name: profile.name,
+        username: profile.username,
       };
 
       if (agentUrl) {
