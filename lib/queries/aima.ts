@@ -18,6 +18,8 @@ export type AimaSettings = {
   cold_email_daily_cap: number;
   target_verticals: string[];
   target_geographies: string[];
+  cold_outreach_attested_at: string | null;
+  cold_outreach_attested_by: string | null;
   updated_at: string;
 };
 
@@ -51,7 +53,7 @@ export async function getAimaSettings(tenantId: string): Promise<AimaSettings | 
   const { data } = await supabase
     .from("aima_settings")
     .select(
-      "tenant_id, scraper_enabled, scraper_sources, scraper_concurrency, scraper_max_per_run, scraper_proxy_url, scraper_proxy_token, google_maps_api_key, apollo_enabled, apollo_api_key, apollo_search_params, cold_email_enabled, instantly_api_key, instantly_campaign_id, cold_email_daily_cap, target_verticals, target_geographies, updated_at",
+      "tenant_id, scraper_enabled, scraper_sources, scraper_concurrency, scraper_max_per_run, scraper_proxy_url, scraper_proxy_token, google_maps_api_key, apollo_enabled, apollo_api_key, apollo_search_params, cold_email_enabled, instantly_api_key, instantly_campaign_id, cold_email_daily_cap, target_verticals, target_geographies, cold_outreach_attested_at, cold_outreach_attested_by, updated_at",
     )
     .eq("tenant_id", tenantId)
     .maybeSingle();

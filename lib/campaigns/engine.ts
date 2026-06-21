@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isColdOutreachAttested } from "@/lib/aima/consent";
 
 /**
  * Campaign execution engine (BOLIV Stage 3). Driven by an n8n cron hitting
@@ -72,6 +73,13 @@ async function runStep(
   const p = step.params ?? {};
 
   if (step.kind === "wait") return { ok: true, result: { waited: true } };
+
+  // Cold-outreach lawful-basis gate: AIMA scraping + Sandra cold calls only run
+  // once a tenant admin has attested a lawful basis (schema-step48). Otherwise
+  // the step fails with a clear reason (the campaign halts at this step).
+  if ((step.kind === "aima_scrape" || step.kind === "sandra_calls") && !(await isColdOutreachAttested(tenantId))) {
+    return { ok: false, error: "cold-outreach lawful basis not attested (Marketing → AIMA)" };
+  }
 
   if (step.kind === "aima_scrape") {
     await applyAimaFilters(svc, tenantId, p);

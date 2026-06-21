@@ -16,6 +16,29 @@ export type TeamState = {
 
 const ROLES = ["owner", "admin", "operator", "viewer", "member"] as const;
 
+/** Count of owner-tier members on a tenant (service client — bypasses RLS). */
+async function countOwners(tenantId: string): Promise<number> {
+  const svc = createServiceClient();
+  const { count } = await svc
+    .from("dashboard_users")
+    .select("user_id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner");
+  return count ?? 0;
+}
+
+/** A member's current legacy role tier (service client). */
+async function memberRole(tenantId: string, userId: string): Promise<string | null> {
+  const svc = createServiceClient();
+  const { data } = await svc
+    .from("dashboard_users")
+    .select("role")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return (data as { role: string | null } | null)?.role ?? null;
+}
+
 // ─── Invite a user ───────────────────────────────────────────────────
 const inviteSchema = z.object({
   tenant_id: z.string().uuid(),
@@ -90,16 +113,30 @@ export async function updateMemberRoleAction(
   userId: string,
   role: (typeof ROLES)[number],
 ): Promise<TeamState> {
+  const t = await getTranslations("team");
   const parsed = roleUpdateSchema.safeParse({ tenant_id: tenantId, user_id: userId, role });
-  if (!parsed.success) return { error: (await getTranslations("team"))("err_invalid") };
+  if (!parsed.success) return { error: t("err_invalid") };
 
   await requireUser();
-  await requireTenantAccess(tenantId, { minRole: "admin" });
+  // Minting an owner requires the caller to BE an owner — an admin can't grant a
+  // tier above their own.
+  await requireTenantAccess(tenantId, { minRole: role === "owner" ? "owner" : "admin" });
+
+  // Don't strip the last owner: if this change demotes the only remaining owner,
+  // refuse (the tenant must always have at least one owner).
+  if (role !== "owner") {
+    const current = await memberRole(tenantId, userId);
+    if (current === "owner" && (await countOwners(tenantId)) <= 1) {
+      return { error: t("err_last_owner") };
+    }
+  }
 
   const supabase = await createClient();
+  // Clear any custom role_id so the chosen tier actually takes effect (a set
+  // role_id overrides the tier in getEffectivePermissions).
   const { error } = await supabase
     .from("dashboard_users")
-    .update({ role })
+    .update({ role, role_id: null } as never)
     .eq("tenant_id", tenantId)
     .eq("user_id", userId);
 
@@ -114,11 +151,17 @@ export async function removeMemberAction(
   tenantId: string,
   userId: string,
 ): Promise<TeamState> {
+  const t = await getTranslations("team");
   const me = await requireUser();
   if (me.id === userId) {
-    return { error: (await getTranslations("team"))("err_cannot_remove_self") };
+    return { error: t("err_cannot_remove_self") };
   }
   await requireTenantAccess(tenantId, { minRole: "admin" });
+
+  // Don't remove the last owner.
+  if ((await memberRole(tenantId, userId)) === "owner" && (await countOwners(tenantId)) <= 1) {
+    return { error: t("err_last_owner") };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase

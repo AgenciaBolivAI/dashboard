@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verifyWebhookSignature } from "@/lib/meta";
+import { timingSafeEqual } from "@/lib/security/bearer";
 
 export const runtime = "nodejs";
 
@@ -18,9 +19,11 @@ export const runtime = "nodejs";
 // GET: subscribe handshake — echo hub.challenge when the verify token matches.
 export async function GET(request: NextRequest) {
   const p = new URL(request.url).searchParams;
+  const expected = process.env.META_VERIFY_TOKEN ?? "";
   if (
     p.get("hub.mode") === "subscribe" &&
-    p.get("hub.verify_token") === process.env.META_VERIFY_TOKEN
+    expected !== "" &&
+    timingSafeEqual(p.get("hub.verify_token") ?? "", expected)
   ) {
     return new NextResponse(p.get("hub.challenge") ?? "", { status: 200 });
   }

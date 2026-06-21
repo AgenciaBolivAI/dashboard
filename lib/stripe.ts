@@ -68,9 +68,9 @@ export function isConnectExpressSupported(country: string | null | undefined): b
  * `bolivai_settings.notify_shared_secret`.
  */
 export const INVOICE_NOTIFY_WEBHOOK_URL =
-  process.env.INVOICE_NOTIFY_WEBHOOK_URL ??
-  "https://n8n.srv1642711.hstgr.cloud/webhook/invoice-notify";
+  process.env.INVOICE_NOTIFY_WEBHOOK_URL ?? "";
 
-export const INVOICE_NOTIFY_SECRET =
-  process.env.INVOICE_NOTIFY_SECRET ??
-  "bvnotify_6j55FwLXM-u4ie8VV91a0_otvIs3zqGF";
+// Never hardcode the shared secret — it authenticates to the n8n notify webhook.
+// Empty when unset; the webhook caller skips the notify rather than sending an
+// unauthenticated (or fallback-secret) request.
+export const INVOICE_NOTIFY_SECRET = process.env.INVOICE_NOTIFY_SECRET ?? "";

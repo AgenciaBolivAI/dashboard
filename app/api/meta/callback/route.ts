@@ -40,8 +40,27 @@ export async function GET(request: NextRequest) {
 
     const svc = createServiceClient() as unknown as SupabaseClient;
     let connected = 0;
+    let skipped = 0;
+
+    // A (channel, external_id) is unique platform-wide. If that page/IG id is
+    // already owned by a DIFFERENT tenant, refuse — never let one tenant's
+    // connect flow reassign (and capture inbound routing for) another's channel.
+    const ownedByOther = async (channel: string, externalId: string): Promise<boolean> => {
+      const { data } = await svc
+        .from("tenant_channels")
+        .select("tenant_id")
+        .eq("channel", channel)
+        .eq("external_id", externalId)
+        .maybeSingle();
+      return !!data && (data as { tenant_id: string }).tenant_id !== payload.tenant_id;
+    };
 
     for (const page of pages) {
+      if (await ownedByOther("facebook_messenger", page.id)) {
+        skipped++;
+        continue;
+      }
+
       try {
         await subscribePageToApp(page.id, page.access_token);
       } catch {
@@ -66,7 +85,7 @@ export async function GET(request: NextRequest) {
       connected++;
 
       const ig = page.instagram_business_account;
-      if (ig?.id) {
+      if (ig?.id && !(await ownedByOther("instagram", ig.id))) {
         await svc.from("tenant_channels").upsert(
           {
             tenant_id: payload.tenant_id,
@@ -86,7 +105,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return back(`meta=connected&count=${connected}`);
+    return back(`meta=connected&count=${connected}${skipped ? `&skipped=${skipped}` : ""}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "meta_error";
     return back(`meta=error&detail=${encodeURIComponent(msg.slice(0, 120))}`);

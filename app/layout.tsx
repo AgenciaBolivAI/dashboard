@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Instrument_Sans, Syne } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/shell/theme-provider";
+import { CookieConsent } from "@/components/legal/cookie-consent";
 import "./globals.css";
 
 const GA_ID = "G-FBZS5H9719";
@@ -85,20 +85,11 @@ export default async function RootLayout({
             {children}
           </NextIntlClientProvider>
         </ThemeProvider>
+        {/* Vercel analytics are cookieless (no consent needed). Google Analytics
+            drops a cookie, so it loads only after cookie consent (CookieConsent). */}
         <Analytics />
         <SpeedInsights />
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="gtag-init" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_ID}');
-          `}
-        </Script>
+        <CookieConsent gaId={GA_ID} />
       </body>
     </html>
   );

@@ -108,7 +108,7 @@ export async function pushReservationEvent(
   try {
     const isUpdate = Boolean(res.google_event_id);
     const url = isUpdate
-      ? `${CAL_BASE}/calendars/${encodeURIComponent(conn.calendarId)}/events/${res.google_event_id}`
+      ? `${CAL_BASE}/calendars/${encodeURIComponent(conn.calendarId)}/events/${encodeURIComponent(res.google_event_id as string)}`
       : `${CAL_BASE}/calendars/${encodeURIComponent(conn.calendarId)}/events`;
     const apiRes = await fetch(url, {
       method: isUpdate ? "PATCH" : "POST",
@@ -141,7 +141,7 @@ export async function deleteReservationEvent(
   if (!conn) return false;
   try {
     const res = await fetch(
-      `${CAL_BASE}/calendars/${encodeURIComponent(conn.calendarId)}/events/${eventId}`,
+      `${CAL_BASE}/calendars/${encodeURIComponent(conn.calendarId)}/events/${encodeURIComponent(eventId)}`,
       {
         method: "DELETE",
         headers: { Authorization: `Bearer ${conn.accessToken}` },

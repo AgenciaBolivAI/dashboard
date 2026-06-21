@@ -1378,7 +1378,9 @@
     "disable_voice": "Desactivar voz",
     "reactivate_voice": "Reactivar voz",
     "activate_voice": "Activar voz",
-    "delete_agent": "Eliminar agente"
+    "delete_agent": "Eliminar agente",
+    "recording_notice_title": "Las llamadas se graban",
+    "recording_notice_body": "Sandra y Rebecca graban y transcriben las llamadas para operarlas y mejorar la calidad. En muchos lugares hay que avisar a todas las partes — asegúrate de que tu agente informe sobre la grabación al inicio de cada llamada y de que tengas una base legal."
   },
   "marketing": {
     "page_title": "Marketing IA",
@@ -2104,6 +2106,7 @@
     "role_viewer_hint": "Solo lectura",
     "role_member_hint": "Acceso básico",
     "err_cannot_remove_self": "No puedes quitarte a ti mismo",
+    "err_last_owner": "El negocio debe tener al menos un propietario",
     "groups_title": "Equipos",
     "group_name_placeholder": "Ej: Ventas, Marketing…",
     "create_group": "Crear equipo",
@@ -2216,6 +2219,13 @@
   "aima": {
     "toast_saved": "Ajustes guardados",
     "toast_started": "AIMA arrancando — los leads aparecerán en /leads.",
+    "consent_title": "Permiso de contacto en frío",
+    "consent_desc": "AIMA encuentra negocios y Sandra los llama en frío. El contacto B2B no solicitado requiere una base legal (p. ej. interés legítimo del RGPD, cumplimiento de listas de no-llamar). Confírmalo antes de prospectar.",
+    "consent_checkbox": "Confirmo que tenemos una base legal para contactar a los negocios que AIMA selecciona, y que respetaremos las solicitudes de baja / no-llamar.",
+    "consent_attested_by": "Confirmado por {email}.",
+    "consent_required_hint": "Confirma la base legal de arriba para habilitar la prospección y las llamadas de Sandra.",
+    "toast_consent_on": "Contacto en frío habilitado.",
+    "toast_consent_off": "Contacto en frío pausado.",
     "confirm_stop": "¿Detener AIMA ahora? Los runs en curso se marcarán como abortados.",
     "toast_stopped": "AIMA detenida",
     "finder_title": "Buscador de leads (AIMA)",
@@ -2293,5 +2303,12 @@
     "vertical_driving_school": "Autoescuela",
     "vertical_daycare": "Guardería",
     "vertical_music_school": "Música"
+  },
+  "cookies": {
+    "title": "Cookies",
+    "body": "Usamos cookies esenciales para el funcionamiento de la app y, con tu consentimiento, cookies de analítica para mejorarla.",
+    "learn_more": "Política de Privacidad",
+    "accept": "Aceptar",
+    "reject": "Rechazar las no esenciales"
   }
 }

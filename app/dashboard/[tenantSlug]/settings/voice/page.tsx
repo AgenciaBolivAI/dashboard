@@ -29,6 +29,16 @@ export default async function VoiceSettingsPage({
 
   return (
     <div className="space-y-6">
+      {/* Call-recording disclosure — voice calls are recorded + transcribed.
+          Many jurisdictions require all-party consent, so remind the tenant. */}
+      <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm flex items-start gap-3">
+        <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium">{t("recording_notice_title")}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("recording_notice_body")}</p>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

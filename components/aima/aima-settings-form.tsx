@@ -14,6 +14,8 @@ import {
   Sparkles,
   X,
   Plus,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ import {
   updateAimaSettingsAction,
   triggerAimaScrapeAction,
   abortAimaScrapeAction,
+  attestColdOutreachAction,
 } from "@/lib/actions/aima";
 import type { AimaSettings } from "@/lib/queries/aima";
 import { cn } from "@/lib/utils";
@@ -177,6 +180,24 @@ export function AimaSettingsForm({
   const [geographies, setGeographies] = useState<string[]>(settings.target_geographies);
   const [newCity, setNewCity] = useState("");
 
+  // Cold-outreach lawful-basis attestation. Until set, the "Start now" trigger
+  // and the campaign engine refuse AIMA scraping + Sandra cold calls.
+  const [attested, setAttested] = useState(Boolean(settings.cold_outreach_attested_at));
+  const [consenting, startConsent] = useTransition();
+
+  function handleAttest(next: boolean) {
+    startConsent(async () => {
+      const res = await attestColdOutreachAction(tenantId, next);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      setAttested(next);
+      toast.success(next ? t("toast_consent_on") : t("toast_consent_off"));
+      router.refresh();
+    });
+  }
+
   function toggleSource(id: typeof SOURCE_OPTIONS[number]["id"]) {
     setScraperSources((cur) =>
       cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id],
@@ -240,6 +261,46 @@ export function AimaSettingsForm({
 
   return (
     <div className="space-y-6">
+      {/* Cold-outreach lawful-basis attestation — required before any prospecting */}
+      <Card
+        className={cn(
+          "p-6 space-y-3 border-2",
+          attested ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/50 bg-amber-500/5",
+        )}
+      >
+        <div className="flex items-start gap-3">
+          {attested ? (
+            <ShieldCheck className="size-5 text-emerald-500 shrink-0 mt-0.5" />
+          ) : (
+            <ShieldAlert className="size-5 text-amber-500 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-display font-semibold">{t("consent_title")}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{t("consent_desc")}</p>
+          </div>
+        </div>
+        <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            checked={attested}
+            disabled={consenting}
+            onChange={(e) => handleAttest(e.target.checked)}
+            className="mt-0.5 size-4 rounded border-input accent-emerald-600"
+          />
+          <span className="text-sm">{t("consent_checkbox")}</span>
+        </label>
+        {attested && settings.cold_outreach_attested_by ? (
+          <p className="text-xs text-muted-foreground pl-7">
+            {t("consent_attested_by", { email: settings.cold_outreach_attested_by })}
+          </p>
+        ) : null}
+        {!attested ? (
+          <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+            {t("consent_required_hint")}
+          </p>
+        ) : null}
+      </Card>
+
       {/* Big controls */}
       <Card className="p-6 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
@@ -317,7 +378,8 @@ export function AimaSettingsForm({
           <Button
             size="sm"
             onClick={handleStart}
-            disabled={acting || !scraperEnabled}
+            disabled={acting || !scraperEnabled || !attested}
+            title={!attested ? t("consent_required_hint") : undefined}
             className="gap-1.5"
           >
             {acting ? (

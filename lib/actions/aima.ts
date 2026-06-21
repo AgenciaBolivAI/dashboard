@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
+import { isColdOutreachAttested, COLD_OUTREACH_BLOCKED_MSG } from "@/lib/aima/consent";
 
 export type AimaState = { error: string | null; success?: boolean };
 
@@ -75,6 +76,11 @@ export async function triggerAimaScrapeAction(
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
+  // Cold-outreach lawful-basis gate — block the scrape until a tenant admin attests.
+  if (!(await isColdOutreachAttested(tenantId))) {
+    return { error: COLD_OUTREACH_BLOCKED_MSG };
+  }
+
   const url = process.env.AIMA_WEBHOOK_URL;
   const secret = process.env.AIMA_WEBHOOK_SECRET;
   if (!url || !secret) {
@@ -105,6 +111,34 @@ export async function triggerAimaScrapeAction(
     return { error: msg };
   }
 
+  return { error: null, success: true };
+}
+
+/**
+ * Record (or revoke) the tenant's attestation that it has a lawful basis to
+ * contact the businesses AIMA targets and Sandra cold-calls. Admin-only. Until
+ * this is set, triggerAimaScrapeAction + the campaign engine refuse cold outreach.
+ */
+export async function attestColdOutreachAction(
+  tenantId: string,
+  attested: boolean,
+): Promise<AimaState> {
+  const user = await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+
+  const svc = createServiceClient();
+  const { error } = await svc.from("aima_settings").upsert(
+    {
+      tenant_id: tenantId,
+      cold_outreach_attested_at: attested ? new Date().toISOString() : null,
+      cold_outreach_attested_by: attested ? (user.email ?? null) : null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "tenant_id" },
+  );
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }
 

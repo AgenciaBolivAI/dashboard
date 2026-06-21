@@ -121,6 +121,8 @@ export type Database = {
           apollo_search_params: Json
           cold_email_daily_cap: number
           cold_email_enabled: boolean
+          cold_outreach_attested_at: string | null
+          cold_outreach_attested_by: string | null
           google_maps_api_key: string | null
           instantly_api_key: string | null
           instantly_campaign_id: string | null
@@ -141,6 +143,8 @@ export type Database = {
           apollo_search_params?: Json
           cold_email_daily_cap?: number
           cold_email_enabled?: boolean
+          cold_outreach_attested_at?: string | null
+          cold_outreach_attested_by?: string | null
           google_maps_api_key?: string | null
           instantly_api_key?: string | null
           instantly_campaign_id?: string | null
@@ -161,6 +165,8 @@ export type Database = {
           apollo_search_params?: Json
           cold_email_daily_cap?: number
           cold_email_enabled?: boolean
+          cold_outreach_attested_at?: string | null
+          cold_outreach_attested_by?: string | null
           google_maps_api_key?: string | null
           instantly_api_key?: string | null
           instantly_campaign_id?: string | null

@@ -28,10 +28,13 @@ export function TeamManager({
   tenantId,
   members,
   invitations,
+  canManage = true,
 }: {
   tenantId: string;
   members: Member[];
   invitations: PendingInvitation[];
+  /** Only admins/owners may invite, change roles, or remove members. */
+  canManage?: boolean;
 }) {
   const t = useTranslations("team");
   const locale = useLocale();
@@ -80,7 +83,8 @@ export function TeamManager({
 
   return (
     <div className="space-y-8">
-      {/* Invite form */}
+      {/* Invite form — admins/owners only */}
+      {canManage ? (
       <section>
         <h3 className="font-display font-semibold mb-3">{t("invite_title")}</h3>
         <form action={action} className="space-y-3">
@@ -137,8 +141,9 @@ export function TeamManager({
           </div>
         ) : null}
       </section>
+      ) : null}
 
-      <Separator />
+      {canManage ? <Separator /> : null}
 
       {/* Members */}
       <section>
@@ -165,35 +170,41 @@ export function TeamManager({
                     {t(`role_${m.role}_hint`)}
                   </p>
                 </div>
-                <select
-                  value={m.role}
-                  onChange={(e) => handleRoleChange(m, e.target.value as RoleId)}
-                  disabled={busy || m.is_self}
-                  className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  {ROLE_IDS.map((id) => (
-                    <option key={id} value={id}>
-                      {t(`role_${id}`)}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => handleRemove(m)}
-                  disabled={busy || m.is_self}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                {canManage ? (
+                  <>
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleRoleChange(m, e.target.value as RoleId)}
+                      disabled={busy || m.is_self}
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    >
+                      {ROLE_IDS.map((id) => (
+                        <option key={id} value={id}>
+                          {t(`role_${id}`)}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRemove(m)}
+                      disabled={busy || m.is_self}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Badge variant="outline" className="text-xs">{t(`role_${m.role}`)}</Badge>
+                )}
               </div>
             ))}
           </div>
         )}
       </section>
 
-      {/* Pending invitations */}
-      {invitations.length > 0 ? (
+      {/* Pending invitations — admins/owners only */}
+      {canManage && invitations.length > 0 ? (
         <>
           <Separator />
           <section>

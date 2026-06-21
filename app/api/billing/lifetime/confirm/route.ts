@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe, getAppUrl } from "@/lib/stripe";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { grantLifetimeFromStripe, LIFETIME_PRICE_CENTS } from "@/lib/billing/lifetime";
 
@@ -34,6 +34,11 @@ export async function GET(req: NextRequest) {
   if (session.metadata?.bolivai_purpose !== "lifetime_access" || !tenantId || !settled) {
     return NextResponse.redirect(`${base}/dashboard?lifetime=pending`);
   }
+
+  // The caller must be an admin/owner of the tenant this session names — a
+  // logged-in user must not be able to drive a grant for a tenant they don't
+  // belong to by replaying someone else's session_id.
+  await requireTenantAccess(tenantId, { minRole: "admin" });
 
   const svc = createServiceClient();
   const { data: t } = await svc.from("tenants").select("slug").eq("id", tenantId).maybeSingle();

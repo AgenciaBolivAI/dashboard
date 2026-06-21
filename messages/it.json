@@ -1378,7 +1378,9 @@
     "disable_voice": "Disattiva voce",
     "reactivate_voice": "Riattiva voce",
     "activate_voice": "Attiva voce",
-    "delete_agent": "Elimina agente"
+    "delete_agent": "Elimina agente",
+    "recording_notice_title": "Le chiamate vengono registrate",
+    "recording_notice_body": "Sandra e Rebecca registrano e trascrivono le chiamate per gestirle e migliorarne la qualità. In molti luoghi è necessario informare tutte le parti — assicurati che il tuo agente comunichi la registrazione all’inizio di ogni chiamata e di avere una base giuridica."
   },
   "marketing": {
     "page_title": "Marketing IA",
@@ -2104,6 +2106,7 @@
     "role_viewer_hint": "Sola lettura",
     "role_member_hint": "Accesso base",
     "err_cannot_remove_self": "Non puoi rimuovere te stesso",
+    "err_last_owner": "L’attività deve mantenere almeno un proprietario",
     "groups_title": "Team",
     "group_name_placeholder": "Es: Vendite, Marketing…",
     "create_group": "Crea team",
@@ -2216,6 +2219,13 @@
   "aima": {
     "toast_saved": "Impostazioni salvate",
     "toast_started": "AIMA in avvio — i lead compariranno in /leads.",
+    "consent_title": "Autorizzazione al contatto a freddo",
+    "consent_desc": "AIMA trova aziende e Sandra le chiama a freddo. Il contatto B2B non richiesto necessita di una base giuridica (es. legittimo interesse GDPR, rispetto delle liste di opposizione). Confermala prima di fare prospezione.",
+    "consent_checkbox": "Confermo che abbiamo una base giuridica per contattare le aziende selezionate da AIMA e che rispetteremo le richieste di cancellazione / opposizione.",
+    "consent_attested_by": "Confermato da {email}.",
+    "consent_required_hint": "Conferma la base giuridica qui sopra per abilitare la prospezione e le chiamate di Sandra.",
+    "toast_consent_on": "Contatto a freddo abilitato.",
+    "toast_consent_off": "Contatto a freddo sospeso.",
     "confirm_stop": "Fermare AIMA ora? Le esecuzioni in corso saranno contrassegnate come interrotte.",
     "toast_stopped": "AIMA fermata",
     "finder_title": "Ricerca lead (AIMA)",
@@ -2293,5 +2303,12 @@
     "vertical_driving_school": "Autoscuola",
     "vertical_daycare": "Asilo",
     "vertical_music_school": "Musica"
+  },
+  "cookies": {
+    "title": "Cookie",
+    "body": "Usiamo cookie essenziali per far funzionare l’app e, con il tuo consenso, cookie di analisi per migliorarla.",
+    "learn_more": "Informativa sulla privacy",
+    "accept": "Accetta",
+    "reject": "Rifiuta i non essenziali"
   }
 }

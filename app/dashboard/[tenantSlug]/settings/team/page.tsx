@@ -40,6 +40,7 @@ export default async function TeamPage({
             tenantId={tenant.id}
             members={members}
             invitations={invitations}
+            canManage={isAdmin}
           />
         </CardContent>
       </Card>

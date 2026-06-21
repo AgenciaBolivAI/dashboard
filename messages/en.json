@@ -1378,7 +1378,9 @@
     "disable_voice": "Disable voice",
     "reactivate_voice": "Reactivate voice",
     "activate_voice": "Activate voice",
-    "delete_agent": "Delete agent"
+    "delete_agent": "Delete agent",
+    "recording_notice_title": "Calls are recorded",
+    "recording_notice_body": "Sandra and Rebecca record and transcribe calls for delivery and quality. Many places require informing all parties — make sure your agent discloses recording at the start of each call and that you have a lawful basis."
   },
   "marketing": {
     "page_title": "AI Marketing",
@@ -2104,6 +2106,7 @@
     "role_viewer_hint": "Read-only",
     "role_member_hint": "Basic access",
     "err_cannot_remove_self": "You can’t remove yourself",
+    "err_last_owner": "The business must keep at least one owner",
     "groups_title": "Teams",
     "group_name_placeholder": "E.g. Sales, Marketing…",
     "create_group": "Create team",
@@ -2216,6 +2219,13 @@
   "aima": {
     "toast_saved": "Settings saved",
     "toast_started": "AIMA starting — leads will show up in /leads.",
+    "consent_title": "Cold-outreach permission",
+    "consent_desc": "AIMA finds businesses and Sandra cold-calls them. Unsolicited B2B outreach needs a lawful basis (e.g. GDPR legitimate interest, local do-not-call compliance). Confirm you have one before prospecting.",
+    "consent_checkbox": "I confirm we have a lawful basis to contact the businesses AIMA targets, and we will honor opt-out / do-not-call requests.",
+    "consent_attested_by": "Confirmed by {email}.",
+    "consent_required_hint": "Confirm the lawful basis above to enable prospecting and Sandra calls.",
+    "toast_consent_on": "Cold-outreach enabled.",
+    "toast_consent_off": "Cold-outreach paused.",
     "confirm_stop": "Stop AIMA now? Runs in progress will be marked as aborted.",
     "toast_stopped": "AIMA stopped",
     "finder_title": "Lead finder (AIMA)",
@@ -2293,5 +2303,12 @@
     "vertical_driving_school": "Driving school",
     "vertical_daycare": "Daycare",
     "vertical_music_school": "Music"
+  },
+  "cookies": {
+    "title": "Cookies",
+    "body": "We use essential cookies to run the app and, with your consent, analytics cookies to improve it.",
+    "learn_more": "Privacy Policy",
+    "accept": "Accept",
+    "reject": "Reject non-essential"
   }
 }

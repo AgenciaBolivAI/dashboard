@@ -12,13 +12,14 @@ import { getTenantOverviewMetrics } from "@/lib/queries/metrics";
 import { getTenantRecentTransactions } from "@/lib/queries/admin-tenant-pnl";
 import { getAimaStats } from "@/lib/queries/aima";
 import { getBalanceWithService } from "@/lib/billing/credits";
-import { getRoleOnTenant, getUser } from "@/lib/auth";
+import { getEffectivePermissions, getUser } from "@/lib/auth";
 import {
-  roleSatisfies,
+  levelSatisfies,
   LEGACY_ROLE_PERMISSIONS,
   FEATURES,
   type Permission,
   type Role,
+  type Level,
   type PermissionSet,
 } from "@/lib/permissions";
 import { LEAD_STATUSES } from "@/lib/leads-types";
@@ -180,7 +181,7 @@ const FILTER_OPS = ["eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "is"
 // Columns never exposed to the model: secrets, our internal cost/margin, vectors,
 // large blobs, and customer memory internals.
 const SENSITIVE_RE =
-  /token|secret|password|api_key|access_|refresh_|_micros|cost_cents|vendor_|embedding|zep_session|facts|gateway_config|image_url|subject_image|proxy|stripe_account/i;
+  /token|secret|password|api_key|access_|refresh_|_micros|cost_cents|vendor_|embedding|zep_session|facts|gateway_config|image_url|subject_image|proxy|stripe|metadata/i;
 
 function sanitizeRow(r: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -1341,7 +1342,13 @@ export const TOOLS: Record<string, Tool> = {
 
       if (args.confirm !== true) {
         const planText = steps.map((s, i) => `${i + 1}) ${label(s)}`).join("; ");
-        const budget = typeof args.budget_credits === "number" ? ` · Tope: ${args.budget_credits} leads` : "";
+        const hasCalls = steps.some((s) => String(s.kind) === "sandra_calls");
+        const budget =
+          typeof args.budget_credits === "number"
+            ? ` · Tope: ${args.budget_credits} leads`
+            : hasCalls
+              ? " · SIN tope de leads (Sandra llamará y gastará créditos hasta agotar el saldo disponible)"
+              : "";
         return {
           requires_confirmation: true,
           summary: `Campaña "${title}": ${planText}${budget}. Confirmar la ACTIVA y se ejecuta automáticamente.`,
@@ -1430,6 +1437,14 @@ export const TOOLS: Record<string, Tool> = {
       const userId = String(args.user_id || "");
       const role = String(args.role || "");
       if (!["owner", "admin", "operator", "viewer", "member"].includes(role)) return { error: "Rol inválido." };
+      // Escalation ceiling: minting an owner/admin requires the actor to hold
+      // team:admin — a team:edit holder can't grant a tier above their own.
+      if (role === "owner" || role === "admin") {
+        const actor = await getEffectivePermissions(tenantId);
+        if (!levelSatisfies(actor.team ?? "none", "admin")) {
+          return { error: "Necesitas ser administrador del equipo para asignar el rol owner o admin." };
+        }
+      }
       const { data: cur } = await svcAny()
         .from("dashboard_users")
         .select("role")
@@ -1476,6 +1491,12 @@ export const TOOLS: Record<string, Tool> = {
       const level = String(args.level || "");
       if (!(FEATURES as readonly string[]).includes(feature)) return { error: "Función inválida." };
       if (!["read", "edit", "admin"].includes(level)) return { error: "Nivel inválido." };
+      // Escalation ceiling: can't grant a level higher than the actor's own on
+      // that feature (no privilege escalation through the team tools).
+      const actor = await getEffectivePermissions(tenantId);
+      if (!levelSatisfies((actor as Record<string, Level | undefined>)[feature] ?? "none", level as Level)) {
+        return { error: `No puedes otorgar un nivel mayor al tuyo en "${feature}".` };
+      }
       const member = await resolveMemberPermissions(tenantId, userId);
       if (member.role === null) return { error: "Miembro no encontrado." };
       const email = await memberEmail(userId);
@@ -1612,14 +1633,15 @@ export const WRITE_TOOL_NAMES = new Set<string>(
 );
 
 /**
- * OpenAI-compatible function-calling specs. When `role` is provided, only the
- * tools that role is permitted to use are offered — the model is never even
- * shown a capability the acting user couldn't perform by hand. Omit `role` to
- * get the full set (e.g. for documentation/introspection).
+ * OpenAI-compatible function-calling specs. When `perms` is provided, only the
+ * tools that permission set allows are offered — the model is never even shown a
+ * capability the acting user couldn't perform by hand. Uses the SAME effective
+ * permissions as the rest of the platform (custom roles honored), not the legacy
+ * tier. Omit `perms` to get the full set (e.g. for documentation/introspection).
  */
-export function toolSpecs(role?: Role | null) {
+export function toolSpecs(perms?: PermissionSet) {
   return Object.entries(TOOLS)
-    .filter(([, t]) => role === undefined || roleSatisfies(role, t.permission.feature, t.permission.level))
+    .filter(([, t]) => perms === undefined || levelSatisfies(perms[t.permission.feature] ?? "none", t.permission.level))
     .map(([name, t]) => ({
       type: "function" as const,
       function: { name, description: t.description, parameters: t.parameters },
@@ -1628,22 +1650,22 @@ export function toolSpecs(role?: Role | null) {
 
 /**
  * Dispatch one tool call. tenantId comes from the session, never the model.
- * Enforces the tool's required permission against the caller's role HERE — the
- * single choke point both the assistant loop and the UI confirm path go
- * through, so a model can never run a capability the user lacks. Pass `role`
- * to avoid re-resolving it per call; omit it and dispatchTool resolves it from
- * the session.
+ * Enforces the tool's required permission against the caller's EFFECTIVE
+ * permissions HERE — the single choke point both the assistant loop and the UI
+ * confirm path go through, so a model can never run a capability the user lacks.
+ * Custom roles are honored (same resolver as the human UI). Pass `perms` to
+ * avoid re-resolving per call; omit it and dispatchTool resolves from the session.
  */
 export async function dispatchTool(
   name: string,
   args: Record<string, unknown>,
   tenantId: string,
-  role?: Role | null,
+  perms?: PermissionSet,
 ): Promise<unknown> {
   const tool = TOOLS[name];
   if (!tool) return { error: `unknown tool: ${name}` };
-  const effectiveRole = role !== undefined ? role : await getRoleOnTenant(tenantId);
-  if (!roleSatisfies(effectiveRole, tool.permission.feature, tool.permission.level)) {
+  const effectivePerms = perms !== undefined ? perms : await getEffectivePermissions(tenantId);
+  if (!levelSatisfies(effectivePerms[tool.permission.feature] ?? "none", tool.permission.level)) {
     return {
       error: `No tienes permiso para esta acción (requiere ${tool.permission.feature}: ${tool.permission.level}).`,
     };

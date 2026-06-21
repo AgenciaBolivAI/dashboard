@@ -6,7 +6,7 @@ import {
   INVOICE_NOTIFY_WEBHOOK_URL,
   INVOICE_NOTIFY_SECRET,
 } from "@/lib/stripe";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { applyTopupFromStripe } from "@/lib/billing/credits";
 import { grantLifetimeFromStripe } from "@/lib/billing/lifetime";
 
@@ -20,7 +20,7 @@ async function notifyTenantOfInvoiceEvent(
   stripeInvoice: Stripe.Invoice,
 ): Promise<void> {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { data: invRow } = await supabase
       .from("invoices")
       .select("id, tenant_id, number, customer_name, customer_email, currency, total_cents, amount_paid_cents, application_fee_cents")
@@ -52,6 +52,9 @@ async function notifyTenantOfInvoiceEvent(
       slug: string;
     };
     if (!t.notification_email) return;
+    // Skip if the notify webhook isn't configured (no URL/secret) — never send
+    // with a missing or fallback secret.
+    if (!INVOICE_NOTIFY_WEBHOOK_URL || !INVOICE_NOTIFY_SECRET) return;
 
     const payload = {
       event,
@@ -121,7 +124,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Invalid signature: ${msg}` }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  // Service client: a Stripe webhook carries no Supabase session, so the
+  // RLS-bound anon client would silently match zero rows on every write.
+  const supabase = createServiceClient();
 
   try {
     switch (event.type) {

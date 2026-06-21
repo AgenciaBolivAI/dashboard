@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
@@ -54,7 +54,10 @@ export function verifyState(state: string): StatePayload | null {
   const expected = createHmac("sha256", stateSecret())
     .update(data)
     .digest("base64url");
-  if (sig !== expected) return null;
+  // Constant-time comparison (the signature is an HMAC over attacker-visible data).
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) return null;
   try {
     const payload = JSON.parse(
       Buffer.from(data, "base64url").toString(),

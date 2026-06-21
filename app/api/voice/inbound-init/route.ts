@@ -74,13 +74,17 @@ export async function POST(req: NextRequest) {
     row = data as unknown as TenantRow | null;
   }
   if (!row && calledNumber) {
-    const normalized = calledNumber.replace(/^\+/, "");
-    const { data } = await supabase
-      .from("tenants")
-      .select("id, name, voice_persona" as never)
-      .or(`voice_phone_number.eq.+${normalized},voice_phone_number.eq.${normalized}`)
-      .maybeSingle();
-    row = data as unknown as TenantRow | null;
+    // Keep digits only — strips the leading + and any PostgREST filter-grammar
+    // chars (, ) * so the value can't alter the .or() filter.
+    const normalized = calledNumber.replace(/[^0-9]/g, "");
+    if (normalized) {
+      const { data } = await supabase
+        .from("tenants")
+        .select("id, name, voice_persona" as never)
+        .or(`voice_phone_number.eq.+${normalized},voice_phone_number.eq.${normalized}`)
+        .maybeSingle();
+      row = data as unknown as TenantRow | null;
+    }
   }
 
   if (!row) {

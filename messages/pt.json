@@ -1378,7 +1378,9 @@
     "disable_voice": "Desativar voz",
     "reactivate_voice": "Reativar voz",
     "activate_voice": "Ativar voz",
-    "delete_agent": "Excluir agente"
+    "delete_agent": "Excluir agente",
+    "recording_notice_title": "As chamadas são gravadas",
+    "recording_notice_body": "Sandra e Rebecca gravam e transcrevem as chamadas para operá-las e melhorar a qualidade. Em muitos lugares é preciso avisar todas as partes — garanta que seu agente informe sobre a gravação no início de cada chamada e que você tenha uma base legal."
   },
   "marketing": {
     "page_title": "Marketing IA",
@@ -2104,6 +2106,7 @@
     "role_viewer_hint": "Somente leitura",
     "role_member_hint": "Acesso básico",
     "err_cannot_remove_self": "Você não pode remover a si mesmo",
+    "err_last_owner": "O negócio deve manter pelo menos um proprietário",
     "groups_title": "Equipes",
     "group_name_placeholder": "Ex: Vendas, Marketing…",
     "create_group": "Criar equipe",
@@ -2216,6 +2219,13 @@
   "aima": {
     "toast_saved": "Ajustes salvos",
     "toast_started": "AIMA iniciando — os leads aparecerão em /leads.",
+    "consent_title": "Permissão de contato a frio",
+    "consent_desc": "A AIMA encontra empresas e a Sandra liga para elas a frio. O contato B2B não solicitado exige uma base legal (p. ex. interesse legítimo do RGPD, cumprimento de listas de não-ligar). Confirme antes de prospectar.",
+    "consent_checkbox": "Confirmo que temos uma base legal para contatar as empresas que a AIMA seleciona e que respeitaremos os pedidos de descadastro / não-ligar.",
+    "consent_attested_by": "Confirmado por {email}.",
+    "consent_required_hint": "Confirme a base legal acima para ativar a prospecção e as ligações da Sandra.",
+    "toast_consent_on": "Contato a frio ativado.",
+    "toast_consent_off": "Contato a frio pausado.",
     "confirm_stop": "Parar a AIMA agora? As execuções em andamento serão marcadas como abortadas.",
     "toast_stopped": "AIMA parada",
     "finder_title": "Buscador de leads (AIMA)",
@@ -2293,5 +2303,12 @@
     "vertical_driving_school": "Autoescola",
     "vertical_daycare": "Creche",
     "vertical_music_school": "Música"
+  },
+  "cookies": {
+    "title": "Cookies",
+    "body": "Usamos cookies essenciais para o funcionamento do app e, com o seu consentimento, cookies de análise para melhorá-lo.",
+    "learn_more": "Política de Privacidade",
+    "accept": "Aceitar",
+    "reject": "Rejeitar não essenciais"
   }
 }

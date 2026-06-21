@@ -1378,7 +1378,9 @@
     "disable_voice": "Désactiver la voix",
     "reactivate_voice": "Réactiver la voix",
     "activate_voice": "Activer la voix",
-    "delete_agent": "Supprimer l'agent"
+    "delete_agent": "Supprimer l'agent",
+    "recording_notice_title": "Les appels sont enregistrés",
+    "recording_notice_body": "Sandra et Rebecca enregistrent et transcrivent les appels pour les opérer et en améliorer la qualité. De nombreux endroits exigent d’informer toutes les parties — assurez-vous que votre agent annonce l’enregistrement au début de chaque appel et que vous disposez d’une base légale."
   },
   "marketing": {
     "page_title": "Marketing IA",
@@ -2104,6 +2106,7 @@
     "role_viewer_hint": "Lecture seule",
     "role_member_hint": "Accès de base",
     "err_cannot_remove_self": "Vous ne pouvez pas vous retirer vous-même",
+    "err_last_owner": "L’entreprise doit conserver au moins un propriétaire",
     "groups_title": "Équipes",
     "group_name_placeholder": "Ex : Ventes, Marketing…",
     "create_group": "Créer une équipe",
@@ -2216,6 +2219,13 @@
   "aima": {
     "toast_saved": "Paramètres enregistrés",
     "toast_started": "AIMA démarre — les leads apparaîtront dans /leads.",
+    "consent_title": "Autorisation de démarchage",
+    "consent_desc": "AIMA trouve des entreprises et Sandra les appelle à froid. Le démarchage B2B non sollicité nécessite une base légale (p. ex. intérêt légitime RGPD, respect des listes d’opposition). Confirmez-la avant de prospecter.",
+    "consent_checkbox": "Je confirme que nous avons une base légale pour contacter les entreprises ciblées par AIMA et que nous respecterons les demandes de désinscription / opposition.",
+    "consent_attested_by": "Confirmé par {email}.",
+    "consent_required_hint": "Confirmez la base légale ci-dessus pour activer la prospection et les appels de Sandra.",
+    "toast_consent_on": "Démarchage activé.",
+    "toast_consent_off": "Démarchage suspendu.",
     "confirm_stop": "Arrêter AIMA maintenant ? Les exécutions en cours seront marquées comme interrompues.",
     "toast_stopped": "AIMA arrêtée",
     "finder_title": "Chercheur de leads (AIMA)",
@@ -2293,5 +2303,12 @@
     "vertical_driving_school": "Auto-école",
     "vertical_daycare": "Crèche",
     "vertical_music_school": "Musique"
+  },
+  "cookies": {
+    "title": "Cookies",
+    "body": "Nous utilisons des cookies essentiels pour faire fonctionner l’app et, avec votre consentement, des cookies d’analyse pour l’améliorer.",
+    "learn_more": "Politique de confidentialité",
+    "accept": "Accepter",
+    "reject": "Refuser les non essentiels"
   }
 }
