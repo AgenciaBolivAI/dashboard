@@ -15,11 +15,8 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  importCustomersAction,
-  IMPORTABLE_CUSTOMER_FIELDS,
-  type ImportableCustomerField,
-} from "@/lib/actions/customers";
+import { importCustomersAction } from "@/lib/actions/customers";
+import { IMPORTABLE_CUSTOMER_FIELDS, type ImportableCustomerField } from "@/lib/customers-types";
 
 const IGNORE = "__ignore__";
 

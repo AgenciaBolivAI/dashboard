@@ -53,3 +53,24 @@ export function isOpenStage(status: string): boolean {
   const p = STAGE_WIN_PROBABILITY[status as LeadStatus];
   return p !== undefined && p > 0 && p < 1;
 }
+
+/**
+ * Fields a CSV import can map onto a lead. MUST live in this plain module (not
+ * the "use server" lib/actions/leads.ts): a Server Actions file may only export
+ * async functions — exporting this array there throws "use server file can only
+ * export async functions, found object" once it's pulled into a server graph.
+ */
+export const IMPORTABLE_LEAD_FIELDS = [
+  "name",
+  "whatsapp_number",
+  "email",
+  "intent",
+  "notes",
+  "status",
+  "source",
+  "vertical",
+  "city",
+  "website",
+  "address",
+] as const;
+export type ImportableLeadField = (typeof IMPORTABLE_LEAD_FIELDS)[number];

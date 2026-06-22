@@ -6,17 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
-
-/** Fields a CSV import can map onto a customer (users table). */
-export const IMPORTABLE_CUSTOMER_FIELDS = [
-  "name",
-  "whatsapp_number",
-  "email",
-  "business_name",
-  "point_of_contact",
-  "notes",
-] as const;
-export type ImportableCustomerField = (typeof IMPORTABLE_CUSTOMER_FIELDS)[number];
+import { type ImportableCustomerField } from "@/lib/customers-types";
 
 export type ImportCustomersResult =
   | { ok: true; inserted: number; skipped: number }

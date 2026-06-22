@@ -6,25 +6,9 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
-import { LEAD_STATUSES } from "@/lib/leads-types";
+import { LEAD_STATUSES, type ImportableLeadField } from "@/lib/leads-types";
 
 export type LeadState = { error: string | null; success?: boolean };
-
-/** Fields a CSV import can map onto a lead. Scalars + a few metadata facets. */
-export const IMPORTABLE_LEAD_FIELDS = [
-  "name",
-  "whatsapp_number",
-  "email",
-  "intent",
-  "notes",
-  "status",
-  "source",
-  "vertical",
-  "city",
-  "website",
-  "address",
-] as const;
-export type ImportableLeadField = (typeof IMPORTABLE_LEAD_FIELDS)[number];
 
 export type ImportLeadsResult =
   | { ok: true; inserted: number; skipped: number }

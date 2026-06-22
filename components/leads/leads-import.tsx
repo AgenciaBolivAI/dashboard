@@ -15,11 +15,8 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  importLeadsAction,
-  IMPORTABLE_LEAD_FIELDS,
-  type ImportableLeadField,
-} from "@/lib/actions/leads";
+import { importLeadsAction } from "@/lib/actions/leads";
+import { IMPORTABLE_LEAD_FIELDS, type ImportableLeadField } from "@/lib/leads-types";
 
 const IGNORE = "__ignore__";
 
