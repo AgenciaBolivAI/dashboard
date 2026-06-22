@@ -15,7 +15,37 @@ export function v1svc(): SupabaseClient {
   return createServiceClient() as unknown as SupabaseClient;
 }
 
-/** Authenticate; returns the resolved auth, or a ready-to-return error Response. */
+// Per-key fixed-window rate limit. Generous for legitimate Zapier/Make use
+// (polling triggers + actions) while capping abuse / runaway loops. Override
+// with API_RATE_LIMIT_PER_MIN.
+const RATE_LIMIT_PER_MIN = Math.max(1, Number(process.env.API_RATE_LIMIT_PER_MIN) || 120);
+const RATE_WINDOW_SECONDS = 60;
+
+type RateResult = { allowed: boolean; used: number; resetAt: string };
+
+/**
+ * Register one request against this key's window and report whether it's still
+ * within the limit. Fail-open (returns null) on any limiter error — a counter
+ * hiccup must never take down a tenant's integration.
+ */
+async function rateLimitHit(keyId: string): Promise<RateResult | null> {
+  try {
+    const { data, error } = await v1svc().rpc("api_rate_limit_hit", {
+      p_key_id: keyId,
+      p_limit: RATE_LIMIT_PER_MIN,
+      p_window_seconds: RATE_WINDOW_SECONDS,
+    });
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { allowed: boolean; used: number; reset_at: string }
+      | undefined;
+    if (error || !row) return null;
+    return { allowed: row.allowed, used: row.used, resetAt: row.reset_at };
+  } catch {
+    return null;
+  }
+}
+
+/** Authenticate + rate-limit; returns the resolved auth, or a ready-to-return error Response. */
 export async function apiAuth(req: Request, opts?: { write?: boolean }): Promise<ApiAuth | NextResponse> {
   const auth = await verifyApiKey(req);
   if (!auth) {
@@ -26,6 +56,23 @@ export async function apiAuth(req: Request, opts?: { write?: boolean }): Promise
   }
   if (opts?.write && !canWrite(auth)) {
     return NextResponse.json({ error: "This API key is read-only." }, { status: 403 });
+  }
+
+  const rl = await rateLimitHit(auth.keyId);
+  if (rl && !rl.allowed) {
+    const retry = Math.max(1, Math.ceil((new Date(rl.resetAt).getTime() - Date.now()) / 1000));
+    return NextResponse.json(
+      { error: `Rate limit exceeded (${RATE_LIMIT_PER_MIN} requests/min). Retry in ${retry}s.` },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(retry),
+          "X-RateLimit-Limit": String(RATE_LIMIT_PER_MIN),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": rl.resetAt,
+        },
+      },
+    );
   }
   return auth;
 }
