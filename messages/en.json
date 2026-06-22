@@ -2455,6 +2455,22 @@
     "queue_invalid_status": "Invalid status",
     "rec_invalid_status": "Invalid status",
     "assistant_need_credit": "You need at least 1 credit to use the assistant. Top up in Billing.",
-    "assistant_action_not_allowed": "Action not allowed."
+    "assistant_action_not_allowed": "Action not allowed.",
+    "api_key_limit": "Limit of 10 active keys. Revoke one first."
+  },
+  "settings_apikeys": {
+    "title": "API keys",
+    "description": "Connect BolivAI to Zapier, Make, or your own system via the REST API.",
+    "intro": "Create a key and paste it into Zapier/Make to connect your account. Treat it like a password.",
+    "save_now": "Copy this key now — you won’t see it again.",
+    "dismiss": "Done, I saved it",
+    "name_placeholder": "Name (e.g. Zapier)",
+    "generate": "Generate key",
+    "last_used": "used {date}",
+    "never_used": "never used",
+    "none": "No API keys yet.",
+    "revoke_confirm": "Revoke this key? Integrations using it will stop working.",
+    "revoked": "Key revoked.",
+    "copied": "Key copied."
   }
 }

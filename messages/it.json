@@ -2455,6 +2455,22 @@
     "queue_invalid_status": "Stato non valido",
     "rec_invalid_status": "Stato non valido",
     "assistant_need_credit": "Hai bisogno di almeno 1 credito per usare l'assistente. Ricaricalo in Fatturazione.",
-    "assistant_action_not_allowed": "Azione non consentita."
+    "assistant_action_not_allowed": "Azione non consentita.",
+    "api_key_limit": "Limite di 10 chiavi attive. Revocane una prima."
+  },
+  "settings_apikeys": {
+    "title": "Chiavi API",
+    "description": "Collega BolivAI a Zapier, Make o al tuo sistema tramite l’API REST.",
+    "intro": "Crea una chiave e incollala in Zapier/Make per collegare il tuo account. Trattala come una password.",
+    "save_now": "Copia questa chiave ora — non la vedrai più.",
+    "dismiss": "Fatto, l’ho salvata",
+    "name_placeholder": "Nome (es.: Zapier)",
+    "generate": "Genera chiave",
+    "last_used": "usata il {date}",
+    "never_used": "mai usata",
+    "none": "Non hai ancora chiavi API.",
+    "revoke_confirm": "Revocare questa chiave? Le integrazioni che la usano smetteranno di funzionare.",
+    "revoked": "Chiave revocata.",
+    "copied": "Chiave copiata."
   }
 }

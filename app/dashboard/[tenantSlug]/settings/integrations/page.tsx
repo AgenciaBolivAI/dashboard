@@ -22,6 +22,9 @@ import { GoogleConnection, type GoogleIntegration } from "@/components/integrati
 import { WhatsAppConnect } from "@/components/whatsapp/whatsapp-connect";
 import { EmailSenderCard } from "@/components/integrations/email-sender-card";
 import { getTenantEmailStatus } from "@/lib/email/send";
+import { ApiKeysCard } from "@/components/integrations/api-keys-card";
+import { listApiKeys } from "@/lib/actions/api-keys";
+import { getRoleOnTenant } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +38,7 @@ export default async function IntegrationsPage({
   const gateway = getGateway(tenant.gateway);
   const template = getTemplate(tenant.workflow_template);
   const t = await getTranslations("settings_integrations");
+  const ta = await getTranslations("settings_apikeys");
 
   // Probe gateway-specific status (only Evolution implemented today)
   let gatewayStatus: { state: string; ok: boolean; error?: string } = {
@@ -121,6 +125,11 @@ export default async function IntegrationsPage({
 
   // Email sender state (which address BOLIV sends customer emails from)
   const emailStatus = await getTenantEmailStatus(tenant.id);
+
+  // API keys (Zapier / Make / public API) — admin-only management.
+  const role = await getRoleOnTenant(tenant.id);
+  const isApiAdmin = role === "owner" || role === "admin" || role === "bolivai_admin";
+  const apiKeys = isApiAdmin ? await listApiKeys(tenant.id) : [];
 
   return (
     <div className="space-y-4">
@@ -333,6 +342,19 @@ export default async function IntegrationsPage({
           <EmailSenderCard tenantId={tenant.id} status={emailStatus} />
         </CardContent>
       </Card>
+
+      {/* API keys — Zapier / Make / public REST API (admin-only) */}
+      {isApiAdmin ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{ta("title")}</CardTitle>
+            <CardDescription>{ta("description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ApiKeysCard tenantId={tenant.id} keys={apiKeys} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
