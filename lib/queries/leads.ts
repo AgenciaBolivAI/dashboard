@@ -139,6 +139,7 @@ export type LeadCallHistoryItem = {
  * first.
  */
 export async function getLeadCallHistory(
+  tenantId: string,
   leadId: string,
   limit = 10,
 ): Promise<LeadCallHistoryItem[]> {
@@ -149,6 +150,10 @@ export async function getLeadCallHistory(
     order: "created_at.desc",
     limit: String(limit),
     "metadata->>lead_id": `eq.${leadId}`,
+    // Tenant-scope: episodes carry metadata.tenant_id; without this a guessed
+    // lead_id from another tenant would return that tenant's call transcripts
+    // (service key bypasses RLS).
+    "metadata->>tenant_id": `eq.${tenantId}`,
     source: "eq.elevenlabs",
   });
   const res = await fetch(`${url}/rest/v1/episodes?${params}`, {

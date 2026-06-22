@@ -52,7 +52,7 @@ const config: NextConfig = {
   // to stay as runtime require()'s so the platform-specific binary loads.
   // @resvg/resvg-js: brand image rasterisation (Satori SVG -> PNG).
   // sharp: server-side image processing (logo prep, future thumbnails).
-  serverExternalPackages: ["@resvg/resvg-js", "sharp"],
+  serverExternalPackages: ["@resvg/resvg-js", "sharp", "nodemailer"],
   // react-force-graph-2d ships an ESM/UMD hybrid that Turbopack's resolver
   // can't follow through its dependency chain (d3-force, d3-zoom, kapsule,
   // react-kapsule, accessor-fn). Force transpilation so Turbopack treats

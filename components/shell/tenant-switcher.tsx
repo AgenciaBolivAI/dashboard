@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,6 +30,7 @@ export function TenantSwitcher({
   options: TenantOption[];
   isAdmin: boolean;
 }) {
+  const t = useTranslations("nav");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -56,7 +58,7 @@ export function TenantSwitcher({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>Tus agentes</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("your_agents")}</DropdownMenuLabel>
         {options.map((opt) => (
           <DropdownMenuItem key={opt.id} asChild>
             <Link
@@ -86,7 +88,7 @@ export function TenantSwitcher({
             <DropdownMenuItem asChild>
               <Link href="/admin/tenants/new" className="flex items-center gap-2">
                 <Plus className="size-4" />
-                Crear nuevo agente
+                {t("create_agent")}
               </Link>
             </DropdownMenuItem>
           </>

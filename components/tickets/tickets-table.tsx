@@ -35,6 +35,7 @@ export function TicketsTable({
   members: Member[];
 }) {
   const t = useTranslations("tickets");
+  const tc = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -42,7 +43,7 @@ export function TicketsTable({
   function update(id: string, patch: Parameters<typeof updateTicketAction>[2]) {
     startTransition(async () => {
       const res = await updateTicketAction(tenantId, id, patch);
-      if (!res.ok) toast.error(res.error ?? "Error");
+      if (!res.ok) toast.error(res.error ?? tc("error"));
       else router.refresh();
     });
   }

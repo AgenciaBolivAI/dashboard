@@ -13,7 +13,7 @@
 import { NextResponse } from "next/server";
 import { checkBearer } from "@/lib/security/bearer";
 import { createServiceClient } from "@/lib/supabase/service";
-import { pushReservationEvent } from "@/lib/google-calendar";
+import { pushReservationEvent, deleteReservationEvent } from "@/lib/google-calendar";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -39,11 +39,32 @@ export async function POST(req: Request) {
   const svc = createServiceClient() as unknown as { from: (t: string) => any };
   const { data: r } = await svc
     .from("reservations")
-    .select("id, customer_name, start_at, end_at, notes, google_event_id, services:service_id ( name )")
+    .select("id, customer_name, start_at, end_at, notes, status, google_event_id, services:service_id ( name )")
     .eq("id", reservationId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (!r) return NextResponse.json({ error: "reservation not found" }, { status: 404 });
+
+  // Cancelled reservation → remove the mirrored Google Calendar event instead of
+  // pushing. Lets the n8n notify workflow call this endpoint on ANY event
+  // (created / rescheduled / cancelled) and have the calendar stay correct,
+  // including cancels initiated from WhatsApp (not just the dashboard).
+  const status = (r as { status?: string | null }).status ?? "";
+  const existingEventId = (r as { google_event_id: string | null }).google_event_id;
+  if (status === "cancelled") {
+    let removed = false;
+    if (existingEventId) {
+      removed = await deleteReservationEvent(tenantId, existingEventId);
+      if (removed) {
+        await svc
+          .from("reservations")
+          .update({ google_event_id: null, google_calendar_synced_at: new Date().toISOString() })
+          .eq("id", reservationId)
+          .eq("tenant_id", tenantId);
+      }
+    }
+    return NextResponse.json({ ok: true, synced: removed, action: "deleted" });
+  }
 
   const { data: t } = await svc.from("tenants").select("timezone").eq("id", tenantId).maybeSingle();
   const timezone = (t as { timezone?: string } | null)?.timezone || "UTC";

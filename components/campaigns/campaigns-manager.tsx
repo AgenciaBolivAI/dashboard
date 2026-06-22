@@ -49,6 +49,7 @@ export function CampaignsManager({
   campaigns: CampaignWithSteps[];
 }) {
   const t = useTranslations("campaigns");
+  const tc = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -56,7 +57,7 @@ export function CampaignsManager({
   function act(fn: (tid: string, id: string) => Promise<{ ok: boolean; error?: string }>, id: string) {
     startTransition(async () => {
       const res = await fn(tenantId, id);
-      if (!res.ok) toast.error(res.error ?? "Error");
+      if (!res.ok) toast.error(res.error ?? tc("error"));
       else router.refresh();
     });
   }

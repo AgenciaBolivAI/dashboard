@@ -37,7 +37,7 @@ export default async function LeadDetailPage({
 
   const [lead, callHistory, t, locale] = await Promise.all([
     getLeadById(tenant.id, id),
-    getLeadCallHistory(id, 10),
+    getLeadCallHistory(tenant.id, id, 10),
     getTranslations("leads"),
     getLocale(),
   ]);
@@ -175,7 +175,7 @@ export default async function LeadDetailPage({
             </Fact>
           ) : null}
           {website ? (
-            <Fact label="Website">
+            <Fact label={(() => { try { return t("website"); } catch { return "Website"; } })()}>
               <a href={website} target="_blank" rel="noopener" className="text-primary hover:underline inline-flex items-center gap-1">
                 {website.replace(/^https?:\/\//, "").slice(0, 30)}
                 <ExternalLink className="size-3" />

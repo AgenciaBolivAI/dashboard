@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Search, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ export function RealtimeSearch({
   placeholder: string;
   paramName?: string;
 }) {
+  const t = useTranslations("common");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -65,7 +67,7 @@ export function RealtimeSearch({
             type="button"
             onClick={() => setValue("")}
             className="text-muted-foreground hover:text-foreground transition p-0.5"
-            aria-label="Clear search"
+            aria-label={t("clear_search")}
           >
             <X className="size-4" />
           </button>

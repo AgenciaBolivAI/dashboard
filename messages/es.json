@@ -22,7 +22,11 @@
     "assistant": "BOLIV",
     "open_menu": "Abrir menú",
     "close_menu": "Cerrar menú",
-    "admin_panel": "Panel BolivAI"
+    "admin_panel": "Panel BolivAI",
+    "exit_admin": "Salir",
+    "your_agents": "Tus agentes",
+    "create_agent": "Crear nuevo agente",
+    "admin_badge": "Admin"
   },
   "userMenu": {
     "signedIn": "Sesión iniciada",
@@ -51,7 +55,12 @@
     "pg_showing": "Mostrando {from}–{to} de {total}",
     "pg_page_of": "Página {page} de {pages}",
     "pg_prev": "Anterior",
-    "pg_next": "Siguiente"
+    "pg_next": "Siguiente",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "recording_unavailable": "Grabación no disponible",
+    "clear_search": "Limpiar búsqueda",
+    "close": "Cerrar"
   },
   "overview": {
     "title": "Resumen",
@@ -598,7 +607,8 @@
     "col_status": "Estado",
     "col_captured": "Capturado",
     "checkbox_select": "Seleccionar",
-    "checkbox_no_phone": "Sin teléfono"
+    "checkbox_no_phone": "Sin teléfono",
+    "website": "Sitio web"
   },
   "customers": {
     "page_title": "Clientes",
@@ -1280,7 +1290,11 @@
     "gateway_saving": "Guardando…",
     "gateway_save_config": "Guardar configuración",
     "wa_banner_text": "<strong>Conecta tu WhatsApp</strong> para activar tu agente — escaneas un código QR en menos de un minuto.",
-    "wa_banner_cta": "Conectar WhatsApp"
+    "wa_banner_cta": "Conectar WhatsApp",
+    "email_title": "Email del negocio",
+    "email_description": "El correo desde el cual BOLIV envía emails a tus clientes y leads. Usa tu propio Gmail (si conectas Google) o tu propio SMTP — nunca el de BolivAI.",
+    "calendar_id_label": "ID del calendario",
+    "spreadsheet_id_label": "ID de la hoja de cálculo"
   },
   "settings_team": {
     "title": "Equipo",
@@ -1553,7 +1567,8 @@
     "row_action_no_answer": "Sin respuesta",
     "row_action_failed": "Marcar fallida",
     "row_action_skip": "Saltar",
-    "row_action_remove": "Quitar de la cola"
+    "row_action_remove": "Quitar de la cola",
+    "open_in_elevenlabs": "Abrir en ElevenLabs (admin)"
   },
   "admin_tenants": {
     "page_title": "Tenants",
@@ -1633,7 +1648,19 @@
     "grant_credits_hint": "$1 = 100 créditos",
     "grant_gift_button": "Regalar créditos",
     "grant_card_title": "Regalar créditos",
-    "grant_card_desc": "Acredita saldo a cualquier negocio — cortesía de lanzamiento o créditos de prueba. $1 = 100 créditos."
+    "grant_card_desc": "Acredita saldo a cualquier negocio — cortesía de lanzamiento o créditos de prueba. $1 = 100 créditos.",
+    "activity_title": "Actividad de la plataforma",
+    "activity_sub": "Usuarios activos del panel — DAU, WAU y MAU.",
+    "kpi_dau": "Activos hoy (DAU)",
+    "kpi_wau": "Activos esta semana (WAU)",
+    "kpi_mau": "Activos este mes (MAU)",
+    "kpi_total_users": "Usuarios registrados",
+    "dau_delta_label": "vs. ayer",
+    "wau_sub": "Últimos 7 días",
+    "mau_sub": "Últimos 30 días",
+    "total_users_sub": "En todos los negocios",
+    "activity_chart_title": "Usuarios activos diarios (30 días)",
+    "activity_value_label": "Usuarios activos"
   },
   "admin_usage": {
     "window_today": "Hoy",
@@ -2310,5 +2337,27 @@
     "learn_more": "Política de Privacidad",
     "accept": "Aceptar",
     "reject": "Rechazar las no esenciales"
+  },
+  "settings_email": {
+    "gmail_active": "Enviando desde tu Gmail",
+    "active_badge": "Activo",
+    "smtp_via": "vía {host}",
+    "none_title": "Aún no configurado",
+    "none_hint": "Conecta Google (arriba) para enviar desde tu Gmail, o configura tu propio SMTP abajo.",
+    "smtp_title": "Tu propio servidor SMTP",
+    "smtp_host": "Servidor (host)",
+    "smtp_port": "Puerto",
+    "smtp_user": "Usuario",
+    "smtp_pass": "Contraseña",
+    "smtp_from_email": "Email remitente",
+    "smtp_from_name": "Nombre remitente",
+    "smtp_from_name_ph": "Ej.: Clínica Sonrisa",
+    "smtp_save": "Guardar SMTP",
+    "smtp_saved": "SMTP guardado.",
+    "smtp_edit": "Editar SMTP",
+    "smtp_add": "Configurar SMTP",
+    "smtp_removed": "SMTP eliminado.",
+    "smtp_remove_confirm": "¿Eliminar la configuración SMTP?",
+    "cancel": "Cancelar"
   }
 }

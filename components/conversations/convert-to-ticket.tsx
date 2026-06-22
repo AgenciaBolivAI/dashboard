@@ -25,6 +25,7 @@ export function ConvertToTicket({
   isTicket: boolean;
 }) {
   const t = useTranslations("tickets");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -42,7 +43,7 @@ export function ConvertToTicket({
   function convert() {
     startTransition(async () => {
       const res = await convertToTicketAction(tenantId, conversationId);
-      if (!res.ok) toast.error(res.error ?? "Error");
+      if (!res.ok) toast.error(res.error ?? tc("error"));
       else {
         toast.success(t("converted"));
         router.refresh();

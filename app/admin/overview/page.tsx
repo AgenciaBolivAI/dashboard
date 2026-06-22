@@ -7,6 +7,9 @@ import {
   Users,
   AlertTriangle,
   Activity,
+  UserCheck,
+  CalendarDays,
+  CalendarClock,
 } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Card } from "@/components/ui/card";
@@ -30,6 +33,9 @@ import {
   type PnlWindow,
 } from "@/lib/queries/admin-pnl";
 import { Sparkline } from "@/components/admin/sparkline";
+import { getActivityStats } from "@/lib/queries/admin-activity";
+import { AreaTrend } from "@/components/charts/area-trend";
+import { KpiCard as StatCard } from "@/components/overview/kpi-card";
 import { GrantCreditsPicker } from "@/components/admin/grant-credits-picker";
 import { createServiceClient } from "@/lib/supabase/service";
 import { Gift } from "lucide-react";
@@ -58,12 +64,20 @@ export default async function AdminOverviewPage({
   const windowKey: PnlWindow =
     (WINDOWS.find((w) => w.id === windowParam)?.id ?? "month");
 
-  const [pnl, timeseries, topTenants, actions] = await Promise.all([
+  const [pnl, timeseries, topTenants, actions, activity] = await Promise.all([
     getPlatformPnl(windowKey),
     getPlatformDailyTimeseries(30),
     getTenantPnlSummary(windowKey),
     getActionBreakdown(windowKey),
+    getActivityStats(30),
   ]);
+
+  // DAU trend + today-vs-yesterday delta for the activity KPI.
+  const dauSeries = activity.series.map((p) => p.count);
+  const dauToday = dauSeries[dauSeries.length - 1] ?? 0;
+  const dauYesterday = dauSeries[dauSeries.length - 2] ?? 0;
+  const dauDeltaPct =
+    dauYesterday > 0 ? Math.round(((dauToday - dauYesterday) / dauYesterday) * 100) : null;
 
   // Every tenant (incl. brand-new ones with zero activity) for the credit gift
   // picker — admin-gated page, service client is fine.
@@ -108,6 +122,54 @@ export default async function AdminOverviewPage({
           })}
         </div>
       </div>
+
+      {/* Platform activity — DAU / WAU / MAU (modern customer-dashboard style) */}
+      <div className="mb-3">
+        <h2 className="font-semibold">{tr("activity_title")}</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">{tr("activity_sub")}</p>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <StatCard
+          label={tr("kpi_dau")}
+          value={dauToday.toLocaleString(locale)}
+          deltaPct={dauDeltaPct}
+          deltaLabel={tr("dau_delta_label")}
+          spark={dauSeries.slice(-14)}
+          icon={UserCheck}
+        />
+        <StatCard
+          label={tr("kpi_wau")}
+          value={activity.wau.toLocaleString(locale)}
+          deltaPct={null}
+          deltaLabel={tr("wau_sub")}
+          icon={CalendarDays}
+        />
+        <StatCard
+          label={tr("kpi_mau")}
+          value={activity.mau.toLocaleString(locale)}
+          deltaPct={null}
+          deltaLabel={tr("mau_sub")}
+          icon={CalendarClock}
+        />
+        <StatCard
+          label={tr("kpi_total_users")}
+          value={activity.total.toLocaleString(locale)}
+          deltaPct={null}
+          deltaLabel={tr("total_users_sub")}
+          icon={Users}
+        />
+      </div>
+      <Card className="p-5 mb-8">
+        <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-3">
+          {tr("activity_chart_title")}
+        </h2>
+        <AreaTrend
+          data={activity.series}
+          locale={locale}
+          valueLabel={tr("activity_value_label")}
+          height={240}
+        />
+      </Card>
 
       {/* KPI Cards — 3 rows of context */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -388,14 +450,17 @@ function KpiCard({
   color: string;
 }) {
   return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+    <Card className="panel-pro group relative overflow-hidden p-4">
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-1">
         <Icon className={cn("size-3.5", color)} />
         <span>{label}</span>
       </div>
-      <p className={cn("text-2xl font-display font-bold", color)}>{value}</p>
+      <p className={cn("font-display text-[1.6rem] font-extrabold leading-none tracking-tight tabular-nums mt-2", color)}>
+        {value}
+      </p>
       {subtitle && (
-        <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+        <p className="text-xs text-muted-foreground mt-1.5">{subtitle}</p>
       )}
     </Card>
   );

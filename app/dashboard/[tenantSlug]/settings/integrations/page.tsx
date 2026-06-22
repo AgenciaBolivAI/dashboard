@@ -20,6 +20,8 @@ import { CopyField } from "./copy-field";
 import { GatewayConfigForm } from "@/components/integrations/gateway-config-form";
 import { GoogleConnection, type GoogleIntegration } from "@/components/integrations/google-connection";
 import { WhatsAppConnect } from "@/components/whatsapp/whatsapp-connect";
+import { EmailSenderCard } from "@/components/integrations/email-sender-card";
+import { getTenantEmailStatus } from "@/lib/email/send";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +118,9 @@ export default async function IntegrationsPage({
     config: Record<string, unknown>;
     status: string;
   }[];
+
+  // Email sender state (which address BOLIV sends customer emails from)
+  const emailStatus = await getTenantEmailStatus(tenant.id);
 
   return (
     <div className="space-y-4">
@@ -317,6 +322,17 @@ export default async function IntegrationsPage({
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Email sender — BOLIV sends customer emails from the tenant's OWN email */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("email_title")}</CardTitle>
+          <CardDescription>{t("email_description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmailSenderCard tenantId={tenant.id} status={emailStatus} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

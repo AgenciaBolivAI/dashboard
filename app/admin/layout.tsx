@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Building2 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { requireUser, requireBolivAIAdmin } from "@/lib/auth";
 import { UserMenu } from "@/components/shell/user-menu";
 import { AdminNav } from "@/components/admin/admin-nav";
@@ -7,6 +8,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   await requireBolivAIAdmin();
+  const t = await getTranslations("nav");
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -17,12 +19,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             className="text-muted-foreground hover:text-foreground transition flex items-center gap-2 text-sm"
           >
             <ArrowLeft className="size-4" />
-            Salir
+            {t("exit_admin")}
           </Link>
           <span className="text-muted-foreground">·</span>
           <span className="font-display font-extrabold text-lg flex items-center gap-2">
             <Building2 className="size-4 text-primary" />
-            Panel BolivAI
+            {t("admin_panel")}
           </span>
         </div>
         <UserMenu email={user.email ?? "—"} />

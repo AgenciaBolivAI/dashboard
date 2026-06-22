@@ -157,7 +157,7 @@ export default async function CallsPage({
                           href={`https://elevenlabs.io/app/conversational-ai/history/${c.conversation_id}`}
                           target="_blank"
                           rel="noopener"
-                          title="Open in ElevenLabs (admin)"
+                          title={t("open_in_elevenlabs")}
                           className="text-muted-foreground hover:text-foreground"
                         >
                           <ExternalLink className="size-3.5" />

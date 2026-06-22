@@ -148,7 +148,7 @@ export function GoogleConnection({
         <input type="hidden" name="tenant_id" value={tenantId} />
 
         <div className="space-y-2">
-          <Label htmlFor="calendar_id">Calendar ID</Label>
+          <Label htmlFor="calendar_id">{t("calendar_id_label")}</Label>
           <Input
             id="calendar_id"
             name="calendar_id"
@@ -165,7 +165,7 @@ export function GoogleConnection({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="spreadsheet_id">Spreadsheet ID</Label>
+            <Label htmlFor="spreadsheet_id">{t("spreadsheet_id_label")}</Label>
             <Input
               id="spreadsheet_id"
               name="spreadsheet_id"

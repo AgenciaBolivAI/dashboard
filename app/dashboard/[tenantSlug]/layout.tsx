@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import {
   requireUser,
   requireTenantAccess,
@@ -6,6 +7,7 @@ import {
   getRoleOnTenant,
   getEffectivePermissions,
 } from "@/lib/auth";
+import { recordActivity } from "@/lib/activity";
 import { getTenantBySlug, getMyTenants } from "@/lib/tenant";
 import { getFoundingCount, FOUNDING_CAP } from "@/lib/billing/lifetime";
 import { LifetimeGate } from "@/components/billing/lifetime-gate";
@@ -47,7 +49,12 @@ export default async function TenantLayout({
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
   await requireTenantAccess(tenant.id);
-  const isAdmin = await isBolivAIAdmin();
+  const t = await getTranslations("nav");
+  // Record DAU/WAU/MAU activity in parallel (best-effort, never blocks render).
+  const [isAdmin] = await Promise.all([
+    isBolivAIAdmin(),
+    recordActivity(user.id, tenant.id),
+  ]);
 
   // Founding Member gate: a tenant must hold lifetime access (the one-time $40)
   // to use the platform. BolivAI staff always pass; existing tenants were
@@ -124,7 +131,7 @@ export default async function TenantLayout({
           </Link>
           {isAdmin ? (
             <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary shrink-0">
-              Admin
+              {t("admin_badge")}
             </span>
           ) : null}
         </div>
@@ -157,7 +164,7 @@ export default async function TenantLayout({
                 href="/admin"
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
               >
-                Panel BolivAI
+                {t("admin_panel")}
               </Link>
             </div>
           </>

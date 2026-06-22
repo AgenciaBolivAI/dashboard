@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Play, Pause, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +17,7 @@ export function RecordingPlayer({
   conversationId: string;
   durationSeconds: number;
 }) {
+  const t = useTranslations("common");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,7 +50,7 @@ export function RecordingPlayer({
         onClick={toggle}
         disabled={errored}
         className="h-7 w-7 p-0"
-        title={errored ? "Recording unavailable" : playing ? "Pause" : "Play"}
+        title={errored ? t("recording_unavailable") : playing ? t("pause") : t("play")}
       >
         {loading && !playing ? (
           <Loader2 className="size-4 animate-spin" />

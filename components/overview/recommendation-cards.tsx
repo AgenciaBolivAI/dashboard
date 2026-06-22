@@ -25,6 +25,7 @@ export function RecommendationCards({
   recommendations: AiRecommendation[];
 }) {
   const t = useTranslations("overview");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [items, setItems] = useState(recommendations);
   const [, startTransition] = useTransition();
@@ -33,7 +34,7 @@ export function RecommendationCards({
     setItems((arr) => arr.filter((r) => r.id !== id));
     startTransition(async () => {
       const res = await setRecommendationStatusAction(tenantId, id, status);
-      if (!res.ok) toast.error(res.error ?? "Error");
+      if (!res.ok) toast.error(res.error ?? tc("error"));
       else router.refresh();
     });
   }

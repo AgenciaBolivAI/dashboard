@@ -30,6 +30,7 @@ export function RolesManager({
   memberRoleIds: Record<string, string | null>;
 }) {
   const t = useTranslations("roles");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<CustomRole | null>(null);
@@ -73,7 +74,7 @@ export function RolesManager({
         ? await updateRoleAction(tenantId, editing.id, { name, permissions: perms })
         : await createRoleAction(tenantId, name, perms);
       if (!res.ok) {
-        toast.error(res.error ?? "Error");
+        toast.error(res.error ?? tc("error"));
         return;
       }
       close();
@@ -85,7 +86,7 @@ export function RolesManager({
     if (!confirm(t("delete_confirm"))) return;
     startTransition(async () => {
       const res = await deleteRoleAction(tenantId, role.id);
-      if (!res.ok) toast.error(res.error ?? "Error");
+      if (!res.ok) toast.error(res.error ?? tc("error"));
       else router.refresh();
     });
   }
@@ -93,7 +94,7 @@ export function RolesManager({
   function assign(userId: string, roleId: string) {
     startTransition(async () => {
       const res = await assignRoleAction(tenantId, userId, roleId || null);
-      if (!res.ok) toast.error(res.error ?? "Error");
+      if (!res.ok) toast.error(res.error ?? tc("error"));
       else router.refresh();
     });
   }

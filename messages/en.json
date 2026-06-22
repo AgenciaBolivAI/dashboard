@@ -22,7 +22,11 @@
     "assistant": "BOLIV",
     "open_menu": "Open menu",
     "close_menu": "Close menu",
-    "admin_panel": "BolivAI panel"
+    "admin_panel": "BolivAI panel",
+    "exit_admin": "Exit",
+    "your_agents": "Your agents",
+    "create_agent": "Create new agent",
+    "admin_badge": "Admin"
   },
   "userMenu": {
     "signedIn": "Signed in",
@@ -51,7 +55,12 @@
     "pg_showing": "Showing {from}–{to} of {total}",
     "pg_page_of": "Page {page} of {pages}",
     "pg_prev": "Previous",
-    "pg_next": "Next"
+    "pg_next": "Next",
+    "play": "Play",
+    "pause": "Pause",
+    "recording_unavailable": "Recording unavailable",
+    "clear_search": "Clear search",
+    "close": "Close"
   },
   "overview": {
     "title": "Overview",
@@ -598,7 +607,8 @@
     "col_status": "Status",
     "col_captured": "Captured",
     "checkbox_select": "Select",
-    "checkbox_no_phone": "No phone"
+    "checkbox_no_phone": "No phone",
+    "website": "Website"
   },
   "customers": {
     "page_title": "Customers",
@@ -1280,7 +1290,11 @@
     "gateway_saving": "Saving…",
     "gateway_save_config": "Save settings",
     "wa_banner_text": "<strong>Connect your WhatsApp</strong> to activate your agent — scan a QR code in under a minute.",
-    "wa_banner_cta": "Connect WhatsApp"
+    "wa_banner_cta": "Connect WhatsApp",
+    "email_title": "Business email",
+    "email_description": "The address BOLIV sends emails to your customers and leads from. Use your own Gmail (if you connect Google) or your own SMTP — never BolivAI’s.",
+    "calendar_id_label": "Calendar ID",
+    "spreadsheet_id_label": "Spreadsheet ID"
   },
   "settings_team": {
     "title": "Team",
@@ -1553,7 +1567,8 @@
     "row_action_no_answer": "No answer",
     "row_action_failed": "Mark failed",
     "row_action_skip": "Skip",
-    "row_action_remove": "Remove from queue"
+    "row_action_remove": "Remove from queue",
+    "open_in_elevenlabs": "Open in ElevenLabs (admin)"
   },
   "admin_tenants": {
     "page_title": "Tenants",
@@ -1633,7 +1648,19 @@
     "grant_credits_hint": "$1 = 100 credits",
     "grant_gift_button": "Gift credits",
     "grant_card_title": "Gift credits",
-    "grant_card_desc": "Credit balance to any business — launch courtesy or trial credits. $1 = 100 credits."
+    "grant_card_desc": "Credit balance to any business — launch courtesy or trial credits. $1 = 100 credits.",
+    "activity_title": "Platform activity",
+    "activity_sub": "Active dashboard users — DAU, WAU and MAU.",
+    "kpi_dau": "Active today (DAU)",
+    "kpi_wau": "Active this week (WAU)",
+    "kpi_mau": "Active this month (MAU)",
+    "kpi_total_users": "Registered users",
+    "dau_delta_label": "vs. yesterday",
+    "wau_sub": "Last 7 days",
+    "mau_sub": "Last 30 days",
+    "total_users_sub": "Across all businesses",
+    "activity_chart_title": "Daily active users (30 days)",
+    "activity_value_label": "Active users"
   },
   "admin_usage": {
     "window_today": "Today",
@@ -2310,5 +2337,27 @@
     "learn_more": "Privacy Policy",
     "accept": "Accept",
     "reject": "Reject non-essential"
+  },
+  "settings_email": {
+    "gmail_active": "Sending from your Gmail",
+    "active_badge": "Active",
+    "smtp_via": "via {host}",
+    "none_title": "Not set up yet",
+    "none_hint": "Connect Google (above) to send from your Gmail, or set up your own SMTP below.",
+    "smtp_title": "Your own SMTP server",
+    "smtp_host": "Host",
+    "smtp_port": "Port",
+    "smtp_user": "Username",
+    "smtp_pass": "Password",
+    "smtp_from_email": "From email",
+    "smtp_from_name": "From name",
+    "smtp_from_name_ph": "E.g.: Smile Clinic",
+    "smtp_save": "Save SMTP",
+    "smtp_saved": "SMTP saved.",
+    "smtp_edit": "Edit SMTP",
+    "smtp_add": "Set up SMTP",
+    "smtp_removed": "SMTP removed.",
+    "smtp_remove_confirm": "Remove the SMTP configuration?",
+    "cancel": "Cancel"
   }
 }
