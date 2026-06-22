@@ -2,10 +2,8 @@
 
 import { requireUser } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
-import {
-  provisionTenant,
-  provisionSchema,
-} from "@/lib/actions/onboarding";
+import { provisionTenant } from "@/lib/actions/onboarding";
+import { provisionSchema } from "@/lib/onboarding/schema";
 import { runOnboardingChat, type ChatMsg, type OnboardingProfile } from "@/lib/onboarding/run";
 
 export type OnboardingChatResult =

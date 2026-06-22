@@ -2,20 +2,18 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { transliterate } from "transliteration";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser } from "@/lib/auth";
 import { TEMPLATES } from "@/lib/templates";
+import { provisionSchema, type ProvisionInput } from "@/lib/onboarding/schema";
 
 export type OnboardingState = {
   error: string | null;
   success?: boolean;
   slug?: string;
 };
-
-const LANGUAGES = ["es", "en", "pt"] as const;
 
 // Templates are deprecated — every tenant gets every feature now (pay per use).
 // We still need a default prompt to seed the WhatsApp agent, so we fall back to
@@ -25,35 +23,6 @@ const LANGUAGES = ["es", "en", "pt"] as const;
 const DEFAULT_TEMPLATE_ID = TEMPLATES.find((t) => t.id === "physio")?.id
   ?? TEMPLATES[0]?.id
   ?? "physio";
-
-export const provisionSchema = z.object({
-  company_name: z.string().trim().min(2, "Mínimo 2 caracteres").max(80),
-  industry: z.string().trim().min(2).max(80),
-  country: z.string().trim().length(2, "Código ISO de 2 letras").transform((s) => s.toUpperCase()),
-  timezone: z.string().trim().min(3).max(80).default("America/La_Paz"),
-  language: z.enum(LANGUAGES).default("es"),
-  whatsapp_number: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9]{8,16}$/, "Número con código país, ej. +5217712345678")
-    .transform((s) => s.replace(/^\+/, "")),
-  primary_color: z
-    .string()
-    .trim()
-    .regex(/^#[0-9a-f]{6}$/i, "Color hex (#RRGGBB)")
-    .default("#00e5a0"),
-  accent_color: z
-    .string()
-    .trim()
-    .regex(/^#[0-9a-f]{6}$/i, "Color hex (#RRGGBB)")
-    .default("#00b87d"),
-  logo_url: z
-    .string()
-    .trim()
-    .url("URL inválida")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-});
 
 /**
  * Generate a tenant slug from the company name: lowercase, ASCII-only,
@@ -90,9 +59,6 @@ async function findUniqueSlug(seed: string): Promise<string> {
     }
   }
 }
-
-/** Validated provisioning input — the OUTPUT of provisionSchema (defaults/transforms applied). */
-export type ProvisionInput = z.infer<typeof provisionSchema>;
 
 export type ProvisionResult =
   | { ok: true; tenantId: string; slug: string }
