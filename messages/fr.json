@@ -1298,7 +1298,12 @@
   },
   "settings_team": {
     "title": "Équipe",
-    "description": "Invitez des collègues à gérer cet agent. Chaque personne a un rôle qui définit ce qu'elle peut faire."
+    "description": "Invitez des collègues à gérer cet agent. Chaque personne a un rôle qui définit ce qu'elle peut faire.",
+    "seats_title": "Sièges de l’équipe",
+    "seats_in_use": "{occupied} utilisés · {included} inclus",
+    "seats_paid": "{billable} payants × {fee} US$/mois = {cost} US$/mois ({credits} crédits)",
+    "seats_none": "Aucun siège payant pour l’instant.",
+    "seats_note": "Votre compte inclut {included} sièges. Chaque siège supplémentaire coûte {fee} US$/mois ({credits} crédits), débité de vos crédits à l’invitation et chaque mois."
   },
   "settings_voice": {
     "voice_agent_title": "Agent vocal",
@@ -2168,7 +2173,9 @@
     "err_invalid": "Données invalides",
     "err_group_name_taken": "Une équipe portant ce nom existe déjà",
     "err_personal_in_budgeted_team": "Ce membre est déjà couvert par le budget de son équipe. Retirez-le de l’équipe ou ajustez le budget de l’équipe.",
-    "err_team_member_has_personal": "Un membre de l’équipe a un budget personnel. Retirez-le avant d’en attribuer un à l’équipe."
+    "err_team_member_has_personal": "Un membre de l’équipe a un budget personnel. Retirez-le avant d’en attribuer un à l’équipe.",
+    "err_seat_insufficient": "Crédits insuffisants pour ajouter un siège (5 US$/mois = 500 crédits). Rechargez des crédits pour inviter d’autres membres.",
+    "invite_seat_cost": "Ce siège supplémentaire coûte 5 US$/mois (500 crédits), débités à l’envoi de l’invitation."
   },
   "lifetime": {
     "title": "Devenez Membre Fondateur",

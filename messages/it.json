@@ -1298,7 +1298,12 @@
   },
   "settings_team": {
     "title": "Team",
-    "description": "Invita colleghi a gestire questo agente. Ogni persona ha un ruolo che definisce cosa può fare."
+    "description": "Invita colleghi a gestire questo agente. Ogni persona ha un ruolo che definisce cosa può fare.",
+    "seats_title": "Posti del team",
+    "seats_in_use": "{occupied} in uso · {included} inclusi",
+    "seats_paid": "{billable} a pagamento × US${fee}/mese = US${cost}/mese ({credits} crediti)",
+    "seats_none": "Nessun posto a pagamento ancora.",
+    "seats_note": "Il tuo account include {included} posti. Ogni posto extra costa US${fee}/mese ({credits} crediti), addebitato dai tuoi crediti all’invito e ogni mese."
   },
   "settings_voice": {
     "voice_agent_title": "Agente vocale",
@@ -2168,7 +2173,9 @@
     "err_invalid": "Dati non validi",
     "err_group_name_taken": "Esiste già un team con questo nome",
     "err_personal_in_budgeted_team": "Questo membro è già coperto dal budget del suo team. Rimuovilo dal team o modifica il budget del team.",
-    "err_team_member_has_personal": "Un membro del team ha un budget personale. Rimuovilo prima di assegnarne uno al team."
+    "err_team_member_has_personal": "Un membro del team ha un budget personale. Rimuovilo prima di assegnarne uno al team.",
+    "err_seat_insufficient": "Crediti insufficienti per aggiungere un altro posto (US$5/mese = 500 crediti). Ricarica i crediti per invitare altri membri.",
+    "invite_seat_cost": "Questo posto aggiuntivo costa US$5/mese (500 crediti), addebitati all’invio dell’invito."
   },
   "lifetime": {
     "title": "Diventa Membro Fondatore",

@@ -29,12 +29,15 @@ export function TeamManager({
   members,
   invitations,
   canManage = true,
+  nextSeatBillable = false,
 }: {
   tenantId: string;
   members: Member[];
   invitations: PendingInvitation[];
   /** Only admins/owners may invite, change roles, or remove members. */
   canManage?: boolean;
+  /** When true, the next invite occupies a paid US$5/mo seat (shown as a hint). */
+  nextSeatBillable?: boolean;
 }) {
   const t = useTranslations("team");
   const locale = useLocale();
@@ -118,6 +121,9 @@ export function TeamManager({
               {pending ? t("invite_generating") : t("invite_submit")}
             </Button>
           </div>
+          {nextSeatBillable ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400">{t("invite_seat_cost")}</p>
+          ) : null}
         </form>
 
         {lastInviteUrl ? (

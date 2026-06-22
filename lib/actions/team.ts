@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
+import { chargeSeatForInvite, refundSeatForInvite, currentPeriod } from "@/lib/billing/seats";
 
 export type TeamState = {
   error: string | null;
@@ -59,6 +60,13 @@ export async function inviteUserAction(
   const user = await requireUser();
   await requireTenantAccess(parsed.data.tenant_id, { minRole: "admin" });
 
+  // Seat billing: a billable seat (beyond the 2 included) is charged US$5/mo
+  // = 500 credits NOW. Block the invite if the prepaid balance can't cover it.
+  const seat = await chargeSeatForInvite(parsed.data.tenant_id);
+  if (!seat.ok) {
+    return { error: t("err_seat_insufficient") };
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("invitations")
@@ -67,11 +75,16 @@ export async function inviteUserAction(
       email: parsed.data.email.toLowerCase(),
       role: parsed.data.role,
       invited_by: user.id,
-    })
+      seat_charged: seat.charged,
+    } as never)
     .select("token")
     .single();
 
-  if (error) return { error: error.message };
+  if (error) {
+    // Roll back the seat charge if we charged for this now-failed invite.
+    if (seat.charged) await refundSeatForInvite(parsed.data.tenant_id, currentPeriod());
+    return { error: error.message };
+  }
 
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const inviteUrl = `${base}/invitations/${(data as { token: string }).token}`;
@@ -88,6 +101,16 @@ export async function revokeInvitationAction(
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
+  // Look up the seat-charge state BEFORE deleting so we can refund a charged,
+  // still-pending invite revoked in the same month (a seat never used).
+  const svc = createServiceClient();
+  const { data: inv } = await svc
+    .from("invitations")
+    .select("created_at, seat_charged, accepted_at")
+    .eq("id", invitationId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("invitations")
@@ -96,6 +119,11 @@ export async function revokeInvitationAction(
     .eq("tenant_id", tenantId);
 
   if (error) return { error: error.message };
+
+  const row = inv as { created_at: string; seat_charged: boolean; accepted_at: string | null } | null;
+  if (row?.seat_charged && !row.accepted_at) {
+    await refundSeatForInvite(tenantId, row.created_at.slice(0, 7), invitationId);
+  }
 
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };

@@ -1298,7 +1298,12 @@
   },
   "settings_team": {
     "title": "Team",
-    "description": "Invite colleagues to manage this agent. Each person has a role that defines what they can do."
+    "description": "Invite colleagues to manage this agent. Each person has a role that defines what they can do.",
+    "seats_title": "Team seats",
+    "seats_in_use": "{occupied} in use · {included} included",
+    "seats_paid": "{billable} paid × US${fee}/mo = US${cost}/mo ({credits} credits)",
+    "seats_none": "No paid seats yet.",
+    "seats_note": "Your account includes {included} seats. Each extra seat costs US${fee}/mo ({credits} credits), debited from your credits on invite and every month."
   },
   "settings_voice": {
     "voice_agent_title": "Voice agent",
@@ -2168,7 +2173,9 @@
     "err_invalid": "Invalid data",
     "err_group_name_taken": "A team with that name already exists",
     "err_personal_in_budgeted_team": "This member is already covered by their team’s budget. Remove them from the team or adjust the team budget.",
-    "err_team_member_has_personal": "A team member has a personal budget. Remove it before assigning one to the team."
+    "err_team_member_has_personal": "A team member has a personal budget. Remove it before assigning one to the team.",
+    "err_seat_insufficient": "Not enough credits to add another seat (US$5/mo = 500 credits). Top up credits to invite more members.",
+    "invite_seat_cost": "This extra seat costs US$5/mo (500 credits), debited when you send the invite."
   },
   "lifetime": {
     "title": "Become a Founding Member",

@@ -1298,7 +1298,12 @@
   },
   "settings_team": {
     "title": "Equipe",
-    "description": "Convide colegas para gerenciar este agente. Cada pessoa tem um papel que define o que pode fazer."
+    "description": "Convide colegas para gerenciar este agente. Cada pessoa tem um papel que define o que pode fazer.",
+    "seats_title": "Assentos da equipe",
+    "seats_in_use": "{occupied} em uso · {included} incluídos",
+    "seats_paid": "{billable} pagos × US${fee}/mês = US${cost}/mês ({credits} créditos)",
+    "seats_none": "Nenhum assento pago ainda.",
+    "seats_note": "Sua conta inclui {included} assentos. Cada assento extra custa US${fee}/mês ({credits} créditos), debitado dos seus créditos ao convidar e todo mês."
   },
   "settings_voice": {
     "voice_agent_title": "Agente de voz",
@@ -2168,7 +2173,9 @@
     "err_invalid": "Dados inválidos",
     "err_group_name_taken": "Já existe uma equipe com esse nome",
     "err_personal_in_budgeted_team": "Este membro já está coberto pelo orçamento da equipe. Remova-o da equipe ou ajuste o orçamento da equipe.",
-    "err_team_member_has_personal": "Um membro da equipe tem um orçamento pessoal. Remova-o antes de atribuir um à equipe."
+    "err_team_member_has_personal": "Um membro da equipe tem um orçamento pessoal. Remova-o antes de atribuir um à equipe.",
+    "err_seat_insufficient": "Créditos insuficientes para adicionar outro assento (US$5/mês = 500 créditos). Recarregue créditos para convidar mais membros.",
+    "invite_seat_cost": "Este assento extra custa US$5/mês (500 créditos), debitados ao enviar o convite."
   },
   "lifetime": {
     "title": "Torne-se Membro Fundador",

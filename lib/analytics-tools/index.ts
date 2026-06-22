@@ -31,6 +31,7 @@ import { loadTeam } from "@/lib/actions/team";
 import { getMemberRoleIds, listRoles } from "@/lib/queries/roles";
 import { sendTenantEmail } from "@/lib/email/send";
 import { isColdOutreachAttested, COLD_OUTREACH_BLOCKED_MSG } from "@/lib/aima/consent";
+import { chargeSeatForInvite, refundSeatForInvite, getSeatUsage, currentPeriod, SEAT_FEE_CREDITS } from "@/lib/billing/seats";
 
 // supabase-js is typed to known tables; several analytics helpers query by a
 // dynamic table name, so we use a loosely-typed view of the same client.
@@ -1668,18 +1669,31 @@ export const TOOLS: Record<string, Tool> = {
       const role = String(args.role || "member");
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Email inválido." };
       if (!["owner", "admin", "operator", "viewer", "member"].includes(role)) return { error: "Rol inválido." };
+      const usage = await getSeatUsage(tenantId);
       if (args.confirm !== true) {
-        return { requires_confirmation: true, summary: `Invitar a ${email} como ${role}. Pide confirmación.` };
+        const seatNote = usage.nextSeatBillable
+          ? ` Esto agrega un asiento de pago (US$5/mes = ${SEAT_FEE_CREDITS} créditos), que se debita ahora.`
+          : "";
+        return { requires_confirmation: true, summary: `Invitar a ${email} como ${role}.${seatNote} Pide confirmación.` };
       }
       const me = await getUser();
+      // Seat billing: charge + gate a billable seat before creating the invite.
+      const seat = await chargeSeatForInvite(tenantId);
+      if (!seat.ok) {
+        return { error: `No hay créditos suficientes para el asiento adicional (necesitas ${SEAT_FEE_CREDITS} créditos = US$5). Recarga créditos para invitar a más miembros.` };
+      }
       // Don't .select() or echo the token: it's a working join credential, and
       // the model-visible result is persisted to chat history. The invite link
       // is retrievable in Settings → Team (copy button per pending invitation).
       const { error } = await svcAny()
         .from("invitations")
-        .insert({ tenant_id: tenantId, email, role, invited_by: me?.id ?? null });
-      if (error) return { error: error.message };
-      return { ok: true, message: `Invitación creada para ${email} (${role}). Copia el enlace en Ajustes → Equipo.` };
+        .insert({ tenant_id: tenantId, email, role, invited_by: me?.id ?? null, seat_charged: seat.charged });
+      if (error) {
+        if (seat.charged) await refundSeatForInvite(tenantId, currentPeriod());
+        return { error: error.message };
+      }
+      const chargedNote = seat.charged ? ` Se debitaron ${SEAT_FEE_CREDITS} créditos (US$5) por el asiento adicional.` : "";
+      return { ok: true, message: `Invitación creada para ${email} (${role}).${chargedNote} Copia el enlace en Ajustes → Equipo.` };
     },
   },
 

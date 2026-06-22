@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { getTenantBySlug } from "@/lib/tenant";
 import { getRoleOnTenant } from "@/lib/auth";
 import { loadTeam, loadTeamBudgets } from "@/lib/actions/team";
+import { getSeatUsage, SEAT_FEE_USD, SEAT_FEE_CREDITS } from "@/lib/billing/seats";
 import { listRoles, getMemberRoleIds } from "@/lib/queries/roles";
 import { TeamManager } from "./team-manager";
 import { BudgetsManager } from "./budgets-manager";
@@ -16,6 +17,7 @@ export default async function TeamPage({
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
   const { members, invitations } = await loadTeam(tenant.id);
+  const seats = await getSeatUsage(tenant.id);
   const t = await getTranslations("settings_team");
   const tt = await getTranslations("team");
 
@@ -30,6 +32,35 @@ export default async function TeamPage({
 
   return (
     <div className="space-y-6">
+      {/* Seat usage + monthly cost */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("seats_title")}</CardTitle>
+          <CardDescription>
+            {t("seats_note", { included: seats.included, fee: SEAT_FEE_USD, credits: SEAT_FEE_CREDITS })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium">
+              {t("seats_in_use", { occupied: seats.occupied, included: seats.included })}
+            </p>
+            {seats.billable > 0 ? (
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary ring-1 ring-inset ring-primary/20 tabular-nums">
+                {t("seats_paid", {
+                  billable: seats.billable,
+                  fee: SEAT_FEE_USD,
+                  cost: seats.monthlyCostUsd,
+                  credits: seats.monthlyCostCredits,
+                })}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">{t("seats_none")}</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>{t("title")}</CardTitle>
@@ -41,6 +72,7 @@ export default async function TeamPage({
             members={members}
             invitations={invitations}
             canManage={isAdmin}
+            nextSeatBillable={seats.nextSeatBillable}
           />
         </CardContent>
       </Card>
