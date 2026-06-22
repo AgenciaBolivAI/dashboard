@@ -118,7 +118,10 @@ export async function chargeSeatForInvite(tenantId: string, referenceId?: string
       balanceAfter: debit.balance_after,
     };
   }
-  await svc().rpc("add_seat_charge", { p_tenant_id: tenantId, p_period: currentPeriod(), p_delta: 1 });
+  const { error: ledgerErr } = await svc().rpc("add_seat_charge", { p_tenant_id: tenantId, p_period: currentPeriod(), p_delta: 1 });
+  // If the ledger bump fails after a successful debit, the month's seat appears
+  // uncharged and the tick could re-charge it — log loudly so it's caught.
+  if (ledgerErr) console.warn("[seats] add_seat_charge(+1) failed after debit", tenantId, ledgerErr.message);
   return { ok: true, charged: true, creditsDebited: debit.credits_debited };
 }
 
@@ -130,14 +133,16 @@ export async function chargeSeatForInvite(tenantId: string, referenceId?: string
 export async function refundSeatForInvite(tenantId: string, chargedPeriod: string, referenceId?: string): Promise<void> {
   if (chargedPeriod !== currentPeriod()) return; // only same-month refunds
   const s = svc();
-  await s.rpc("refund_credits", {
+  const { error: refundErr } = await s.rpc("refund_credits", {
     p_tenant_id: tenantId,
     p_credits: SEAT_FEE_CREDITS,
     p_action_key: "seat_fee",
     p_reference_id: referenceId ?? null,
     p_metadata: { kind: "seat_invite_refund", period: chargedPeriod },
   });
-  await s.rpc("add_seat_charge", { p_tenant_id: tenantId, p_period: chargedPeriod, p_delta: -1 });
+  if (refundErr) console.warn("[seats] refund_credits failed", tenantId, refundErr.message);
+  const { error: decErr } = await s.rpc("add_seat_charge", { p_tenant_id: tenantId, p_period: chargedPeriod, p_delta: -1 });
+  if (decErr) console.warn("[seats] add_seat_charge(-1) failed on refund", tenantId, decErr.message);
 }
 
 export type SeatTickResult = {
@@ -188,7 +193,8 @@ export async function billTenantSeats(tenantId: string): Promise<SeatTickResult>
   if (!debit.ok) {
     return { tenantId, billable, alreadyCharged, due, charged: 0, ok: false, reason: debit.reason ?? "debit_failed" };
   }
-  await s.rpc("add_seat_charge", { p_tenant_id: tenantId, p_period: period, p_delta: due });
+  const { error: bumpErr } = await s.rpc("add_seat_charge", { p_tenant_id: tenantId, p_period: period, p_delta: due });
+  if (bumpErr) console.warn("[seats] add_seat_charge(tick) failed after debit", tenantId, bumpErr.message);
   return { tenantId, billable, alreadyCharged, due, charged: due, ok: true };
 }
 

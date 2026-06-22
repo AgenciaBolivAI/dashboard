@@ -27,7 +27,9 @@ export async function recordActivity(
       },
       { onConflict: "user_id,day" },
     );
-  } catch {
-    // Activity tracking must never break a page render.
+  } catch (e) {
+    // Activity tracking must never break a page render — but log for observability
+    // so a systemic failure (e.g. RLS regression) doesn't silently zero the metrics.
+    console.warn("[activity] recordActivity failed", userId, e instanceof Error ? e.message : e);
   }
 }

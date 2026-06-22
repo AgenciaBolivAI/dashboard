@@ -23,15 +23,34 @@ import {
   type PermissionSet,
 } from "@/lib/permissions";
 import { LEAD_STATUSES } from "@/lib/leads-types";
-import { triggerCcavaiGenerationAction } from "@/lib/actions/ccavai";
-import { triggerAimaScrapeAction } from "@/lib/actions/aima";
+import { triggerCcavaiGenerationAction, updateCcavaiDraftStatusAction, updateCcavaiSettingsAction } from "@/lib/actions/ccavai";
+import { triggerAimaScrapeAction, abortAimaScrapeAction, updateAimaSettingsAction, attestColdOutreachAction } from "@/lib/actions/aima";
 import { getReports, type ReportPeriod } from "@/lib/queries/reports";
 import { getBolivBriefing } from "@/lib/queries/briefing";
-import { loadTeam } from "@/lib/actions/team";
+import { loadTeam, revokeInvitationAction, deleteGroupAction, assignMemberAction, unassignMemberAction, setBudgetAction, removeBudgetAction } from "@/lib/actions/team";
 import { getMemberRoleIds, listRoles } from "@/lib/queries/roles";
 import { sendTenantEmail } from "@/lib/email/send";
 import { isColdOutreachAttested, COLD_OUTREACH_BLOCKED_MSG } from "@/lib/aima/consent";
 import { chargeSeatForInvite, refundSeatForInvite, getSeatUsage, currentPeriod, SEAT_FEE_CREDITS } from "@/lib/billing/seats";
+// Server actions BOLIV wraps for full operational coverage (each does its own
+// requireUser + requireTenantAccess; dispatchTool adds the BOLIV permission gate).
+import { deleteLeadAction, updateLeadNotesAction, updateLeadDealAction } from "@/lib/actions/leads";
+import { addLeadsToSandraQueueAction, removeFromSandraQueueAction } from "@/lib/actions/sandra-queue";
+import { convertToTicketAction, updateTicketAction } from "@/lib/actions/tickets";
+import { updateTaskAction, deleteTaskAction } from "@/lib/actions/tasks";
+import { takeoverAction, releaseAction, sendOperatorMessageAction } from "@/lib/actions/hitl";
+import { pauseCampaignAction, resumeCampaignAction, cancelCampaignAction, approveCampaignAction } from "@/lib/actions/campaigns";
+import { setRecommendationStatusAction } from "@/lib/actions/ai-recommendations";
+import { createRoleAction, assignRoleAction, deleteRoleAction } from "@/lib/actions/roles";
+import { initiateSandraCallAction, updateVoicePersonaAction } from "@/lib/actions/voice";
+import { deleteServiceAction, toggleServiceActiveAction } from "@/lib/actions/services";
+import { deleteStaffAction } from "@/lib/actions/staff";
+import { saveSmtpConfigAction, removeSmtpConfigAction } from "@/lib/actions/email-settings";
+import { updateViraSettingsAction, submitViraJobAction } from "@/lib/actions/vira";
+import { addManualChunkAction } from "@/lib/actions/knowledge";
+import { provisionTenantWhatsAppAction } from "@/lib/actions/whatsapp";
+import { sendInvoiceAction, voidInvoiceAction, markPaidManuallyAction, cancelSubscriptionAction, upsertInvoiceAction } from "@/lib/actions/invoices";
+import { startTopupAction } from "@/lib/actions/billing";
 
 // supabase-js is typed to known tables; several analytics helpers query by a
 // dynamic table name, so we use a loosely-typed view of the same client.
@@ -39,6 +58,18 @@ import { chargeSeatForInvite, refundSeatForInvite, getSeatUsage, currentPeriod, 
 type AnyClient = { from: (t: string) => any };
 function svcAny(): AnyClient {
   return createServiceClient() as unknown as AnyClient;
+}
+
+/**
+ * Normalize the two server-action result shapes — `{ok, error?}` and
+ * `{error, success?}` — to a single error string (null = succeeded). Lets the
+ * extended BOLIV tools wrap existing server actions without per-shape glue.
+ */
+function actionFailed(r: unknown): string | null {
+  const o = (r ?? {}) as { ok?: boolean; error?: string | null; success?: boolean };
+  if (o.ok === false) return o.error || "No se pudo completar la acción.";
+  if (o.ok === undefined && o.success !== true && typeof o.error === "string" && o.error) return o.error;
+  return null;
 }
 
 // ── Team-management helpers (BOLIV team tools) ───────────────────────────────
@@ -171,6 +202,8 @@ const QUERYABLE_TABLES = [
   "invoices", "services", "staff", "ccavai_drafts", "ccavai_runs",
   "vira_jobs", "vira_clips", "documents", "aima_scrape_runs",
   "sandra_call_queue", "credit_transactions", "subscriptions",
+  "ai_recommendations", "tasks", "campaigns",
+  "employee_groups", "credit_budgets", "invoice_items",
 ] as const;
 // Default time column per table (most use created_at). These don't have one.
 const TIME_COL: Record<string, string> = {
@@ -1477,8 +1510,9 @@ export const TOOLS: Record<string, Tool> = {
       // Send from the tenant's own sender.
       const me = await getUser();
       const result = await sendTenantEmail(tenantId, { to: recipient.email, subject, html: body });
-      // Control: audit log every attempt (sent or failed).
-      await svcAny().from("email_log").insert({
+      // Control: audit log every attempt (sent or failed). Check the write —
+      // a missing audit row on regulated outbound email must not pass silently.
+      const { error: logErr } = await svcAny().from("email_log").insert({
         tenant_id: tenantId,
         actor_user_id: me?.id ?? null,
         recipient_type: recipientType,
@@ -1491,6 +1525,7 @@ export const TOOLS: Record<string, Tool> = {
         status: result.ok ? "sent" : "failed",
         error: result.ok ? null : result.error.slice(0, 500),
       });
+      if (logErr) console.warn("[send_email] email_log insert failed", tenantId, logErr.message);
       if (!result.ok) {
         return result.noSender
           ? { error: "Tu negocio aún no tiene un email para enviar. Conecta Google (Gmail) o configura SMTP en Ajustes → Integraciones." }
@@ -1736,6 +1771,959 @@ export const TOOLS: Record<string, Tool> = {
         .eq("user_id", userId);
       if (error) return { error: error.message };
       return { ok: true, message: "Miembro removido." };
+    },
+  },
+
+  // ═══ Extended operational coverage — BOLIV can do everything a user can ═══
+  // Each wraps an existing server action (own access checks) or a tenant-scoped
+  // write; all are confirm-carded via `mutates` and gated by dispatchTool.
+
+  // ── Leads ────────────────────────────────────────────────────────────────
+  update_lead_notes: {
+    permission: { feature: "leads", level: "edit" },
+    mutates: true,
+    description: "Set/replace the notes on a lead. Get the lead id from list_leads_detail / query_business_data. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { lead_id: { type: "string" }, notes: { type: "string" }, confirm: { type: "boolean" } }, required: ["lead_id", "notes"] },
+    run: async (args, tenantId) => {
+      const leadId = String(args.lead_id || "");
+      const notes = String(args.notes ?? "").slice(0, 4000);
+      if (!leadId) return { error: "Falta lead_id." };
+      const { data: row } = await svcAny().from("leads").select("name").eq("id", leadId).eq("tenant_id", tenantId).maybeSingle();
+      if (!row) return { error: "No encontré ese lead." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Guardar notas en el lead ${(row as { name?: string }).name ?? leadId}. Pide confirmación.` };
+      const e = actionFailed(await updateLeadNotesAction(tenantId, leadId, notes));
+      return e ? { error: e } : { ok: true, message: "Notas del lead actualizadas." };
+    },
+  },
+  update_lead_deal: {
+    permission: { feature: "leads", level: "edit" },
+    mutates: true,
+    description: "Set a lead's deal/pipeline fields: value_cents (smallest unit, e.g. cents), currency (3-letter), expected_close_at (YYYY-MM-DD). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { lead_id: { type: "string" }, value_cents: { type: "number" }, currency: { type: "string" }, expected_close_at: { type: "string" }, confirm: { type: "boolean" } }, required: ["lead_id"] },
+    run: async (args, tenantId) => {
+      const leadId = String(args.lead_id || "");
+      if (!leadId) return { error: "Falta lead_id." };
+      const deal: Record<string, unknown> = {};
+      if (args.value_cents !== undefined) deal.value_cents = Number(args.value_cents);
+      if (args.currency !== undefined) deal.currency = String(args.currency);
+      if (args.expected_close_at !== undefined) deal.expected_close_at = String(args.expected_close_at);
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Actualizar la oportunidad del lead ${leadId}. Pide confirmación.` };
+      const e = actionFailed(await updateLeadDealAction(tenantId, leadId, deal as never));
+      return e ? { error: e } : { ok: true, message: "Oportunidad del lead actualizada." };
+    },
+  },
+  delete_lead: {
+    permission: { feature: "leads", level: "edit" },
+    mutates: true,
+    description: "Permanently delete a lead. Get the lead id first. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { lead_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["lead_id"] },
+    run: async (args, tenantId) => {
+      const leadId = String(args.lead_id || "");
+      if (!leadId) return { error: "Falta lead_id." };
+      const { data: row } = await svcAny().from("leads").select("name").eq("id", leadId).eq("tenant_id", tenantId).maybeSingle();
+      if (!row) return { error: "No encontré ese lead." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `ELIMINAR el lead ${(row as { name?: string }).name ?? leadId} (permanente). Pide confirmación.` };
+      const e = actionFailed(await deleteLeadAction(tenantId, leadId));
+      return e ? { error: e } : { ok: true, message: "Lead eliminado." };
+    },
+  },
+  add_lead_to_call_queue: {
+    permission: { feature: "leads", level: "edit" },
+    mutates: true,
+    description: "Queue a specific lead for Sandra to cold-call (outbound). Get the lead id first. Leads marked 'do not contact' are blocked. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { lead_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["lead_id"] },
+    run: async (args, tenantId) => {
+      const leadId = String(args.lead_id || "");
+      if (!leadId) return { error: "Falta lead_id." };
+      const { data: row } = await svcAny().from("leads").select("name").eq("id", leadId).eq("tenant_id", tenantId).maybeSingle();
+      if (!row) return { error: "No encontré ese lead." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Agregar a ${(row as { name?: string }).name ?? leadId} a la cola de llamadas de Sandra. Pide confirmación.` };
+      const r = await addLeadsToSandraQueueAction(tenantId, [leadId]);
+      const e = actionFailed(r);
+      if (e) return { error: e };
+      return { ok: true, message: (r as { count?: number }).count ? "Lead agregado a la cola de Sandra." : "El lead ya estaba en la cola o está bloqueado." };
+    },
+  },
+  remove_from_call_queue: {
+    permission: { feature: "leads", level: "edit" },
+    mutates: true,
+    description: "Remove an item from Sandra's outbound call queue by its queue id (sandra_call_queue.id from query_business_data). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { queue_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["queue_id"] },
+    run: async (args, tenantId) => {
+      const queueId = String(args.queue_id || "");
+      if (!queueId) return { error: "Falta queue_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Quitar el ítem ${queueId} de la cola de Sandra. Pide confirmación.` };
+      const e = actionFailed(await removeFromSandraQueueAction(tenantId, queueId));
+      return e ? { error: e } : { ok: true, message: "Ítem removido de la cola." };
+    },
+  },
+
+  // ── Customers ──────────────────────────────────────────────────────────
+  update_customer_profile: {
+    permission: { feature: "customers", level: "edit" },
+    mutates: true,
+    description: "Edit a customer's contact fields: name, phone, email, business_name, point_of_contact. Get the customer id from list_customers. Only pass fields to change. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { customer_id: { type: "string" }, name: { type: "string" }, phone: { type: "string" }, email: { type: "string" }, business_name: { type: "string" }, point_of_contact: { type: "string" }, confirm: { type: "boolean" } }, required: ["customer_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.customer_id || "");
+      if (!id) return { error: "Falta customer_id." };
+      const patch: Record<string, unknown> = {};
+      for (const k of ["name", "phone", "email", "business_name", "point_of_contact"]) {
+        if (args[k] !== undefined) patch[k] = String(args[k]).slice(0, 300) || null;
+      }
+      if (Object.keys(patch).length === 0) return { error: "No indicaste ningún campo para cambiar." };
+      const { data: row } = await svcAny().from("users").select("name").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+      if (!row) return { error: "No encontré ese cliente." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Editar el perfil de ${(row as { name?: string }).name ?? id} (${Object.keys(patch).join(", ")}). Pide confirmación.` };
+      const { error } = await svcAny().from("users").update(patch).eq("id", id).eq("tenant_id", tenantId);
+      return error ? { error: error.message } : { ok: true, message: "Perfil del cliente actualizado." };
+    },
+  },
+
+  // ── Calendar ───────────────────────────────────────────────────────────
+  update_reservation_notes: {
+    permission: { feature: "calendar", level: "edit" },
+    mutates: true,
+    description: "Set/replace the notes on a reservation (booking). Get the reservation id from list_reservations_detail. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { reservation_id: { type: "string" }, notes: { type: "string" }, confirm: { type: "boolean" } }, required: ["reservation_id", "notes"] },
+    run: async (args, tenantId) => {
+      const id = String(args.reservation_id || "");
+      const notes = String(args.notes ?? "").slice(0, 2000);
+      if (!id) return { error: "Falta reservation_id." };
+      const { data: row } = await svcAny().from("reservations").select("customer_name").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+      if (!row) return { error: "No encontré esa reserva." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Guardar notas en la reserva de ${(row as { customer_name?: string }).customer_name ?? id}. Pide confirmación.` };
+      const { error } = await svcAny().from("reservations").update({ notes: notes.trim() || null }).eq("id", id).eq("tenant_id", tenantId);
+      return error ? { error: error.message } : { ok: true, message: "Notas de la reserva actualizadas." };
+    },
+  },
+
+  // ── Tickets ──────────────────────────────────────────────────────────────
+  list_tickets: {
+    permission: { feature: "tickets", level: "read" },
+    description: "List support tickets (conversations promoted to tickets) with their status, priority, SLA and last activity.",
+    parameters: { type: "object", properties: { limit: { type: "number" } } },
+    run: async (args, tenantId) => {
+      const limit = Math.min(Math.max(Number(args.limit) || 25, 1), 100);
+      const { data } = await svcAny()
+        .from("conversations")
+        .select("id, ticket_status, priority, sla_due_at, last_message_at, channel")
+        .eq("tenant_id", tenantId)
+        .eq("is_ticket", true)
+        .order("last_message_at", { ascending: false })
+        .limit(limit);
+      return { tickets: data ?? [] };
+    },
+  },
+  convert_to_ticket: {
+    permission: { feature: "tickets", level: "edit" },
+    mutates: true,
+    description: "Promote a conversation to a tracked support ticket. Get the conversation id from list_conversations. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { conversation_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["conversation_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.conversation_id || "");
+      if (!id) return { error: "Falta conversation_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Convertir la conversación ${id} en ticket. Pide confirmación.` };
+      const e = actionFailed(await convertToTicketAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Conversación convertida en ticket." };
+    },
+  },
+  update_ticket: {
+    permission: { feature: "tickets", level: "edit" },
+    mutates: true,
+    description: "Update a ticket: ticket_status (open|in_progress|waiting|resolved|closed), priority (low|medium|high|urgent), sla_due_at (ISO), resolution_notes, assignee_user_id. conversation_id is the ticket id. Only pass fields to change. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { conversation_id: { type: "string" }, ticket_status: { type: "string", enum: ["open", "in_progress", "waiting", "resolved", "closed"] }, priority: { type: "string", enum: ["low", "medium", "high", "urgent"] }, sla_due_at: { type: "string" }, resolution_notes: { type: "string" }, assignee_user_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["conversation_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.conversation_id || "");
+      if (!id) return { error: "Falta conversation_id." };
+      const patch: Record<string, unknown> = {};
+      for (const k of ["ticket_status", "priority", "sla_due_at", "resolution_notes", "assignee_user_id"]) {
+        if (args[k] !== undefined) patch[k] = args[k];
+      }
+      if (Object.keys(patch).length === 0) return { error: "No indicaste ningún cambio." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Actualizar el ticket ${id} (${Object.keys(patch).join(", ")}). Pide confirmación.` };
+      const e = actionFailed(await updateTicketAction(tenantId, id, patch as never));
+      return e ? { error: e } : { ok: true, message: "Ticket actualizado." };
+    },
+  },
+
+  // ── Tasks ────────────────────────────────────────────────────────────────
+  update_task: {
+    permission: { feature: "tasks", level: "edit" },
+    mutates: true,
+    description: "Edit a task: title, notes, priority (low|medium|high), due_at (ISO), assignee_user_id. Get the task id from list_tasks. Only pass fields to change. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { task_id: { type: "string" }, title: { type: "string" }, notes: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high"] }, due_at: { type: "string" }, assignee_user_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["task_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.task_id || "");
+      if (!id) return { error: "Falta task_id." };
+      const patch: Record<string, unknown> = {};
+      for (const k of ["title", "notes", "priority", "due_at", "assignee_user_id"]) {
+        if (args[k] !== undefined) patch[k] = args[k];
+      }
+      if (Object.keys(patch).length === 0) return { error: "No indicaste ningún cambio." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Actualizar la tarea ${id} (${Object.keys(patch).join(", ")}). Pide confirmación.` };
+      const e = actionFailed(await updateTaskAction(tenantId, id, patch as never));
+      return e ? { error: e } : { ok: true, message: "Tarea actualizada." };
+    },
+  },
+  delete_task: {
+    permission: { feature: "tasks", level: "edit" },
+    mutates: true,
+    description: "Delete a task. Get the task id from list_tasks. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { task_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["task_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.task_id || "");
+      if (!id) return { error: "Falta task_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Eliminar la tarea ${id}. Pide confirmación.` };
+      const e = actionFailed(await deleteTaskAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Tarea eliminada." };
+    },
+  },
+
+  // ── Conversations (human-in-the-loop) ──────────────────────────────────
+  takeover_conversation: {
+    permission: { feature: "conversations", level: "edit" },
+    mutates: true,
+    description: "Take a conversation over from the bot so a human/operator replies. Get the conversation id from list_conversations. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { conversation_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["conversation_id"] },
+    run: async (args) => {
+      const id = String(args.conversation_id || "");
+      if (!id) return { error: "Falta conversation_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Tomar el control de la conversación ${id} (el bot deja de responder). Pide confirmación.` };
+      const e = actionFailed(await takeoverAction(id));
+      return e ? { error: e } : { ok: true, message: "Conversación tomada por un operador." };
+    },
+  },
+  release_conversation: {
+    permission: { feature: "conversations", level: "edit" },
+    mutates: true,
+    description: "Hand a conversation back to the bot after a human takeover. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { conversation_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["conversation_id"] },
+    run: async (args) => {
+      const id = String(args.conversation_id || "");
+      if (!id) return { error: "Falta conversation_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Devolver la conversación ${id} al bot. Pide confirmación.` };
+      const e = actionFailed(await releaseAction(id));
+      return e ? { error: e } : { ok: true, message: "Conversación devuelta al bot." };
+    },
+  },
+  send_whatsapp_reply: {
+    permission: { feature: "conversations", level: "edit" },
+    mutates: true,
+    description: "Reply to a customer in their conversation on its OWN channel (WhatsApp / Instagram / Messenger). You must take_over the conversation first. Get the conversation id from list_conversations. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { conversation_id: { type: "string" }, text: { type: "string" }, confirm: { type: "boolean" } }, required: ["conversation_id", "text"] },
+    run: async (args) => {
+      const id = String(args.conversation_id || "");
+      const text = String(args.text ?? "").slice(0, 4000);
+      if (!id || !text.trim()) return { error: "Falta la conversación o el mensaje." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Enviar al cliente en la conversación ${id}: «${text.slice(0, 80)}». Pide confirmación.` };
+      const fd = new FormData();
+      fd.set("conversation_id", id);
+      fd.set("text", text);
+      const e = actionFailed(await sendOperatorMessageAction({ error: null }, fd));
+      return e ? { error: e } : { ok: true, message: "Mensaje enviado al cliente." };
+    },
+  },
+
+  // ── Campaigns ──────────────────────────────────────────────────────────
+  approve_campaign: {
+    permission: { feature: "marketing", level: "edit" },
+    mutates: true,
+    description: "Approve a draft campaign so it begins executing. Get the campaign id from get_campaigns. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { campaign_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["campaign_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.campaign_id || "");
+      if (!id) return { error: "Falta campaign_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Aprobar la campaña ${id} (empezará a ejecutarse). Pide confirmación.` };
+      const e = actionFailed(await approveCampaignAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Campaña aprobada." };
+    },
+  },
+  pause_campaign: {
+    permission: { feature: "marketing", level: "edit" },
+    mutates: true,
+    description: "Pause a running campaign. Get the campaign id from get_campaigns. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { campaign_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["campaign_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.campaign_id || "");
+      if (!id) return { error: "Falta campaign_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Pausar la campaña ${id}. Pide confirmación.` };
+      const e = actionFailed(await pauseCampaignAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Campaña pausada." };
+    },
+  },
+  resume_campaign: {
+    permission: { feature: "marketing", level: "edit" },
+    mutates: true,
+    description: "Resume a paused campaign. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { campaign_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["campaign_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.campaign_id || "");
+      if (!id) return { error: "Falta campaign_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Reanudar la campaña ${id}. Pide confirmación.` };
+      const e = actionFailed(await resumeCampaignAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Campaña reanudada." };
+    },
+  },
+  cancel_campaign: {
+    permission: { feature: "marketing", level: "edit" },
+    mutates: true,
+    description: "Cancel (kill) a campaign permanently. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { campaign_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["campaign_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.campaign_id || "");
+      if (!id) return { error: "Falta campaign_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Cancelar la campaña ${id} (permanente). Pide confirmación.` };
+      const e = actionFailed(await cancelCampaignAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Campaña cancelada." };
+    },
+  },
+  abort_lead_search: {
+    permission: { feature: "marketing", level: "edit" },
+    mutates: true,
+    description: "Stop the currently running AIMA lead search and turn the scraper off. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      if (args.confirm !== true) return { requires_confirmation: true, summary: "Detener la búsqueda de leads (AIMA) en curso. Pide confirmación." };
+      const e = actionFailed(await abortAimaScrapeAction(tenantId));
+      return e ? { error: e } : { ok: true, message: "Búsqueda de leads detenida." };
+    },
+  },
+
+  // ── Content (CCAVAI) ───────────────────────────────────────────────────
+  set_ccavai_draft_status: {
+    permission: { feature: "content", level: "edit" },
+    mutates: true,
+    description: "Approve, reject or archive a generated content draft. status: approved | rejected | archived | posted | pending. Get the draft id from query_business_data on ccavai_drafts. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { draft_id: { type: "string" }, status: { type: "string", enum: ["approved", "rejected", "archived", "posted", "pending"] }, notes: { type: "string" }, confirm: { type: "boolean" } }, required: ["draft_id", "status"] },
+    run: async (args, tenantId) => {
+      const id = String(args.draft_id || "");
+      const status = String(args.status || "");
+      if (!id || !status) return { error: "Falta draft_id o status." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Marcar el borrador ${id} como "${status}". Pide confirmación.` };
+      const e = actionFailed(await updateCcavaiDraftStatusAction(tenantId, id, status, args.notes !== undefined ? String(args.notes) : undefined));
+      return e ? { error: e } : { ok: true, message: `Borrador marcado como ${status}.` };
+    },
+  },
+
+  // ── Voice agents ───────────────────────────────────────────────────────
+  initiate_sandra_call: {
+    permission: { feature: "leads", level: "edit" },
+    mutates: true,
+    description: "Place a single outbound Sandra (AI sales) call NOW to a phone number (E.164, e.g. +59171234567). Optionally tie it to a lead_id so the result updates that lead. Requires the tenant's voice number to be set up. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { to_number: { type: "string" }, lead_id: { type: "string" }, lead_name: { type: "string" }, lead_company: { type: "string" }, notes: { type: "string" }, confirm: { type: "boolean" } }, required: ["to_number"] },
+    run: async (args, tenantId) => {
+      const toNumber = String(args.to_number || "").trim();
+      if (!toNumber) return { error: "Falta el número de destino." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Que Sandra llame ahora a ${toNumber}${args.lead_name ? ` (${String(args.lead_name)})` : ""}. Pide confirmación.` };
+      const input = {
+        tenant_id: tenantId,
+        to_number: toNumber,
+        ...(args.lead_id ? { lead_id: String(args.lead_id) } : {}),
+        context: {
+          lead_name: args.lead_name !== undefined ? String(args.lead_name) : undefined,
+          lead_company: args.lead_company !== undefined ? String(args.lead_company) : undefined,
+          notes: args.notes !== undefined ? String(args.notes) : undefined,
+        },
+      } as Parameters<typeof initiateSandraCallAction>[0];
+      const e = actionFailed(await initiateSandraCallAction(input));
+      return e ? { error: e } : { ok: true, message: `Llamada de Sandra iniciada a ${toNumber}.` };
+    },
+  },
+  update_voice_persona: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Edit the voice agents' persona overrides. Pass a `persona` object with optional `language` and `sandra`/`rebecca` blocks ({first_message, value_prop|faq, forbidden_topics}). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { persona: { type: "object" }, confirm: { type: "boolean" } }, required: ["persona"] },
+    run: async (args, tenantId) => {
+      if (!args.persona || typeof args.persona !== "object") return { error: "Falta el objeto persona." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: "Actualizar la persona de los agentes de voz. Pide confirmación." };
+      const input = { tenant_id: tenantId, persona: args.persona } as Parameters<typeof updateVoicePersonaAction>[0];
+      const e = actionFailed(await updateVoicePersonaAction(input));
+      return e ? { error: e } : { ok: true, message: "Persona de voz actualizada." };
+    },
+  },
+
+  // ── Team — roles & invitations ─────────────────────────────────────────
+  list_roles: {
+    permission: { feature: "team", level: "read" },
+    description: "List the business's custom roles (id, name, per-feature permissions). Use the id with assign_role / delete_role.",
+    parameters: { type: "object", properties: {} },
+    run: async (_args, tenantId) => {
+      const roles = await listRoles(tenantId);
+      return { roles: (roles as { id: string; name: string; permissions?: unknown }[]).map((r) => ({ id: r.id, name: r.name, permissions: r.permissions ?? {} })) };
+    },
+  },
+  revoke_invitation: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Revoke a pending team invitation by its id (from list_team's invitations). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { invitation_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["invitation_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.invitation_id || "");
+      if (!id) return { error: "Falta invitation_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Revocar la invitación ${id}. Pide confirmación.` };
+      const e = actionFailed(await revokeInvitationAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Invitación revocada." };
+    },
+  },
+  create_role: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Create a named, reusable custom role with per-feature permissions. `permissions` maps feature → level (read|edit|admin), e.g. {leads:'edit', billing:'read'}. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { name: { type: "string" }, permissions: { type: "object" }, confirm: { type: "boolean" } }, required: ["name", "permissions"] },
+    run: async (args, tenantId) => {
+      const name = String(args.name || "").trim();
+      if (!name) return { error: "Falta el nombre del rol." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Crear el rol "${name}". Pide confirmación.` };
+      const e = actionFailed(await createRoleAction(tenantId, name, (args.permissions ?? {}) as PermissionSet));
+      return e ? { error: e } : { ok: true, message: `Rol "${name}" creado.` };
+    },
+  },
+  assign_role: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Assign a custom role to a member (role_id), or pass role_id=null to clear it (back to their tier). Get user_id from list_team and role_id from the roles list. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { user_id: { type: "string" }, role_id: { type: ["string", "null"] }, confirm: { type: "boolean" } }, required: ["user_id"] },
+    run: async (args, tenantId) => {
+      const userId = String(args.user_id || "");
+      if (!userId) return { error: "Falta user_id." };
+      const roleId = args.role_id == null ? null : String(args.role_id);
+      const email = await memberEmail(userId);
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `${roleId ? "Asignar un rol personalizado a" : "Quitar el rol personalizado de"} ${email ?? userId}. Pide confirmación.` };
+      const e = actionFailed(await assignRoleAction(tenantId, userId, roleId));
+      return e ? { error: e } : { ok: true, message: "Rol del miembro actualizado." };
+    },
+  },
+  delete_role: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Delete a custom role (members on it fall back to their tier). Get role_id from the roles list. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { role_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["role_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.role_id || "");
+      if (!id) return { error: "Falta role_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Eliminar el rol ${id}. Pide confirmación.` };
+      const e = actionFailed(await deleteRoleAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Rol eliminado." };
+    },
+  },
+
+  // ── Recommendations ────────────────────────────────────────────────────
+  set_recommendation_status: {
+    permission: { feature: "analytics", level: "edit" },
+    mutates: true,
+    description: "Clear an AI recommendation from the home by marking it done or dismissed. Get the recommendation id from query_business_data on ai_recommendations. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { recommendation_id: { type: "string" }, status: { type: "string", enum: ["done", "dismissed"] }, confirm: { type: "boolean" } }, required: ["recommendation_id", "status"] },
+    run: async (args, tenantId) => {
+      const id = String(args.recommendation_id || "");
+      const status = String(args.status || "");
+      if (!id || (status !== "done" && status !== "dismissed")) return { error: "Falta recommendation_id o status (done|dismissed)." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Marcar la recomendación ${id} como ${status}. Pide confirmación.` };
+      const e = actionFailed(await setRecommendationStatusAction(tenantId, id, status as "done" | "dismissed"));
+      return e ? { error: e } : { ok: true, message: "Recomendación actualizada." };
+    },
+  },
+
+  // ═══ Config & catalog — services, staff, settings, agents, branding ═══════
+
+  // ── Services ─────────────────────────────────────────────────────────────
+  create_service: {
+    permission: { feature: "calendar", level: "edit" },
+    mutates: true,
+    description: "Create a bookable service. Required: name, duration_min (minutes). Optional: price_amount, price_currency (default BOB), category, description, active (default true). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { name: { type: "string" }, duration_min: { type: "number" }, price_amount: { type: "number" }, price_currency: { type: "string" }, category: { type: "string" }, description: { type: "string" }, active: { type: "boolean" }, confirm: { type: "boolean" } }, required: ["name", "duration_min"] },
+    run: async (args, tenantId) => {
+      const name = String(args.name || "").trim();
+      const dur = Number(args.duration_min);
+      if (!name || !Number.isFinite(dur) || dur <= 0) return { error: "Falta el nombre o una duración válida." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Crear el servicio "${name}" (${Math.round(dur)} min). Pide confirmación.` };
+      const { error } = await svcAny().from("services").insert({
+        tenant_id: tenantId, name, duration_min: Math.round(dur),
+        price_amount: args.price_amount != null ? Number(args.price_amount) : null,
+        price_currency: args.price_currency ? String(args.price_currency) : "BOB",
+        category: args.category ? String(args.category) : null,
+        description: args.description ? String(args.description) : null,
+        active: args.active !== false,
+      });
+      return error ? { error: error.message } : { ok: true, message: `Servicio "${name}" creado.` };
+    },
+  },
+  update_service: {
+    permission: { feature: "calendar", level: "edit" },
+    mutates: true,
+    description: "Edit a service. Pass service_id + any of: name, duration_min, price_amount, price_currency, category, description, active. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { service_id: { type: "string" }, name: { type: "string" }, duration_min: { type: "number" }, price_amount: { type: "number" }, price_currency: { type: "string" }, category: { type: "string" }, description: { type: "string" }, active: { type: "boolean" }, confirm: { type: "boolean" } }, required: ["service_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.service_id || "");
+      if (!id) return { error: "Falta service_id." };
+      const patch: Record<string, unknown> = {};
+      if (args.name !== undefined) patch.name = String(args.name);
+      if (args.duration_min !== undefined) patch.duration_min = Math.round(Number(args.duration_min));
+      if (args.price_amount !== undefined) patch.price_amount = args.price_amount == null ? null : Number(args.price_amount);
+      if (args.price_currency !== undefined) patch.price_currency = String(args.price_currency);
+      if (args.category !== undefined) patch.category = String(args.category) || null;
+      if (args.description !== undefined) patch.description = String(args.description) || null;
+      if (args.active !== undefined) patch.active = !!args.active;
+      if (Object.keys(patch).length === 0) return { error: "No indicaste ningún cambio." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Editar el servicio ${id} (${Object.keys(patch).join(", ")}). Pide confirmación.` };
+      const { error } = await svcAny().from("services").update(patch).eq("id", id).eq("tenant_id", tenantId);
+      return error ? { error: error.message } : { ok: true, message: "Servicio actualizado." };
+    },
+  },
+  toggle_service_active: {
+    permission: { feature: "calendar", level: "edit" },
+    mutates: true,
+    description: "Activate or deactivate a service. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { service_id: { type: "string" }, active: { type: "boolean" }, confirm: { type: "boolean" } }, required: ["service_id", "active"] },
+    run: async (args, tenantId) => {
+      const id = String(args.service_id || "");
+      if (!id) return { error: "Falta service_id." };
+      const active = !!args.active;
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `${active ? "Activar" : "Desactivar"} el servicio ${id}. Pide confirmación.` };
+      const e = actionFailed(await toggleServiceActiveAction(tenantId, id, active));
+      return e ? { error: e } : { ok: true, message: `Servicio ${active ? "activado" : "desactivado"}.` };
+    },
+  },
+  delete_service: {
+    permission: { feature: "calendar", level: "edit" },
+    mutates: true,
+    description: "Delete a service. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { service_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["service_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.service_id || "");
+      if (!id) return { error: "Falta service_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Eliminar el servicio ${id}. Pide confirmación.` };
+      const e = actionFailed(await deleteServiceAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Servicio eliminado." };
+    },
+  },
+
+  // ── Staff ────────────────────────────────────────────────────────────────
+  create_staff: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Add a staff member. Required: name. Optional: email, role, active (default true). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { name: { type: "string" }, email: { type: "string" }, role: { type: "string" }, active: { type: "boolean" }, confirm: { type: "boolean" } }, required: ["name"] },
+    run: async (args, tenantId) => {
+      const name = String(args.name || "").trim();
+      if (!name) return { error: "Falta el nombre." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Agregar al personal: "${name}". Pide confirmación.` };
+      const { error } = await svcAny().from("staff").insert({ tenant_id: tenantId, name, email: args.email ? String(args.email) : null, role: args.role ? String(args.role) : null, active: args.active !== false });
+      return error ? { error: error.message } : { ok: true, message: `"${name}" agregado al personal.` };
+    },
+  },
+  update_staff: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Edit a staff member. Pass staff_id + any of: name, email, role, active. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { staff_id: { type: "string" }, name: { type: "string" }, email: { type: "string" }, role: { type: "string" }, active: { type: "boolean" }, confirm: { type: "boolean" } }, required: ["staff_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.staff_id || "");
+      if (!id) return { error: "Falta staff_id." };
+      const patch: Record<string, unknown> = {};
+      if (args.name !== undefined) patch.name = String(args.name);
+      if (args.email !== undefined) patch.email = String(args.email) || null;
+      if (args.role !== undefined) patch.role = String(args.role) || null;
+      if (args.active !== undefined) patch.active = !!args.active;
+      if (Object.keys(patch).length === 0) return { error: "No indicaste ningún cambio." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Editar al personal ${id}. Pide confirmación.` };
+      const { error } = await svcAny().from("staff").update(patch).eq("id", id).eq("tenant_id", tenantId);
+      return error ? { error: error.message } : { ok: true, message: "Personal actualizado." };
+    },
+  },
+  delete_staff: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Remove a staff member. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { staff_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["staff_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.staff_id || "");
+      if (!id) return { error: "Falta staff_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Eliminar al personal ${id}. Pide confirmación.` };
+      const e = actionFailed(await deleteStaffAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Personal eliminado." };
+    },
+  },
+
+  // ── Business settings / agents / branding ────────────────────────────────
+  update_business_settings: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Update the business's general settings. Any of: name, industry, language (es|en|pt|fr|it), timezone (IANA, e.g. America/La_Paz — this fixes 'bookings on the wrong day'), whatsapp_number, support_email, support_whatsapp, notification_email, notification_whatsapp_e164 (E.164), notify_on_new_reservation, notify_on_reschedule, notify_on_cancel (booleans). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { name: { type: "string" }, industry: { type: "string" }, language: { type: "string" }, timezone: { type: "string" }, whatsapp_number: { type: "string" }, support_email: { type: "string" }, support_whatsapp: { type: "string" }, notification_email: { type: "string" }, notification_whatsapp_e164: { type: "string" }, notify_on_new_reservation: { type: "boolean" }, notify_on_reschedule: { type: "boolean" }, notify_on_cancel: { type: "boolean" }, confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      const patch: Record<string, unknown> = {};
+      for (const k of ["name", "industry", "language", "timezone", "whatsapp_number", "support_email", "support_whatsapp", "notification_email", "notification_whatsapp_e164"]) {
+        if (args[k] !== undefined) patch[k] = String(args[k]).trim() || (k === "name" ? undefined : null);
+      }
+      for (const k of ["notify_on_new_reservation", "notify_on_reschedule", "notify_on_cancel"]) if (args[k] !== undefined) patch[k] = !!args[k];
+      if (patch.name === undefined && "name" in patch) delete patch.name;
+      if (Object.keys(patch).length === 0) return { error: "No indicaste ningún cambio." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Actualizar la configuración del negocio (${Object.keys(patch).join(", ")}). Pide confirmación.` };
+      const { error } = await svcAny().from("tenants").update(patch).eq("id", tenantId);
+      return error ? { error: error.message } : { ok: true, message: "Configuración del negocio actualizada." };
+    },
+  },
+  update_whatsapp_agent_prompt: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Edit the WhatsApp agent's system prompt (prompt_template) and optionally its variables (an object). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { prompt_template: { type: "string" }, prompt_variables: { type: "object" }, confirm: { type: "boolean" } }, required: ["prompt_template"] },
+    run: async (args, tenantId) => {
+      const tpl = String(args.prompt_template ?? "");
+      if (!tpl.trim()) return { error: "Falta el prompt." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: "Actualizar el prompt del agente de WhatsApp. Pide confirmación." };
+      const patch: Record<string, unknown> = { prompt_template: tpl };
+      if (args.prompt_variables !== undefined && typeof args.prompt_variables === "object") patch.prompt_variables = args.prompt_variables;
+      const { error } = await svcAny().from("tenants").update(patch).eq("id", tenantId);
+      return error ? { error: error.message } : { ok: true, message: "Prompt del agente de WhatsApp actualizado." };
+    },
+  },
+  update_branding: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Set brand colors (primary_color, accent_color as #rrggbb hex) and/or custom_domain. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { primary_color: { type: "string" }, accent_color: { type: "string" }, custom_domain: { type: "string" }, confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      const patch: Record<string, unknown> = {};
+      const hex = /^#[0-9a-fA-F]{6}$/;
+      if (args.primary_color !== undefined) { const c = String(args.primary_color); if (!hex.test(c)) return { error: "Color primario inválido (#rrggbb)." }; patch.primary_color = c; }
+      if (args.accent_color !== undefined) { const c = String(args.accent_color); if (!hex.test(c)) return { error: "Color de acento inválido (#rrggbb)." }; patch.accent_color = c; }
+      if (args.custom_domain !== undefined) patch.custom_domain = String(args.custom_domain).trim().toLowerCase() || null;
+      if (Object.keys(patch).length === 0) return { error: "No indicaste ningún cambio." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: "Actualizar la marca (colores/dominio). Pide confirmación." };
+      const { error } = await svcAny().from("tenants").update(patch).eq("id", tenantId);
+      return error ? { error: error.message } : { ok: true, message: "Marca actualizada." };
+    },
+  },
+
+  // ── Email sender (SMTP) ──────────────────────────────────────────────────
+  configure_smtp: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Configure the business's own SMTP email sender. Required: host, port, user, pass, from_email. Optional: from_name, secure (true for port 465). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { host: { type: "string" }, port: { type: "number" }, user: { type: "string" }, pass: { type: "string" }, from_email: { type: "string" }, from_name: { type: "string" }, secure: { type: "boolean" }, confirm: { type: "boolean" } }, required: ["host", "port", "user", "pass", "from_email"] },
+    run: async (args, tenantId) => {
+      const host = String(args.host || "").trim();
+      const port = Number(args.port);
+      if (!host || !Number.isFinite(port)) return { error: "Falta host o puerto." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Configurar el SMTP del negocio (${host}:${port}). Pide confirmación.` };
+      const e = actionFailed(await saveSmtpConfigAction(tenantId, { host, port, secure: args.secure !== undefined ? !!args.secure : port === 465, user: String(args.user || ""), pass: String(args.pass || ""), from_email: String(args.from_email || ""), from_name: args.from_name ? String(args.from_name) : null }));
+      return e ? { error: e } : { ok: true, message: "SMTP configurado." };
+    },
+  },
+  remove_smtp: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Remove the business's SMTP email sender. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      if (args.confirm !== true) return { requires_confirmation: true, summary: "Eliminar la configuración SMTP del negocio. Pide confirmación." };
+      const e = actionFailed(await removeSmtpConfigAction(tenantId));
+      return e ? { error: e } : { ok: true, message: "SMTP eliminado." };
+    },
+  },
+
+  // ── WhatsApp connection ──────────────────────────────────────────────────
+  connect_whatsapp: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Start connecting the business's WhatsApp (Evolution): generates a fresh QR + pairing code to link the phone. The QR appears in Settings → Integrations. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      if (args.confirm !== true) return { requires_confirmation: true, summary: "Generar el QR/código para conectar WhatsApp. Pide confirmación." };
+      const r = await provisionTenantWhatsAppAction(tenantId);
+      if (r.error) return { error: r.error };
+      return { ok: true, message: r.pairing_code ? `WhatsApp listo para vincular. Código de emparejamiento: ${r.pairing_code}. O escanea el QR en Ajustes → Integraciones.` : "QR generado. Escanéalo en Ajustes → Integraciones para conectar WhatsApp." };
+    },
+  },
+
+  // ── Marketing / content / shorts settings ────────────────────────────────
+  update_aima_settings: {
+    permission: { feature: "marketing", level: "edit" },
+    mutates: true,
+    description: "Update AIMA (lead finder) settings. Any of: scraper_enabled, scraper_sources (array of yellow_pages|google_maps|web_directory|apollo), scraper_concurrency, scraper_max_per_run, google_maps_api_key, apollo_enabled, apollo_api_key, cold_email_enabled, instantly_api_key, instantly_campaign_id, cold_email_daily_cap, target_verticals (array), target_geographies (array). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { scraper_enabled: { type: "boolean" }, scraper_sources: { type: "array", items: { type: "string" } }, scraper_concurrency: { type: "number" }, scraper_max_per_run: { type: "number" }, google_maps_api_key: { type: "string" }, apollo_enabled: { type: "boolean" }, apollo_api_key: { type: "string" }, cold_email_enabled: { type: "boolean" }, instantly_api_key: { type: "string" }, instantly_campaign_id: { type: "string" }, cold_email_daily_cap: { type: "number" }, target_verticals: { type: "array", items: { type: "string" } }, target_geographies: { type: "array", items: { type: "string" } }, confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      const fields: Record<string, unknown> = { ...args };
+      delete fields.confirm;
+      if (Object.keys(fields).length === 0) return { error: "No indicaste ningún ajuste." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Actualizar los ajustes de AIMA (${Object.keys(fields).join(", ")}). Pide confirmación.` };
+      const e = actionFailed(await updateAimaSettingsAction(tenantId, fields as never));
+      return e ? { error: e } : { ok: true, message: "Ajustes de AIMA actualizados." };
+    },
+  },
+  set_cold_outreach_attestation: {
+    permission: { feature: "settings", level: "edit" },
+    mutates: true,
+    description: "Record (attested:true) or revoke (attested:false) the business's attestation that it has a lawful basis to cold-contact the businesses AIMA finds / Sandra calls. Required before any cold outreach runs. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { attested: { type: "boolean" }, confirm: { type: "boolean" } }, required: ["attested"] },
+    run: async (args, tenantId) => {
+      const attested = !!args.attested;
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `${attested ? "Registrar" : "Revocar"} la atestación de base legal para prospección en frío. Pide confirmación.` };
+      const e = actionFailed(await attestColdOutreachAction(tenantId, attested));
+      return e ? { error: e } : { ok: true, message: attested ? "Atestación registrada." : "Atestación revocada." };
+    },
+  },
+  update_ccavai_settings: {
+    permission: { feature: "content", level: "edit" },
+    mutates: true,
+    description: "Update CCAVAI (content) settings. Any of: enabled, platforms (array of linkedin|instagram|facebook|x), tone (professional_warm|casual_friendly|bold_punchy|educational|industry_voice), drafts_per_run, generate_images, image_style (branded_modern|editorial|photographic|illustration), auto_post, brand_vocabulary (text), do_not_say (array). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { enabled: { type: "boolean" }, platforms: { type: "array", items: { type: "string" } }, tone: { type: "string" }, drafts_per_run: { type: "number" }, generate_images: { type: "boolean" }, image_style: { type: "string" }, auto_post: { type: "boolean" }, brand_vocabulary: { type: "string" }, do_not_say: { type: "array", items: { type: "string" } }, confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      const fields: Record<string, unknown> = { ...args };
+      delete fields.confirm;
+      if (Object.keys(fields).length === 0) return { error: "No indicaste ningún ajuste." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Actualizar los ajustes de CCAVAI (${Object.keys(fields).join(", ")}). Pide confirmación.` };
+      const e = actionFailed(await updateCcavaiSettingsAction(tenantId, fields as never));
+      return e ? { error: e } : { ok: true, message: "Ajustes de CCAVAI actualizados." };
+    },
+  },
+  submit_shorts_job: {
+    permission: { feature: "shorts", level: "edit" },
+    mutates: true,
+    description: "Submit a video URL (YouTube/Vimeo/mp4) to VIRA to auto-generate short clips. VIRA must be enabled. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { source_url: { type: "string" }, confirm: { type: "boolean" } }, required: ["source_url"] },
+    run: async (args, tenantId) => {
+      const url = String(args.source_url || "").trim();
+      if (!url) return { error: "Falta source_url." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Generar shorts a partir de ${url}. Pide confirmación.` };
+      const e = actionFailed(await submitViraJobAction(tenantId, url));
+      return e ? { error: e } : { ok: true, message: "Trabajo de shorts encolado." };
+    },
+  },
+  update_vira_settings: {
+    permission: { feature: "shorts", level: "edit" },
+    mutates: true,
+    description: "Update VIRA (shorts) settings. Any of: enabled, min_clip_seconds, max_clip_seconds, clips_per_video, output_format (9:16|1:1|16:9), clip_style (high_energy|educational|storytelling|qa_highlights), add_subtitles, subtitle_style, add_watermark, watermark_text, max_input_minutes, auto_post_drafts. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { enabled: { type: "boolean" }, min_clip_seconds: { type: "number" }, max_clip_seconds: { type: "number" }, clips_per_video: { type: "number" }, output_format: { type: "string" }, clip_style: { type: "string" }, add_subtitles: { type: "boolean" }, subtitle_style: { type: "string" }, add_watermark: { type: "boolean" }, watermark_text: { type: "string" }, max_input_minutes: { type: "number" }, auto_post_drafts: { type: "boolean" }, confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      const fields: Record<string, unknown> = { ...args };
+      delete fields.confirm;
+      if (Object.keys(fields).length === 0) return { error: "No indicaste ningún ajuste." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Actualizar los ajustes de VIRA (${Object.keys(fields).join(", ")}). Pide confirmación.` };
+      const e = actionFailed(await updateViraSettingsAction(tenantId, fields as never));
+      return e ? { error: e } : { ok: true, message: "Ajustes de VIRA actualizados." };
+    },
+  },
+
+  // ── Knowledge base ───────────────────────────────────────────────────────
+  add_knowledge_faq: {
+    permission: { feature: "knowledge", level: "edit" },
+    mutates: true,
+    description: "Add a Q&A/FAQ entry to the knowledge base the WhatsApp + voice agents use to answer customers. Provide content (the text the agents learn) and optionally question + answer. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { content: { type: "string" }, question: { type: "string" }, answer: { type: "string" }, confirm: { type: "boolean" } }, required: ["content"] },
+    run: async (args, tenantId) => {
+      const content = String(args.content ?? "").trim();
+      if (!content) return { error: "Falta el contenido." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Agregar a la base de conocimiento: «${content.slice(0, 80)}». Pide confirmación.` };
+      const fd = new FormData();
+      fd.set("tenant_id", tenantId);
+      fd.set("type", "documents");
+      fd.set("source", "manual");
+      fd.set("content", content);
+      if (args.question !== undefined) fd.set("question", String(args.question));
+      if (args.answer !== undefined) fd.set("answer", String(args.answer));
+      const e = actionFailed(await addManualChunkAction({ error: null }, fd));
+      return e ? { error: e } : { ok: true, message: "Entrada agregada a la base de conocimiento." };
+    },
+  },
+
+  // ── Team — employee groups & credit budgets ──────────────────────────────
+  create_employee_group: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Create an employee group (used for shared credit budgets). Required: name. Optional: description. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { name: { type: "string" }, description: { type: "string" }, confirm: { type: "boolean" } }, required: ["name"] },
+    run: async (args, tenantId) => {
+      const name = String(args.name || "").trim();
+      if (!name) return { error: "Falta el nombre del grupo." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Crear el grupo "${name}". Pide confirmación.` };
+      const { error } = await svcAny().from("employee_groups").insert({ tenant_id: tenantId, name, description: args.description ? String(args.description) : null });
+      return error ? { error: /duplicate|unique/i.test(error.message) ? "Ya existe un grupo con ese nombre." : error.message } : { ok: true, message: `Grupo "${name}" creado.` };
+    },
+  },
+  delete_employee_group: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Delete an employee group. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { group_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["group_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.group_id || "");
+      if (!id) return { error: "Falta group_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Eliminar el grupo ${id}. Pide confirmación.` };
+      const e = actionFailed(await deleteGroupAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Grupo eliminado." };
+    },
+  },
+  assign_member_to_group: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Assign a member to an employee group (a member is in at most one group). Get user_id from list_team, group_id from query_business_data on employee_groups. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { group_id: { type: "string" }, user_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["group_id", "user_id"] },
+    run: async (args, tenantId) => {
+      const g = String(args.group_id || "");
+      const u = String(args.user_id || "");
+      if (!g || !u) return { error: "Falta group_id o user_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Asignar el miembro ${u} al grupo ${g}. Pide confirmación.` };
+      const e = actionFailed(await assignMemberAction(tenantId, g, u));
+      return e ? { error: e } : { ok: true, message: "Miembro asignado al grupo." };
+    },
+  },
+  unassign_member_from_group: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Remove a member from their employee group. Get user_id from list_team. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { user_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["user_id"] },
+    run: async (args, tenantId) => {
+      const u = String(args.user_id || "");
+      if (!u) return { error: "Falta user_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Quitar al miembro ${u} de su grupo. Pide confirmación.` };
+      const e = actionFailed(await unassignMemberAction(tenantId, u));
+      return e ? { error: e } : { ok: true, message: "Miembro quitado del grupo." };
+    },
+  },
+  set_credit_budget: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Set a credit budget cap for a user or a group. scope_type: user|group; scope_id: the user_id or group_id; period: monthly|one_time; allocated_credits: the cap. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { scope_type: { type: "string", enum: ["user", "group"] }, scope_id: { type: "string" }, period: { type: "string", enum: ["monthly", "one_time"] }, allocated_credits: { type: "number" }, confirm: { type: "boolean" } }, required: ["scope_type", "scope_id", "period", "allocated_credits"] },
+    run: async (args, tenantId) => {
+      const st = String(args.scope_type || "");
+      const sid = String(args.scope_id || "");
+      const period = String(args.period || "");
+      const cap = Number(args.allocated_credits);
+      if (!["user", "group"].includes(st) || !sid || !["monthly", "one_time"].includes(period) || !Number.isFinite(cap)) return { error: "Datos de presupuesto inválidos." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Fijar un presupuesto de ${Math.round(cap)} créditos (${period}) para ${st} ${sid}. Pide confirmación.` };
+      const e = actionFailed(await setBudgetAction({ tenantId, scopeType: st as "user" | "group", scopeId: sid, period: period as "monthly" | "one_time", allocatedCredits: Math.round(cap) }));
+      return e ? { error: e } : { ok: true, message: "Presupuesto fijado." };
+    },
+  },
+  remove_credit_budget: {
+    permission: { feature: "team", level: "edit" },
+    mutates: true,
+    description: "Remove a credit budget by its id (from query_business_data on credit_budgets). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { budget_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["budget_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.budget_id || "");
+      if (!id) return { error: "Falta budget_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Eliminar el presupuesto ${id}. Pide confirmación.` };
+      const e = actionFailed(await removeBudgetAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Presupuesto eliminado." };
+    },
+  },
+
+  // ═══ Customer invoicing & credit top-ups (operator/billing-gated) ═════════
+  // NOTE: these issue the TENANT's own customer invoices / start a top-up the
+  // user pays — they do NOT change platform pricing or grant credits.
+  create_invoice: {
+    permission: { feature: "invoices", level: "edit" },
+    mutates: true,
+    description: "Create a DRAFT invoice for a customer. Provide currency (3-letter, e.g. USD) and items: array of {description, quantity, unit_price_cents, tax_rate_bps}. Optional: customer_name, customer_email (needed to send), customer_phone, due_date (YYYY-MM-DD), notes. Use send_invoice afterwards. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { customer_name: { type: "string" }, customer_email: { type: "string" }, customer_phone: { type: "string" }, currency: { type: "string" }, due_date: { type: "string" }, notes: { type: "string" }, items: { type: "array", items: { type: "object", properties: { description: { type: "string" }, quantity: { type: "number" }, unit_price_cents: { type: "number" }, tax_rate_bps: { type: "number" } } } }, confirm: { type: "boolean" } }, required: ["currency", "items"] },
+    run: async (args, tenantId) => {
+      const items = Array.isArray(args.items) ? (args.items as Record<string, unknown>[]) : [];
+      if (items.length === 0) return { error: "Agrega al menos un item." };
+      const currency = String(args.currency || "").trim();
+      if (currency.length !== 3) return { error: "La moneda debe ser de 3 letras (ej. USD)." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Crear una factura en borrador para ${args.customer_name ? String(args.customer_name) : "el cliente"} (${items.length} item(s), ${currency.toUpperCase()}). Pide confirmación.` };
+      const fd = new FormData();
+      fd.set("tenant_id", tenantId);
+      fd.set("currency", currency);
+      if (args.customer_name !== undefined) fd.set("customer_name", String(args.customer_name));
+      if (args.customer_email !== undefined) fd.set("customer_email", String(args.customer_email));
+      if (args.customer_phone !== undefined) fd.set("customer_phone", String(args.customer_phone));
+      if (args.due_date !== undefined) fd.set("due_date", String(args.due_date));
+      if (args.notes !== undefined) fd.set("notes", String(args.notes));
+      fd.set("items_json", JSON.stringify(items.map((it) => ({ description: String(it.description ?? ""), quantity: Number(it.quantity ?? 1), unit_price_cents: Math.round(Number(it.unit_price_cents ?? 0)), tax_rate_bps: Math.round(Number(it.tax_rate_bps ?? 0)) }))));
+      const r = await upsertInvoiceAction({ error: null }, fd);
+      const e = actionFailed(r);
+      return e ? { error: e } : { ok: true, message: `Factura en borrador creada${(r as { invoiceId?: string }).invoiceId ? ` (id ${(r as { invoiceId?: string }).invoiceId})` : ""}. Usa send_invoice para enviarla.` };
+    },
+  },
+  send_invoice: {
+    permission: { feature: "invoices", level: "edit" },
+    mutates: true,
+    description: "Send a draft invoice to the customer via Stripe (requires the business's Stripe connected). Get invoice_id from query_business_data on invoices. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { invoice_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["invoice_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.invoice_id || "");
+      if (!id) return { error: "Falta invoice_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Enviar la factura ${id} al cliente por Stripe. Pide confirmación.` };
+      const e = actionFailed(await sendInvoiceAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Factura enviada al cliente." };
+    },
+  },
+  void_invoice: {
+    permission: { feature: "invoices", level: "edit" },
+    mutates: true,
+    description: "Void (cancel) an invoice. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { invoice_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["invoice_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.invoice_id || "");
+      if (!id) return { error: "Falta invoice_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Anular la factura ${id}. Pide confirmación.` };
+      const e = actionFailed(await voidInvoiceAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Factura anulada." };
+    },
+  },
+  mark_invoice_paid: {
+    permission: { feature: "invoices", level: "edit" },
+    mutates: true,
+    description: "Mark an invoice as paid manually (e.g. paid in cash). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { invoice_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["invoice_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.invoice_id || "");
+      if (!id) return { error: "Falta invoice_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Marcar como pagada la factura ${id}. Pide confirmación.` };
+      const e = actionFailed(await markPaidManuallyAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Factura marcada como pagada." };
+    },
+  },
+  cancel_invoice_subscription: {
+    permission: { feature: "invoices", level: "edit" },
+    mutates: true,
+    description: "Cancel the recurring Stripe subscription behind a recurring invoice. Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { invoice_id: { type: "string" }, confirm: { type: "boolean" } }, required: ["invoice_id"] },
+    run: async (args, tenantId) => {
+      const id = String(args.invoice_id || "");
+      if (!id) return { error: "Falta invoice_id." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Cancelar la suscripción de la factura ${id}. Pide confirmación.` };
+      const e = actionFailed(await cancelSubscriptionAction(tenantId, id));
+      return e ? { error: e } : { ok: true, message: "Suscripción cancelada." };
+    },
+  },
+  start_credit_topup: {
+    permission: { feature: "billing", level: "edit" },
+    mutates: true,
+    description: "Start a credit top-up: creates a Stripe checkout link the user opens to pay and add credits to the business balance (this does NOT change platform pricing). Provide amount_usd (whole dollars). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { amount_usd: { type: "number" }, confirm: { type: "boolean" } }, required: ["amount_usd"] },
+    run: async (args, tenantId) => {
+      const usd = Number(args.amount_usd);
+      if (!Number.isFinite(usd) || usd <= 0) return { error: "Monto inválido." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Crear un enlace de pago para recargar US$${usd} en créditos. Pide confirmación.` };
+      const { data: tRow } = await svcAny().from("tenants").select("slug").eq("id", tenantId).maybeSingle();
+      const slug = (tRow as { slug?: string } | null)?.slug ?? "";
+      const r = await startTopupAction(tenantId, slug, Math.round(usd * 100));
+      if (r.error) return { error: r.error };
+      return { ok: true, message: r.url ? `Enlace de recarga creado: ${r.url}` : "Enlace de recarga creado." };
+    },
+  },
+  update_business_profile: {
+    permission: { feature: "billing", level: "edit" },
+    mutates: true,
+    description: "Update the billing/business profile shown on invoices. Any of: legal_name, tax_id, address_line1, address_line2, address_city, address_state, address_postal_code, address_country (ISO-2), invoice_footer, invoice_default_currency (3-letter). Confirm, then confirm:true.",
+    parameters: { type: "object", properties: { legal_name: { type: "string" }, tax_id: { type: "string" }, address_line1: { type: "string" }, address_line2: { type: "string" }, address_city: { type: "string" }, address_state: { type: "string" }, address_postal_code: { type: "string" }, address_country: { type: "string" }, invoice_footer: { type: "string" }, invoice_default_currency: { type: "string" }, confirm: { type: "boolean" } } },
+    run: async (args, tenantId) => {
+      const patch: Record<string, unknown> = {};
+      for (const k of ["legal_name", "tax_id", "address_line1", "address_line2", "address_city", "address_state", "address_postal_code", "invoice_footer"]) if (args[k] !== undefined) patch[k] = String(args[k]) || null;
+      if (args.address_country !== undefined) patch.address_country = String(args.address_country).toUpperCase().slice(0, 2) || null;
+      if (args.invoice_default_currency !== undefined) patch.invoice_default_currency = String(args.invoice_default_currency).toUpperCase().slice(0, 3);
+      if (Object.keys(patch).length === 0) return { error: "No indicaste ningún cambio." };
+      if (args.confirm !== true) return { requires_confirmation: true, summary: `Actualizar el perfil de facturación (${Object.keys(patch).join(", ")}). Pide confirmación.` };
+      const { error } = await svcAny().from("tenants").update(patch).eq("id", tenantId);
+      return error ? { error: error.message } : { ok: true, message: "Perfil de facturación actualizado." };
     },
   },
 };
