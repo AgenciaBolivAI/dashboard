@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, Send, AlertTriangle } from "lucide-react";
@@ -57,8 +57,10 @@ export function InvoiceEditor({
 }) {
   const t = useTranslations("invoices");
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(upsertInvoiceAction, initial);
   const [sending, startSend] = useTransition();
+  const stripeReady = Boolean(tenant.stripe_account_id && tenant.stripe_charges_enabled);
 
   const [items, setItems] = useState<EditableItem[]>(
     itemsFromDb.length > 0
@@ -120,23 +122,43 @@ export function InvoiceEditor({
   }
 
   async function handleSend() {
-    if (!invoice) {
-      toast.error(t("save_draft_first"));
+    const form = formRef.current;
+    // Surface missing required fields (name, email, item descriptions) natively.
+    if (form && !form.reportValidity()) return;
+    if (!stripeReady) {
+      toast.error(t("stripe_required_warning"));
       return;
     }
     if (!confirm(t("send_confirm"))) return;
     startSend(async () => {
-      const res = await sendInvoiceAction(tenant.id, invoice.id);
-      if (res.error) toast.error(res.error);
-      else {
-        toast.success(t("invoice_sent"));
-        router.refresh();
+      // Persist the current form first so what's on screen is exactly what's
+      // sent — this also creates the draft when sending straight from /new.
+      let invoiceId = invoice?.id ?? null;
+      if (form) {
+        const saveRes = await upsertInvoiceAction(initial, new FormData(form));
+        if (saveRes.error || !saveRes.invoiceId) {
+          toast.error(saveRes.error ?? t("save_draft_first"));
+          return;
+        }
+        invoiceId = saveRes.invoiceId;
       }
+      if (!invoiceId) {
+        toast.error(t("save_draft_first"));
+        return;
+      }
+      const res = await sendInvoiceAction(tenant.id, invoiceId);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(t("invoice_sent"));
+      if (!invoice) router.push(`/dashboard/${tenant.slug}/invoices/${invoiceId}`);
+      else router.refresh();
     });
   }
 
   return (
-    <form action={action} className="space-y-6">
+    <form ref={formRef} action={action} className="space-y-6">
       <input type="hidden" name="tenant_id" value={tenant.id} />
       <input type="hidden" name="invoice_id" value={invoice?.id ?? ""} />
       <input type="hidden" name="reservation_id" value={invoice?.reservation_id ?? ""} />
@@ -377,7 +399,8 @@ export function InvoiceEditor({
         </Button>
         <Button
           type="button"
-          disabled={!invoice || pending || sending}
+          disabled={pending || sending || !stripeReady}
+          title={!stripeReady ? t("stripe_required_warning") : undefined}
           onClick={handleSend}
         >
           <Send className="size-4" />
