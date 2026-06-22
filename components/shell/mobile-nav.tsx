@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -29,8 +30,12 @@ export function MobileNav({
   permissions?: PermissionSet;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const t = useTranslations("nav");
+
+  // Portal target only exists on the client.
+  useEffect(() => setMounted(true), []);
 
   // Close the drawer whenever the route changes.
   useEffect(() => {
@@ -58,6 +63,13 @@ export function MobileNav({
         <Menu className="size-5" />
       </button>
 
+      {/* Backdrop + drawer are portaled to <body>: the header has backdrop-blur,
+          which makes it the containing block for position:fixed descendants — so
+          rendered in place the drawer would size to the 64px header, not the
+          viewport (the nav would be clipped off-screen). The portal escapes that. */}
+      {mounted
+        ? createPortal(
+            <>
       {/* Backdrop */}
       <div
         className={cn(
@@ -127,6 +139,10 @@ export function MobileNav({
           </>
         ) : null}
       </div>
+            </>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
