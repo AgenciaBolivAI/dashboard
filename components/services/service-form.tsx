@@ -102,7 +102,7 @@ export function ServiceFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="col-span-2 space-y-2">
               <Label htmlFor="price_amount">{t("price")}</Label>
               <Input

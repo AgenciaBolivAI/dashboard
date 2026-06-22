@@ -11,6 +11,22 @@ import type { Database } from "@/types/database";
  *   - everything else            → public
  */
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Maintenance mode (env-gated): redirect human traffic to /maintenance. API
+  // routes are exempt so machine webhooks (Stripe/Meta/voice/n8n) keep working.
+  if (
+    process.env.MAINTENANCE_MODE === "1" &&
+    pathname !== "/maintenance" &&
+    !pathname.startsWith("/api") &&
+    !pathname.startsWith("/_next")
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/maintenance";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(

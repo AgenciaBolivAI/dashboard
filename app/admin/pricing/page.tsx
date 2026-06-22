@@ -85,8 +85,8 @@ export default async function AdminPricingPage() {
         </div>
       </Card>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-sm">
+      <Card className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-sm">
           <thead>
             <tr className="bg-muted/50 border-b border-border text-xs">
               <th className="p-2 w-8" />
