@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -156,7 +157,8 @@ export async function updateCustomerProfileAction(
 ): Promise<CustomerActionState> {
   const parsed = profileSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    const et = await getTranslations("action_errors");
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
   const {
     tenant_id,

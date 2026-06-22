@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -38,8 +39,9 @@ export async function updateCcavaiDraftStatusAction(
   notes?: string,
   postedUrl?: string,
 ): Promise<CcavaiState> {
+  const et = await getTranslations("action_errors");
   const parsed = statusSchema.safeParse(status);
-  if (!parsed.success) return { error: "Estado inválido" };
+  if (!parsed.success) return { error: et("draft_invalid_status") };
 
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
@@ -85,8 +87,9 @@ export async function updateCcavaiDraftAction(
   draftId: string,
   fields: z.infer<typeof editTextSchema>,
 ): Promise<CcavaiState> {
+  const et = await getTranslations("action_errors");
   const parsed = editTextSchema.safeParse(fields);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
 
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
@@ -101,7 +104,7 @@ export async function updateCcavaiDraftAction(
     .eq("tenant_id", tenantId)
     .single();
   if (readErr || !existingRow) {
-    return { error: readErr?.message ?? "Draft no encontrado" };
+    return { error: readErr?.message ?? et("draft_not_found") };
   }
   const existing = existingRow as {
     subject_image_url: string | null;
@@ -141,7 +144,7 @@ export async function updateCcavaiDraftAction(
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "render failed";
-      return { error: `No se pudo regenerar imagen: ${msg}` };
+      return { error: `${et("ccavai_rerender_failed")}: ${msg}` };
     }
   }
 
@@ -193,8 +196,9 @@ export async function replaceCcavaiSubjectAction(
   draftId: string,
   input: z.infer<typeof replaceSubjectSchema>,
 ): Promise<CcavaiState> {
+  const et = await getTranslations("action_errors");
   const parsed = replaceSubjectSchema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
 
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
@@ -207,7 +211,7 @@ export async function replaceCcavaiSubjectAction(
     .eq("tenant_id", tenantId)
     .single();
   if (readErr || !existingRow) {
-    return { error: readErr?.message ?? "Draft no encontrado" };
+    return { error: readErr?.message ?? et("draft_not_found") };
   }
   const existing = existingRow as {
     branded_headline: string | null;
@@ -222,7 +226,7 @@ export async function replaceCcavaiSubjectAction(
     subjectDataUri = parsed.data.subject_data_uri!;
   } else {
     const key = process.env.OPENAI_API_KEY;
-    if (!key) return { error: "OPENAI_API_KEY no configurado" };
+    if (!key) return { error: et("openai_not_configured") };
     const res = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -242,7 +246,7 @@ export async function replaceCcavaiSubjectAction(
     }
     const json = (await res.json()) as { data?: { b64_json?: string }[] };
     const b64 = json.data?.[0]?.b64_json;
-    if (!b64) return { error: "OpenAI no devolvió imagen" };
+    if (!b64) return { error: et("ccavai_no_image") };
     subjectDataUri = `data:image/png;base64,${b64}`;
   }
 
@@ -263,7 +267,7 @@ export async function replaceCcavaiSubjectAction(
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "render failed";
-    return { error: `No se pudo brandear la imagen: ${msg}` };
+    return { error: `${et("ccavai_brand_failed")}: ${msg}` };
   }
 
   // Upload both images to Storage; persist URLs (not multi-MB base64) so the
@@ -276,7 +280,7 @@ export async function replaceCcavaiSubjectAction(
     const brandDec = decodeDataUri(brandedDataUri);
     if (brandDec) brandedUrl = await uploadCcavaiImage(tenantId, "branded", brandDec.buf, brandDec.contentType);
   } catch (e) {
-    return { error: `No se pudo subir la imagen: ${e instanceof Error ? e.message : "error"}` };
+    return { error: `${et("ccavai_upload_failed")}: ${e instanceof Error ? e.message : "error"}` };
   }
 
   const { error: updErr } = await svc
@@ -309,8 +313,9 @@ export async function triggerCcavaiGenerationAction(
   const url = process.env.CCAVAI_WEBHOOK_URL;
   const secret = process.env.CCAVAI_WEBHOOK_SECRET;
   if (!url || !secret) {
+    const et = await getTranslations("action_errors");
     return {
-      error: "CCAVAI webhook no configurado (CCAVAI_WEBHOOK_URL / CCAVAI_WEBHOOK_SECRET).",
+      error: et("ccavai_webhook_not_configured"),
     };
   }
 
@@ -386,9 +391,10 @@ export async function updateCcavaiSettingsAction(
   tenantId: string,
   fields: z.infer<typeof settingsSchema>,
 ): Promise<CcavaiState> {
+  const et = await getTranslations("action_errors");
   const parsed = settingsSchema.safeParse(fields);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   await requireUser();

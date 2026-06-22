@@ -1,5 +1,6 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { getTenantBySlug } from "@/lib/tenant";
 import { runAssistant, type ChatMsg, type PendingAction } from "@/lib/analytics-tools/run";
@@ -39,9 +40,10 @@ export async function askAssistantAction(
   // refuse upfront if the tenant can't afford it (no free answer at 0 balance).
   const bal = await getBalanceWithService(tenant.id);
   if (!bal || bal.available_credits < 1) {
+    const et = await getTranslations("action_errors");
     return {
       ok: false,
-      error: "Necesitas al menos 1 crédito para usar el asistente. Recárgalo en Facturación.",
+      error: et("assistant_need_credit"),
     };
   }
 
@@ -97,7 +99,8 @@ export async function executeAssistantActionAction(
   await requireTenantAccess(tenant.id);
 
   if (!WRITE_TOOL_NAMES.has(name)) {
-    return { ok: false, error: "Acción no permitida." };
+    const et = await getTranslations("action_errors");
+    return { ok: false, error: et("assistant_action_not_allowed") };
   }
 
   const result = (await dispatchTool(name, { ...(args ?? {}), confirm: true }, tenant.id)) as

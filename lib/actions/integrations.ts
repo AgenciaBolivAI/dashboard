@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -56,9 +57,10 @@ export async function updateGoogleMetadataAction(
   _prev: IntegrationState,
   formData: FormData,
 ): Promise<IntegrationState> {
+  const et = await getTranslations("action_errors");
   const parsed = metadataSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   await requireUser();
@@ -101,6 +103,7 @@ export async function updateGoogleMetadataAction(
 export async function refreshGoogleTokenAction(
   tenantId: string,
 ): Promise<IntegrationState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
@@ -114,7 +117,7 @@ export async function refreshGoogleTokenAction(
 
   const refresh = (row as { refresh_token: string | null } | null)?.refresh_token;
   if (!refresh) {
-    return { error: "Sin refresh token. Reconecta Google." };
+    return { error: et("google_no_refresh_token") };
   }
 
   try {
@@ -129,7 +132,7 @@ export async function refreshGoogleTokenAction(
       .eq("tenant_id", tenantId)
       .eq("provider", "google");
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "No se pudo refrescar" };
+    return { error: e instanceof Error ? e.message : et("google_refresh_failed") };
   }
 
   revalidatePath("/dashboard", "layout");

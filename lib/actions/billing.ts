@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -44,9 +45,10 @@ export async function updateBusinessProfileAction(
   _prev: BillingState,
   formData: FormData,
 ): Promise<BillingState> {
+  const et = await getTranslations("action_errors");
   const parsed = businessProfileSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: et("invalid_data") };
   }
   const data = parsed.data;
 
@@ -96,9 +98,10 @@ export async function startTopupAction(
   tenantSlug: string,
   cents: number,
 ): Promise<{ error: string | null; url?: string | null }> {
+  const et = await getTranslations("action_errors");
   const parsed = topupSchema.safeParse({ cents });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Monto inválido" };
+    return { error: et("amount_invalid") };
   }
 
   const user = await requireUser();
@@ -113,7 +116,7 @@ export async function startTopupAction(
     });
     return { error: null, url };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "No se pudo crear la sesión de pago";
+    const msg = e instanceof Error ? e.message : et("checkout_session_failed");
     return { error: msg };
   }
 }

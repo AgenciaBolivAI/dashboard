@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -25,7 +26,10 @@ export async function createTaskAction(
   input: z.infer<typeof createSchema>,
 ): Promise<TaskActionResult> {
   const parsed = createSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Datos de la tarea inválidos" };
+  if (!parsed.success) {
+    const et = await getTranslations("action_errors");
+    return { ok: false, error: et("invalid_data") };
+  }
 
   const user = await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
@@ -66,7 +70,10 @@ export async function updateTaskAction(
   patch: z.infer<typeof updateSchema>,
 ): Promise<TaskActionResult> {
   const parsed = updateSchema.safeParse(patch);
-  if (!parsed.success) return { ok: false, error: "Cambios inválidos" };
+  if (!parsed.success) {
+    const et = await getTranslations("action_errors");
+    return { ok: false, error: et("invalid_data") };
+  }
 
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });

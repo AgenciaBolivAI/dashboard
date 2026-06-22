@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -38,9 +39,10 @@ export async function updateAimaSettingsAction(
   tenantId: string,
   fields: z.infer<typeof settingsSchema>,
 ): Promise<AimaState> {
+  const et = await getTranslations("action_errors");
   const parsed = settingsSchema.safeParse(fields);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   await requireUser();
@@ -84,9 +86,9 @@ export async function triggerAimaScrapeAction(
   const url = process.env.AIMA_WEBHOOK_URL;
   const secret = process.env.AIMA_WEBHOOK_SECRET;
   if (!url || !secret) {
+    const et = await getTranslations("action_errors");
     return {
-      error:
-        "AIMA webhook no configurado (AIMA_WEBHOOK_URL / AIMA_WEBHOOK_SECRET).",
+      error: et("aima_webhook_not_configured"),
     };
   }
 

@@ -55,12 +55,17 @@ export function GrantCreditsPicker({ tenants }: { tenants: TenantOption[] }) {
           <Label htmlFor="grant_tenant" className="text-xs">
             {t("grant_business")}
           </Label>
+          {/* Form-filler / wallet browser extensions inject `fdprocessedid`
+              onto form controls before React hydrates, which trips a hydration
+              attribute mismatch. These are generic inputs (no sensitive value),
+              so suppress the warning on each control. */}
           <select
             id="grant_tenant"
             name="tenant_id"
             value={tenantId}
             onChange={(e) => setTenantId(e.target.value)}
             required
+            suppressHydrationWarning
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {tenants.length === 0 ? (
@@ -93,6 +98,7 @@ export function GrantCreditsPicker({ tenants }: { tenants: TenantOption[] }) {
               placeholder="10"
               className="pl-6"
               required
+              suppressHydrationWarning
             />
           </div>
         </div>
@@ -104,6 +110,7 @@ export function GrantCreditsPicker({ tenants }: { tenants: TenantOption[] }) {
             key={p}
             type="button"
             onClick={() => setAmount(String(p))}
+            suppressHydrationWarning
             className="px-2.5 py-1 rounded-md text-xs border border-input hover:border-primary hover:text-primary transition"
           >
             ${p}
@@ -120,6 +127,7 @@ export function GrantCreditsPicker({ tenants }: { tenants: TenantOption[] }) {
           name="note"
           placeholder={t("grant_note_placeholder")}
           maxLength={200}
+          suppressHydrationWarning
         />
       </div>
 

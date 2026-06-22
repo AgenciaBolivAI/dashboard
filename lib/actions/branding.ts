@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -32,9 +33,10 @@ export async function updateBrandingAction(
   _prev: BrandingState,
   formData: FormData,
 ): Promise<BrandingState> {
+  const et = await getTranslations("action_errors");
   const parsed = colorsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   await requireUser();
@@ -52,7 +54,7 @@ export async function updateBrandingAction(
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "Ese dominio ya está en uso por otro agente" };
+      return { error: et("branding_domain_taken") };
     }
     return { error: error.message };
   }
@@ -64,17 +66,18 @@ export async function updateBrandingAction(
 const ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 
 export async function uploadLogoAction(formData: FormData): Promise<BrandingState> {
+  const et = await getTranslations("action_errors");
   const tenantId = formData.get("tenant_id");
   const file = formData.get("logo");
 
   if (typeof tenantId !== "string" || !file || !(file instanceof File)) {
-    return { error: "Archivo requerido" };
+    return { error: et("logo_file_required") };
   }
   if (!ALLOWED_MIME.includes(file.type)) {
-    return { error: "Formato no soportado (use PNG, JPG, WebP o SVG)" };
+    return { error: et("logo_format_unsupported") };
   }
   if (file.size > 5 * 1024 * 1024) {
-    return { error: "Máximo 5 MB" };
+    return { error: et("logo_too_large") };
   }
 
   await requireUser();

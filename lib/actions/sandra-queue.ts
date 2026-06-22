@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 
@@ -28,7 +29,10 @@ export async function addLeadsToSandraQueueAction(
 ): Promise<SandraQueueState> {
   const idsSchema = z.array(z.string().uuid()).min(1).max(500);
   const parsed = idsSchema.safeParse(leadIds);
-  if (!parsed.success) return { error: "IDs inválidos" };
+  if (!parsed.success) {
+    const et = await getTranslations("action_errors");
+    return { error: et("invalid_data") };
+  }
 
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
@@ -110,7 +114,10 @@ export async function updateSandraQueueItemAction(
   let statusValue: typeof STATUS_VALUES[number] | undefined;
   if (fields.status !== undefined) {
     const parsed = statusSchema.safeParse(fields.status);
-    if (!parsed.success) return { error: "Estado inválido" };
+    if (!parsed.success) {
+      const et = await getTranslations("action_errors");
+      return { error: et("queue_invalid_status") };
+    }
     statusValue = parsed.data;
   }
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -105,7 +106,8 @@ export async function updateLeadStatusAction(
 ): Promise<LeadState> {
   const parsedStatus = statusSchema.safeParse(status);
   if (!parsedStatus.success) {
-    return { error: "Estado inválido" };
+    const et = await getTranslations("action_errors");
+    return { error: et("lead_invalid_status") };
   }
 
   await requireUser();
@@ -189,7 +191,10 @@ export async function updateLeadDealAction(
   deal: z.infer<typeof dealSchema>,
 ): Promise<LeadState> {
   const parsed = dealSchema.safeParse(deal);
-  if (!parsed.success) return { error: "Datos de la oportunidad inválidos" };
+  if (!parsed.success) {
+    const et = await getTranslations("action_errors");
+    return { error: et("invalid_data") };
+  }
 
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });

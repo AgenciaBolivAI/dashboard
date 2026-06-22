@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -25,21 +26,22 @@ export type IngestState = {
 export async function uploadKnowledgeAction(
   formData: FormData,
 ): Promise<IngestState> {
+  const et = await getTranslations("action_errors");
   const tenantId = formData.get("tenant_id");
   const type = formData.get("type");
   const file = formData.get("file");
 
   if (typeof tenantId !== "string" || !tenantId) {
-    return { error: "tenant_id requerido" };
+    return { error: et("tenant_id_required") };
   }
   if (type !== "documents" && type !== "pain") {
-    return { error: "Tipo de conocimiento inválido" };
+    return { error: et("kb_invalid_type") };
   }
   if (!file || !(file instanceof File)) {
-    return { error: "Archivo requerido" };
+    return { error: et("kb_file_required") };
   }
   if (file.size > 25 * 1024 * 1024) {
-    return { error: "Archivo demasiado grande (máx 25 MB)" };
+    return { error: et("kb_file_too_large") };
   }
 
   await requireUser();
@@ -50,12 +52,12 @@ export async function uploadKnowledgeAction(
     text = await extractText(file);
   } catch (e) {
     return {
-      error: e instanceof Error ? e.message : "No se pudo leer el archivo",
+      error: e instanceof Error ? e.message : et("kb_file_read_failed"),
     };
   }
 
   if (!text.trim()) {
-    return { error: "El archivo parece estar vacío o no se pudo extraer texto" };
+    return { error: et("kb_file_empty") };
   }
 
   const hash = hashContent(text);
@@ -80,7 +82,7 @@ export async function uploadKnowledgeAction(
 
   const chunks = chunkText(text);
   if (chunks.length === 0) {
-    return { error: "No se pudieron generar chunks del documento" };
+    return { error: et("kb_no_chunks") };
   }
 
   let embeddings: number[][];
@@ -89,7 +91,7 @@ export async function uploadKnowledgeAction(
   } catch (e) {
     console.error("[uploadKnowledge] embeddings failed:", e);
     return {
-      error: "Error al generar embeddings con OpenAI. Revisa OPENAI_API_KEY.",
+      error: et("kb_embed_failed"),
     };
   }
 
@@ -149,9 +151,10 @@ export async function addManualChunkAction(
   _prev: IngestState,
   formData: FormData,
 ): Promise<IngestState> {
+  const et = await getTranslations("action_errors");
   const parsed = manualSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   await requireUser();
@@ -162,7 +165,7 @@ export async function addManualChunkAction(
     [embedding] = await embedTexts([parsed.data.content]);
   } catch (e) {
     console.error("[addManualChunk] embed failed:", e);
-    return { error: "No se pudo generar el embedding" };
+    return { error: et("kb_embed_failed") };
   }
 
   const supabase = await createClient();
@@ -201,9 +204,10 @@ export async function updateChunkAction(
   _prev: IngestState,
   formData: FormData,
 ): Promise<IngestState> {
+  const et = await getTranslations("action_errors");
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   await requireUser();
@@ -215,7 +219,7 @@ export async function updateChunkAction(
     [embedding] = await embedTexts([parsed.data.content]);
   } catch (e) {
     console.error("[updateChunk] embed failed:", e);
-    return { error: "No se pudo regenerar el embedding" };
+    return { error: et("kb_reembed_failed") };
   }
 
   const supabase = await createClient();

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -36,8 +37,9 @@ export type WhatsAppProvisionState = {
 export async function provisionTenantWhatsAppAction(
   tenantId: string,
 ): Promise<WhatsAppProvisionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
-  if (!idSchema.safeParse(tenantId).success) return { error: "tenant_id inválido" };
+  if (!idSchema.safeParse(tenantId).success) return { error: et("whatsapp_tenant_invalid") };
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
   const svc = createServiceClient();
@@ -47,10 +49,10 @@ export async function provisionTenantWhatsAppAction(
     .eq("id", tenantId)
     .single();
 
-  if (tErr || !tenant) return { error: "Negocio no encontrado" };
+  if (tErr || !tenant) return { error: et("business_not_found") };
   if (tenant.gateway !== "evolution") {
     return {
-      error: `Tu canal es '${tenant.gateway}', no Evolution. Cámbialo en Ajustes → Integraciones.`,
+      error: et("whatsapp_not_evolution", { gateway: tenant.gateway as string }),
     };
   }
 
@@ -124,7 +126,7 @@ export async function provisionTenantWhatsAppAction(
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { error: `No se pudo generar el QR: ${msg.slice(0, 200)}` };
+    return { error: `${et("whatsapp_qr_failed")}: ${msg.slice(0, 200)}` };
   }
 }
 

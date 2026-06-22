@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -31,7 +32,10 @@ export async function createCampaignAction(
   input: z.infer<typeof createSchema>,
 ): Promise<CampaignActionResult> {
   const parsed = createSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Plan inválido" };
+  if (!parsed.success) {
+    const et = await getTranslations("action_errors");
+    return { ok: false, error: parsed.error.issues[0]?.message ?? et("invalid_data") };
+  }
 
   const user = await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });

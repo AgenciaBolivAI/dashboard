@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -26,9 +27,10 @@ export async function updateViraSettingsAction(
   tenantId: string,
   fields: z.infer<typeof settingsSchema>,
 ): Promise<ViraState> {
+  const et = await getTranslations("action_errors");
   const parsed = settingsSchema.safeParse(fields);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
   // Cross-field sanity: min <= max
   if (
@@ -36,7 +38,7 @@ export async function updateViraSettingsAction(
     parsed.data.max_clip_seconds != null &&
     parsed.data.min_clip_seconds > parsed.data.max_clip_seconds
   ) {
-    return { error: "El mínimo no puede ser mayor que el máximo" };
+    return { error: et("vira_clip_min_max") };
   }
 
   await requireUser();
@@ -81,9 +83,10 @@ export async function submitViraJobAction(
   tenantId: string,
   source_url: string,
 ): Promise<ViraState> {
+  const et = await getTranslations("action_errors");
   const parsed = submitSchema.safeParse({ source_url });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "URL inválida" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   await requireUser();
@@ -98,10 +101,10 @@ export async function submitViraJobAction(
     .maybeSingle();
 
   if (!settings) {
-    return { error: "VIRA no está configurado para este tenant" };
+    return { error: et("vira_not_configured") };
   }
   if (!(settings as { enabled: boolean }).enabled) {
-    return { error: "VIRA está deshabilitado en este tenant. Actívalo en Ajustes → Shorts." };
+    return { error: et("vira_disabled") };
   }
 
   const sourceType = detectSourceType(parsed.data.source_url);
@@ -118,7 +121,7 @@ export async function submitViraJobAction(
     .select("id")
     .single();
 
-  if (error || !job) return { error: error?.message ?? "No se pudo encolar el trabajo" };
+  if (error || !job) return { error: error?.message ?? et("vira_enqueue_failed") };
 
   // Fire-and-forget: poke the n8n VIRA worker if configured. The worker
   // picks pending jobs anyway via its own poll, so this is just to nudge.

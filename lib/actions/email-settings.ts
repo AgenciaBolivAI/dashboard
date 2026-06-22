@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -23,8 +24,9 @@ export async function saveSmtpConfigAction(
   tenantId: string,
   fields: z.infer<typeof smtpSchema>,
 ): Promise<EmailSettingsState> {
+  const et = await getTranslations("action_errors");
   const parsed = smtpSchema.safeParse(fields);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
 
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });

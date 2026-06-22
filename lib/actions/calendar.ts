@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -57,25 +58,26 @@ export async function generateSlotsAction(
   _prev: CalendarState,
   formData: FormData,
 ): Promise<CalendarState> {
+  const et = await getTranslations("action_errors");
   let parsed;
   try {
     parsed = generateSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) {
-      return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+      return { error: et("invalid_data") };
     }
   } catch {
-    return { error: "Días de la semana inválidos" };
+    return { error: et("weekdays_invalid") };
   }
 
   const data = parsed.data;
   if (data.start_date > data.end_date) {
-    return { error: "La fecha final debe ser posterior a la inicial" };
+    return { error: et("end_date_after_start") };
   }
   if (data.start_time >= data.end_time) {
-    return { error: "La hora final debe ser posterior a la inicial" };
+    return { error: et("end_time_after_start") };
   }
   if (data.weekdays.length === 0) {
-    return { error: "Selecciona al menos un día de la semana" };
+    return { error: et("select_at_least_one_weekday") };
   }
 
   await requireUser();
@@ -118,7 +120,7 @@ export async function generateSlotsAction(
   }
 
   if (slots.length === 0) {
-    return { error: "No se generó ningún slot — revisa los parámetros" };
+    return { error: et("no_slots_generated") };
   }
 
   let skipped = 0;
@@ -226,14 +228,15 @@ export async function updateSlotAction(
   _prev: CalendarState,
   formData: FormData,
 ): Promise<CalendarState> {
+  const et = await getTranslations("action_errors");
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: et("invalid_data") };
   }
 
   const data = parsed.data;
   if (data.start_time >= data.end_time) {
-    return { error: "La hora final debe ser posterior a la inicial" };
+    return { error: et("end_time_after_start") };
   }
 
   await requireUser();
@@ -278,9 +281,10 @@ export async function updateReservationNotesAction(
   _prev: CalendarState,
   formData: FormData,
 ): Promise<CalendarState> {
+  const et = await getTranslations("action_errors");
   const parsed = updateNotesSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: et("invalid_data") };
   }
   const { tenant_id, reservation_id, notes } = parsed.data;
 
@@ -304,6 +308,7 @@ export async function cancelReservationAction(
   reservationId: string,
   reason: string | null,
 ): Promise<CalendarState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
@@ -315,7 +320,7 @@ export async function cancelReservationAction(
     .eq("id", reservationId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (!own) return { error: "Reserva no encontrada" };
+  if (!own) return { error: et("reservation_not_found") };
 
   const { error } = await supabase.rpc("cancel_reservation", {
     p_reservation_id: reservationId,
@@ -343,9 +348,10 @@ export async function rescheduleReservationAction(
   _prev: CalendarState,
   formData: FormData,
 ): Promise<CalendarState> {
+  const et = await getTranslations("action_errors");
   const parsed = rescheduleSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: et("invalid_data") };
   }
   const { tenant_id, reservation_id, new_slot_id, duration_min } = parsed.data;
 
@@ -359,7 +365,7 @@ export async function rescheduleReservationAction(
     .eq("id", reservation_id)
     .eq("tenant_id", tenant_id)
     .maybeSingle();
-  if (!own) return { error: "Reserva no encontrada" };
+  if (!own) return { error: et("reservation_not_found") };
 
   const { error } = await supabase.rpc("reschedule_reservation", {
     p_reservation_id: reservation_id,

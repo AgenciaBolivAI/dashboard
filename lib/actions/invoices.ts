@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -51,9 +52,10 @@ export async function upsertInvoiceAction(
   _prev: InvoiceActionState,
   formData: FormData,
 ): Promise<InvoiceActionState> {
+  const et = await getTranslations("action_errors");
   const parsed = upsertSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: et("invalid_data") };
   }
   const data = parsed.data;
 
@@ -61,7 +63,7 @@ export async function upsertInvoiceAction(
   try {
     items = z.array(itemSchema).min(1, "Agrega al menos un item").parse(JSON.parse(data.items_json));
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Items inválidos" };
+    return { error: e instanceof Error ? e.message : et("invoice_items_invalid") };
   }
 
   await requireUser();
@@ -77,11 +79,11 @@ export async function upsertInvoiceAction(
       .select("status, tenant_id")
       .eq("id", invoiceId)
       .maybeSingle();
-    if (!existing) return { error: "Factura no encontrada" };
+    if (!existing) return { error: et("invoice_not_found") };
     const row = existing as { status: string; tenant_id: string };
-    if (row.tenant_id !== data.tenant_id) return { error: "Factura de otro tenant" };
+    if (row.tenant_id !== data.tenant_id) return { error: et("invoice_other_tenant") };
     if (row.status !== "draft") {
-      return { error: "Solo se pueden editar facturas en borrador" };
+      return { error: et("invoice_only_draft_editable") };
     }
   }
 
@@ -150,6 +152,7 @@ export async function sendInvoiceAction(
   tenantId: string,
   invoiceId: string,
 ): Promise<InvoiceActionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
@@ -164,7 +167,7 @@ export async function sendInvoiceAction(
       .maybeSingle(),
   ]);
 
-  if (!invRes.data) return { error: "Factura no encontrada" };
+  if (!invRes.data) return { error: et("invoice_not_found") };
   const invoice = invRes.data as Record<string, unknown> & {
     id: string;
     status: string;
@@ -192,16 +195,16 @@ export async function sendInvoiceAction(
     | null;
 
   if (invoice.status !== "draft") {
-    return { error: "Esta factura ya fue enviada" };
+    return { error: et("invoice_already_sent") };
   }
   if (items.length === 0) {
-    return { error: "Agrega al menos un item antes de enviar" };
+    return { error: et("invoice_add_item_before_send") };
   }
   if (!invoice.customer_email) {
-    return { error: "Falta el email del cliente — Stripe lo necesita para enviar la factura" };
+    return { error: et("invoice_customer_email_required") };
   }
   if (!tenant?.stripe_account_id || !tenant.stripe_charges_enabled) {
-    return { error: "Conecta tu cuenta de Stripe en Ajustes → Facturación antes de enviar facturas" };
+    return { error: et("stripe_connect_before_send") };
   }
 
   const stripe = getStripe();
@@ -342,7 +345,7 @@ export async function sendInvoiceAction(
     if (updErr) return { error: updErr.message };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { error: `Stripe rechazó la factura: ${msg}` };
+    return { error: et("stripe_rejected_invoice", { message: msg }) };
   }
 
   revalidatePath("/dashboard", "layout");
@@ -353,6 +356,7 @@ export async function voidInvoiceAction(
   tenantId: string,
   invoiceId: string,
 ): Promise<InvoiceActionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
@@ -363,11 +367,11 @@ export async function voidInvoiceAction(
     .eq("id", invoiceId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (!existing) return { error: "Factura no encontrada" };
+  if (!existing) return { error: et("invoice_not_found") };
 
   const row = existing as { status: string; stripe_invoice_id: string | null };
   if (row.status === "paid") {
-    return { error: "No se puede anular una factura ya pagada" };
+    return { error: et("invoice_cannot_void_paid") };
   }
 
   // If it was sent to Stripe, try to void there too (best-effort)
@@ -402,6 +406,7 @@ export async function cancelSubscriptionAction(
   tenantId: string,
   invoiceId: string,
 ): Promise<InvoiceActionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
@@ -425,14 +430,14 @@ export async function cancelSubscriptionAction(
   const stripeAccount = (tenantRes.data as { stripe_account_id?: string } | null)
     ?.stripe_account_id;
 
-  if (!subId) return { error: "Esta factura no tiene una suscripción activa" };
-  if (!stripeAccount) return { error: "Stripe no está conectado" };
+  if (!subId) return { error: et("invoice_no_active_subscription") };
+  if (!stripeAccount) return { error: et("stripe_not_connected") };
 
   try {
     await getStripe().subscriptions.cancel(subId, { stripeAccount });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { error: `Stripe rechazó la cancelación: ${msg}` };
+    return { error: et("stripe_rejected_cancellation", { message: msg }) };
   }
 
   await supabase
@@ -449,6 +454,7 @@ export async function markPaidManuallyAction(
   tenantId: string,
   invoiceId: string,
 ): Promise<InvoiceActionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
@@ -459,10 +465,10 @@ export async function markPaidManuallyAction(
     .eq("id", invoiceId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (!existing) return { error: "Factura no encontrada" };
+  if (!existing) return { error: et("invoice_not_found") };
   const row = existing as { status: string; total_cents: number };
-  if (row.status === "paid") return { error: "Ya está marcada como pagada" };
-  if (row.status === "void") return { error: "Esta factura fue anulada" };
+  if (row.status === "paid") return { error: et("invoice_already_marked_paid") };
+  if (row.status === "void") return { error: et("invoice_voided") };
 
   const { error } = await supabase
     .from("invoices")

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -14,7 +15,10 @@ export async function setRecommendationStatusAction(
 ): Promise<RecResult> {
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
-  if (status !== "done" && status !== "dismissed") return { ok: false, error: "Estado inválido" };
+  if (status !== "done" && status !== "dismissed") {
+    const et = await getTranslations("action_errors");
+    return { ok: false, error: et("rec_invalid_status") };
+  }
 
   const svc = createServiceClient();
   const { error } = await svc

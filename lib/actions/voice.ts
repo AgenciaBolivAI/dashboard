@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -64,6 +65,7 @@ const updateVoiceSchema = z.object({
 export async function enableVoiceAction(
   tenantId: string,
 ): Promise<VoiceActionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
@@ -75,7 +77,7 @@ export async function enableVoiceAction(
     )
     .eq("id", tenantId)
     .maybeSingle();
-  if (!tenant) return { error: "Tenant no encontrado" };
+  if (!tenant) return { error: et("tenant_not_found") };
 
   const t = tenant as {
     id: string;
@@ -123,13 +125,13 @@ export async function enableVoiceAction(
     if (error) {
       // Roll back the agent we just created so we don't leak it
       await deleteAgent(agent.agent_id).catch(() => {});
-      return { error: `No se pudo guardar el agente: ${error.message}` };
+      return { error: `${et("voice_agent_save_failed")}: ${error.message}` };
     }
   } catch (e) {
     if (e instanceof ElevenLabsError) {
-      return { error: `ElevenLabs rechazó el agente: ${e.detail.slice(0, 200)}` };
+      return { error: `${et("voice_agent_rejected")}: ${e.detail.slice(0, 200)}` };
     }
-    return { error: e instanceof Error ? e.message : "Error desconocido" };
+    return { error: e instanceof Error ? e.message : et("unknown_error") };
   }
 
   revalidatePath("/dashboard", "layout");
@@ -165,6 +167,7 @@ export async function disableVoiceAction(
 export async function deleteVoiceAgentAction(
   tenantId: string,
 ): Promise<VoiceActionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
@@ -182,7 +185,7 @@ export async function deleteVoiceAgentAction(
       await deleteAgent(agentId);
     } catch (e) {
       if (e instanceof ElevenLabsError && e.status !== 404) {
-        return { error: `ElevenLabs rechazó la eliminación: ${e.detail.slice(0, 200)}` };
+        return { error: `${et("voice_agent_delete_rejected")}: ${e.detail.slice(0, 200)}` };
       }
     }
   }
@@ -232,9 +235,10 @@ export async function attachTwilioNumberAction(
   _prev: VoiceActionState,
   formData: FormData,
 ): Promise<VoiceActionState> {
+  const et = await getTranslations("action_errors");
   const parsed = attachPhoneSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
   const { tenant_id, account_sid, auth_token, phone_number } = parsed.data;
 
@@ -256,28 +260,28 @@ export async function attachTwilioNumberAction(
     .select("name, voice_elevenlabs_outbound_phone_id, voice_phone_number" as never)
     .eq("id", tenant_id)
     .maybeSingle();
-  if (!tenant) return { error: "Tenant no encontrado" };
+  if (!tenant) return { error: et("tenant_not_found") };
   const t = tenant as unknown as {
     name: string;
     voice_elevenlabs_outbound_phone_id: string | null;
     voice_phone_number: string | null;
   };
   if (t.voice_elevenlabs_outbound_phone_id) {
-    return { error: "Ya tienes un número conectado. Desconéctalo antes de cambiar." };
+    return { error: et("voice_number_already_connected") };
   }
 
   // Step 1: Twilio creds OK?
   try {
     await validateTwilioCreds(account_sid, auth_token);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Twilio rechazó las credenciales" };
+    return { error: e instanceof Error ? e.message : et("twilio_creds_rejected") };
   }
 
   // Step 2: tenant owns the number?
   try {
     await verifyOwnsNumber(account_sid, auth_token, phone_number);
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "No pudimos confirmar la propiedad del número" };
+    return { error: e instanceof Error ? e.message : et("twilio_ownership_unconfirmed") };
   }
 
   // Step 3 + 4: import the number into ElevenLabs, assign to master Rebecca
@@ -294,7 +298,7 @@ export async function attachTwilioNumberAction(
     await assignPhoneNumberToAgent(phoneNumberId, rebeccaAgentId);
   } catch (e) {
     const msg = e instanceof ElevenLabsError ? e.detail : e instanceof Error ? e.message : String(e);
-    return { error: `ElevenLabs rechazó el número: ${msg.slice(0, 200)}` };
+    return { error: `${et("voice_number_rejected")}: ${msg.slice(0, 200)}` };
   }
 
   // Step 5: persist
@@ -311,7 +315,7 @@ export async function attachTwilioNumberAction(
   if (dbErr) {
     // Roll back the ElevenLabs side so we don't leak the number
     await deletePhoneNumber(phoneNumberId).catch(() => {});
-    return { error: `No se pudo guardar la configuración: ${dbErr.message}` };
+    return { error: `${et("voice_config_save_failed")}: ${dbErr.message}` };
   }
 
   revalidatePath("/dashboard", "layout");
@@ -322,12 +326,13 @@ export async function attachTwilioNumberAction(
 export async function syncKnowledgeToVoiceAction(
   tenantId: string,
 ): Promise<VoiceActionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
   const result = await performVoiceKbSync(tenantId);
   if (!result.ok) {
-    return { error: result.error ?? "Error al sincronizar conocimiento" };
+    return { error: result.error ?? et("voice_kb_sync_failed") };
   }
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
@@ -337,6 +342,7 @@ export async function syncKnowledgeToVoiceAction(
 export async function detachPhoneNumberAction(
   tenantId: string,
 ): Promise<VoiceActionState> {
+  const et = await getTranslations("action_errors");
   await requireUser();
   await requireTenantAccess(tenantId, { minRole: "admin" });
 
@@ -354,7 +360,7 @@ export async function detachPhoneNumberAction(
       await deletePhoneNumber(phoneNumberId);
     } catch (e) {
       if (e instanceof ElevenLabsError && e.status !== 404) {
-        return { error: `ElevenLabs rechazó la desconexión: ${e.detail.slice(0, 200)}` };
+        return { error: `${et("voice_detach_rejected")}: ${e.detail.slice(0, 200)}` };
       }
     }
   }
@@ -383,9 +389,10 @@ export async function updateVoiceSettingsAction(
   _prev: VoiceActionState,
   formData: FormData,
 ): Promise<VoiceActionState> {
+  const et = await getTranslations("action_errors");
   const parsed = updateVoiceSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
   const { tenant_id, voice_id, voice_greeting } = parsed.data;
 
@@ -398,7 +405,7 @@ export async function updateVoiceSettingsAction(
     .select("name, language, prompt_template, elevenlabs_agent_id")
     .eq("id", tenant_id)
     .maybeSingle();
-  if (!tenant) return { error: "Tenant no encontrado" };
+  if (!tenant) return { error: et("tenant_not_found") };
   const t = tenant as {
     name: string;
     language: string;
@@ -407,7 +414,7 @@ export async function updateVoiceSettingsAction(
   };
 
   const voice = getVoiceById(voice_id);
-  if (!voice) return { error: "Voz no disponible" };
+  if (!voice) return { error: et("voice_not_available") };
 
   // Update locally first — this works even if voice isn't enabled yet
   const { error: dbErr } = await supabase
@@ -434,9 +441,9 @@ export async function updateVoiceSettingsAction(
       await updateAgent(t.elevenlabs_agent_id, payload);
     } catch (e) {
       if (e instanceof ElevenLabsError) {
-        return { error: `ElevenLabs rechazó la actualización: ${e.detail.slice(0, 200)}` };
+        return { error: `${et("voice_update_rejected")}: ${e.detail.slice(0, 200)}` };
       }
-      return { error: e instanceof Error ? e.message : "Error desconocido" };
+      return { error: e instanceof Error ? e.message : et("unknown_error") };
     }
   }
 
@@ -478,9 +485,10 @@ const callSchema = z.object({
 export async function initiateSandraCallAction(
   input: z.infer<typeof callSchema>,
 ): Promise<VoiceCallState> {
+  const et = await getTranslations("action_errors");
   const parsed = callSchema.safeParse(input);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+    return { error: et("invalid_data") };
   }
 
   await requireUser();
@@ -619,10 +627,11 @@ const batchCallSchema = z.object({
 export async function initiateBatchSandraCallAction(
   input: z.infer<typeof batchCallSchema>,
 ): Promise<BatchCallState> {
+  const et = await getTranslations("action_errors");
   const parsed = batchCallSchema.safeParse(input);
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? "Invalid input",
+      error: et("invalid_data"),
       queued: 0,
       skipped_dnc: 0,
       skipped_no_phone: 0,
@@ -764,8 +773,8 @@ export async function initiateBatchSandraCallAction(
     return {
       error:
         skippedDnc > 0
-          ? `Todos los leads seleccionados están marcados como "no contactar" o no tienen teléfono.`
-          : "Ninguno de los leads tiene teléfono válido.",
+          ? et("voice_batch_all_dnc_or_no_phone")
+          : et("voice_batch_no_valid_phone"),
       queued: 0,
       skipped_dnc: skippedDnc,
       skipped_no_phone: skippedNoPhone,
@@ -873,9 +882,10 @@ const personaSchema = z.object({
 export async function updateVoicePersonaAction(
   input: z.infer<typeof personaSchema>,
 ): Promise<VoiceActionState> {
+  const et = await getTranslations("action_errors");
   const parsed = personaSchema.safeParse(input);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid persona" };
+    return { error: et("invalid_data") };
   }
   await requireUser();
   await requireTenantAccess(parsed.data.tenant_id, { minRole: "operator" });

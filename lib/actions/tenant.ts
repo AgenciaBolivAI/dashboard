@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -34,9 +35,10 @@ export async function updateTenantGeneralAction(
   _prev: TenantState,
   formData: FormData,
 ): Promise<TenantState> {
+  const et = await getTranslations("action_errors");
   const parsed = generalSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   await requireUser();
@@ -86,19 +88,20 @@ export async function updateTenantAgentAction(
   _prev: TenantState,
   formData: FormData,
 ): Promise<TenantState> {
+  const et = await getTranslations("action_errors");
   const parsed = agentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   let parsedVars: Record<string, unknown>;
   try {
     parsedVars = JSON.parse(parsed.data.prompt_variables);
     if (typeof parsedVars !== "object" || parsedVars === null || Array.isArray(parsedVars)) {
-      return { error: "Las variables deben ser un objeto JSON" };
+      return { error: et("agent_vars_must_be_object") };
     }
   } catch {
-    return { error: "JSON de variables inválido" };
+    return { error: et("agent_vars_invalid_json") };
   }
 
   await requireUser();
@@ -130,22 +133,23 @@ export async function updateGatewayConfigAction(
   _prev: TenantState,
   formData: FormData,
 ): Promise<TenantState> {
+  const et = await getTranslations("action_errors");
   const parsed = gatewayConfigSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   let config: Record<string, unknown>;
   try {
     config = JSON.parse(parsed.data.config_json);
   } catch {
-    return { error: "Configuración de gateway inválida (JSON)" };
+    return { error: et("gateway_config_invalid_json") };
   }
 
   const gateway = getGateway(parsed.data.gateway);
   for (const f of gateway.configFields) {
     if (f.required && !config[f.key]) {
-      return { error: `Falta ${f.label}` };
+      return { error: et("gateway_config_missing_field", { field: f.label }) };
     }
   }
 

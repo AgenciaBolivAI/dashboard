@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -54,6 +55,7 @@ async function loadConversationContext(conversationId: string) {
 
 // ─── Take over a conversation ────────────────────────────────────────
 export async function takeoverAction(conversationId: string): Promise<HitlState> {
+  const et = await getTranslations("action_errors");
   try {
     const user = await requireUser();
     const ctx = await loadConversationContext(conversationId);
@@ -81,19 +83,20 @@ export async function takeoverAction(conversationId: string): Promise<HitlState>
       .eq("id", conversationId)
       .maybeSingle();
     if (!check?.hitl_taken_over) {
-      return { error: "El control no quedó registrado. Intenta de nuevo." };
+      return { error: et("hitl_takeover_not_registered") };
     }
 
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations/${conversationId}`);
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations`);
     return { error: null, success: true };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Error desconocido" };
+    return { error: e instanceof Error ? e.message : et("unknown_error") };
   }
 }
 
 // ─── Release a conversation back to the bot ──────────────────────────
 export async function releaseAction(conversationId: string): Promise<HitlState> {
+  const et = await getTranslations("action_errors");
   try {
     await requireUser();
     const ctx = await loadConversationContext(conversationId);
@@ -115,7 +118,7 @@ export async function releaseAction(conversationId: string): Promise<HitlState> 
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations`);
     return { error: null, success: true };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Error desconocido" };
+    return { error: e instanceof Error ? e.message : et("unknown_error") };
   }
 }
 
@@ -129,9 +132,10 @@ export async function sendOperatorMessageAction(
   _prev: HitlState,
   formData: FormData,
 ): Promise<HitlState> {
+  const et = await getTranslations("action_errors");
   const parsed = sendSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
 
   try {
@@ -141,7 +145,7 @@ export async function sendOperatorMessageAction(
 
     if (!ctx.hitl_taken_over) {
       return {
-        error: "Antes de enviar, toma el control de la conversación.",
+        error: et("hitl_take_over_first"),
       };
     }
 
@@ -165,10 +169,10 @@ export async function sendOperatorMessageAction(
       // the IG id returns "(#3) Application does not have the capability".
       const sendId = (chan?.config?.page_id as string) ?? chan?.external_id;
       if (!sendId || !pageToken) {
-        return { error: "El canal de Meta no está conectado. Reconéctalo en Ajustes → Integraciones." };
+        return { error: et("hitl_meta_channel_disconnected") };
       }
       if (!ctx.users.channel_user_id) {
-        return { error: "No se encontró el destinatario de este canal." };
+        return { error: et("hitl_recipient_not_found") };
       }
       await sendMetaMessage({
         externalId: sendId,
@@ -181,11 +185,11 @@ export async function sendOperatorMessageAction(
       const instance = ctx.tenants.evolution_instance;
       if (!instance) {
         return {
-          error: "Esta empresa aún no tiene una instancia de Evolution API configurada.",
+          error: et("hitl_no_evolution_instance"),
         };
       }
       if (!ctx.users.whatsapp_number) {
-        return { error: "Este contacto no tiene un número de WhatsApp." };
+        return { error: et("hitl_no_whatsapp_number") };
       }
       await sendText(instance, ctx.users.whatsapp_number, parsed.data.text);
     }
@@ -214,7 +218,7 @@ export async function sendOperatorMessageAction(
     return { error: null, success: true, clearForm: true };
   } catch (e) {
     return {
-      error: e instanceof Error ? e.message : "No se pudo enviar el mensaje",
+      error: e instanceof Error ? e.message : et("hitl_send_failed"),
     };
   }
 }

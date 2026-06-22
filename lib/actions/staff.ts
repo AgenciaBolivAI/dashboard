@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
@@ -52,9 +53,10 @@ export async function createStaffAction(
   _prev: StaffState,
   formData: FormData,
 ): Promise<StaffState> {
+  const et = await getTranslations("action_errors");
   const parsed = baseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
   const serviceIds = extractServiceIds(formData);
 
@@ -89,9 +91,10 @@ export async function updateStaffAction(
   _prev: StaffState,
   formData: FormData,
 ): Promise<StaffState> {
+  const et = await getTranslations("action_errors");
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? et("invalid_data") };
   }
   const serviceIds = extractServiceIds(formData);
 
