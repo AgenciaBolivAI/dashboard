@@ -80,14 +80,16 @@ export function MobileNav({
         aria-hidden
       />
 
-      {/* Drawer */}
+      {/* Drawer — explicit h-[100dvh] (not inset-y-0) so iOS Safari always gives
+          it the full dynamic-viewport height; the inner nav is a flex-1 min-h-0
+          scroll area so it can't collapse and clip the menu. */}
       <div
         className={cn(
-          "md:hidden fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-border bg-card transition-transform duration-200 ease-out",
+          "md:hidden fixed left-0 top-0 z-50 flex h-[100dvh] w-72 max-w-[85vw] flex-col border-r border-border bg-card transition-transform duration-200 ease-out",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center gap-2 px-4 border-b border-border">
+        <div className="flex h-16 shrink-0 items-center gap-2 px-4 border-b border-border">
           {current.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -102,7 +104,7 @@ export function MobileNav({
           )}
           {isAdmin ? (
             <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary shrink-0">
-              Admin
+              {t("admin_badge")}
             </span>
           ) : null}
           <button
@@ -115,20 +117,20 @@ export function MobileNav({
           </button>
         </div>
 
-        <div className="px-3 py-3">
+        <div className="px-3 py-3 shrink-0">
           <TenantSwitcher current={current} options={options} isAdmin={isAdmin} />
         </div>
 
         <Separator />
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <Sidebar tenantSlug={current.slug} permissions={permissions} />
         </div>
 
         {isAdmin ? (
           <>
             <Separator />
-            <div className="p-2">
+            <div className="p-2 shrink-0">
               <Link
                 href="/admin"
                 className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition"
