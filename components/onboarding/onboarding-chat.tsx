@@ -35,16 +35,22 @@ export function OnboardingChat({ onUseForm }: { onUseForm: () => void }) {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     const el = rootRef.current;
     if (!vv || !el) return;
-    const apply = () => {
+    const syncHeight = () => {
       el.style.height = `${vv.height}px`;
+    };
+    // Keyboard open/close (resize) → resize the chat AND pull the latest reply +
+    // input into view. A plain viewport pan (scroll) → only resync height, never
+    // snap to bottom, so the user can freely scroll up to re-read while typing.
+    const onResize = () => {
+      syncHeight();
       scrollToBottom();
     };
-    apply();
-    vv.addEventListener("resize", apply);
-    vv.addEventListener("scroll", apply);
+    syncHeight();
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", syncHeight);
     return () => {
-      vv.removeEventListener("resize", apply);
-      vv.removeEventListener("scroll", apply);
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", syncHeight);
     };
   }, []);
 
@@ -72,7 +78,7 @@ export function OnboardingChat({ onUseForm }: { onUseForm: () => void }) {
         router.push(`/dashboard/${res.slug}/billing?onboarding=success`);
         return;
       }
-      setMessages((m) => [...m, { role: "assistant", content: res.answer }]);
+      setMessages((m) => [...m, { role: "assistant", content: res.answer.trim() || t("chat_error") }]);
     });
   }
 

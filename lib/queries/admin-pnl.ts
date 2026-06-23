@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export type PlatformPnl = {
@@ -61,6 +62,22 @@ export async function getPlatformPnl(window: PnlWindow = "month"): Promise<Platf
   const { data } = await svc.rpc("platform_pnl", { p_window: window });
   const row = Array.isArray(data) ? data[0] : data;
   return (row ?? null) as PlatformPnl | null;
+}
+
+export type FoundersFee = {
+  paid_count: number;
+  paid_cents: number;
+  all_time_count: number;
+  all_time_cents: number;
+};
+
+/** Founding Member ($40 lifetime fee) cash collected — windowed + all-time. */
+export async function getFoundersFeeRevenue(window: PnlWindow = "month"): Promise<FoundersFee | null> {
+  // founders_fee_revenue isn't in the generated DB types yet — loosely-typed client.
+  const svc = createServiceClient() as unknown as SupabaseClient;
+  const { data } = await svc.rpc("founders_fee_revenue", { p_window: window });
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row ?? null) as FoundersFee | null;
 }
 
 export async function getActionBreakdown(window: PnlWindow = "7d"): Promise<ActionBreakdown[]> {

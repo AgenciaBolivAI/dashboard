@@ -10,6 +10,8 @@ import {
   UserCheck,
   CalendarDays,
   CalendarClock,
+  Award,
+  Crown,
 } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Card } from "@/components/ui/card";
@@ -27,6 +29,7 @@ import {
   getPlatformDailyTimeseries,
   getTenantPnlSummary,
   getActionBreakdown,
+  getFoundersFeeRevenue,
   fmtUsd,
   fmtCents,
   fmtCredits,
@@ -64,12 +67,13 @@ export default async function AdminOverviewPage({
   const windowKey: PnlWindow =
     (WINDOWS.find((w) => w.id === windowParam)?.id ?? "month");
 
-  const [pnl, timeseries, topTenants, actions, activity] = await Promise.all([
+  const [pnl, timeseries, topTenants, actions, activity, founders] = await Promise.all([
     getPlatformPnl(windowKey),
     getPlatformDailyTimeseries(30),
     getTenantPnlSummary(windowKey),
     getActionBreakdown(windowKey),
     getActivityStats(30),
+    getFoundersFeeRevenue(windowKey),
   ]);
 
   // DAU trend + today-vs-yesterday delta for the activity KPI.
@@ -170,6 +174,42 @@ export default async function AdminOverviewPage({
           height={240}
         />
       </Card>
+
+      {/* Founding Member (founders fee) revenue */}
+      <div className="mb-3">
+        <h2 className="font-semibold">{tr("founders_title")}</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">{tr("founders_sub")}</p>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <KpiCard
+          icon={Award}
+          label={tr("kpi_founders")}
+          value={fmtCents(founders?.paid_cents ?? 0)}
+          subtitle={tr("kpi_founders_sub")}
+          color="text-green-600"
+        />
+        <KpiCard
+          icon={Crown}
+          label={tr("kpi_founders_new")}
+          value={String(founders?.paid_count ?? 0)}
+          subtitle={tr("kpi_founders_new_sub")}
+          color="text-primary"
+        />
+        <KpiCard
+          icon={DollarSign}
+          label={tr("kpi_founders_all")}
+          value={fmtCents(founders?.all_time_cents ?? 0)}
+          subtitle={tr("kpi_founders_all_sub")}
+          color="text-green-600"
+        />
+        <KpiCard
+          icon={Users}
+          label={tr("kpi_founders_members")}
+          value={String(founders?.all_time_count ?? 0)}
+          subtitle={tr("kpi_founders_members_sub")}
+          color="text-cyan-600"
+        />
+      </div>
 
       {/* KPI Cards — 3 rows of context */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
