@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Sparkles, Loader2, Send } from "lucide-react";
+import { Sparkles, Loader2, Send, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-export function OnboardingChat() {
+export function OnboardingChat({ onUseForm }: { onUseForm: () => void }) {
   const t = useTranslations("onboarding");
   const locale = useLocale();
   const router = useRouter();
@@ -21,9 +21,36 @@ export function OnboardingChat() {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
+  const scrollToBottom = (behavior: ScrollBehavior = "auto") =>
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior });
+
+  // Size the chat to the *visible* viewport. When the mobile keyboard opens it
+  // shrinks visualViewport.height, so the chat shrinks with it — the input and
+  // the latest reply stay on screen instead of being pushed off / hidden behind
+  // the keyboard (which forced the customer to zoom out). h-[100dvh] is the CSS
+  // fallback when visualViewport is unavailable (older browsers / SSR).
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    const el = rootRef.current;
+    if (!vv || !el) return;
+    const apply = () => {
+      el.style.height = `${vv.height}px`;
+      scrollToBottom();
+    };
+    apply();
+    vv.addEventListener("resize", apply);
+    vv.addEventListener("scroll", apply);
+    return () => {
+      vv.removeEventListener("resize", apply);
+      vv.removeEventListener("scroll", apply);
+    };
+  }, []);
+
+  // Auto-scroll to the newest message / typing indicator.
+  useEffect(() => {
+    scrollToBottom("smooth");
   }, [messages, pending]);
 
   function send(text: string) {
@@ -50,18 +77,29 @@ export function OnboardingChat() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] max-w-2xl mx-auto w-full">
-      <div className="flex items-center gap-2 px-4 pt-6 pb-2">
-        <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center">
+    <div ref={rootRef} className="mx-auto flex h-[100dvh] w-full max-w-2xl flex-col">
+      <div className="flex shrink-0 items-center gap-2 px-4 pt-6 pb-2">
+        <div className="size-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
           <Sparkles className="size-5 text-primary" />
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="font-display font-bold leading-tight">BOLIV</p>
-          <p className="text-xs text-muted-foreground">{t("chat_subtitle")}</p>
+          <p className="text-xs text-muted-foreground truncate">{t("chat_subtitle")}</p>
         </div>
+        <button
+          type="button"
+          onClick={onUseForm}
+          className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
+        >
+          <ClipboardList className="size-3.5" />
+          {t("prefer_form")}
+        </button>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-4"
+      >
         {messages.map((m, i) => (
           <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
             <div
@@ -90,7 +128,8 @@ export function OnboardingChat() {
           e.preventDefault();
           send(input);
         }}
-        className="border-t border-border p-3 flex items-center gap-2"
+        className="flex shrink-0 items-center gap-2 border-t border-border p-3"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         <Input
           value={input}
@@ -98,6 +137,10 @@ export function OnboardingChat() {
           placeholder={t("chat_placeholder")}
           disabled={pending || done}
           autoFocus
+          enterKeyHint="send"
+          // 16px font prevents iOS Safari from auto-zooming into the field on
+          // focus (which cropped the conversation). Keep it at the chat input.
+          className="text-base"
         />
         <Button type="submit" disabled={pending || done || !input.trim()} size="icon" className="shrink-0">
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}

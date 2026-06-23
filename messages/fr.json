@@ -2379,6 +2379,7 @@
     "invoice_other_tenant": "Facture appartenant à un autre locataire",
     "invoice_only_draft_editable": "Seules les factures en brouillon peuvent être modifiées",
     "invoice_already_sent": "Cette facture a déjà été envoyée",
+    "invoice_number_failed": "Impossible de générer le numéro de facture, veuillez réessayer",
     "invoice_add_item_before_send": "Ajoutez au moins un article avant d'envoyer",
     "invoice_customer_email_required": "L'e-mail du client est manquant — Stripe en a besoin pour envoyer la facture",
     "stripe_connect_before_send": "Connectez votre compte Stripe dans Paramètres → Facturation avant d'envoyer des factures",

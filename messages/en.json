@@ -2379,6 +2379,7 @@
     "invoice_other_tenant": "Invoice belongs to another tenant",
     "invoice_only_draft_editable": "Only draft invoices can be edited",
     "invoice_already_sent": "This invoice has already been sent",
+    "invoice_number_failed": "Couldn't generate an invoice number — please try again",
     "invoice_add_item_before_send": "Add at least one item before sending",
     "invoice_customer_email_required": "Customer email is missing — Stripe needs it to send the invoice",
     "stripe_connect_before_send": "Connect your Stripe account in Settings → Billing before sending invoices",

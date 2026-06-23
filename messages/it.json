@@ -2379,6 +2379,7 @@
     "invoice_other_tenant": "Fattura di un altro tenant",
     "invoice_only_draft_editable": "Si possono modificare solo le fatture in bozza",
     "invoice_already_sent": "Questa fattura è già stata inviata",
+    "invoice_number_failed": "Impossibile generare il numero della fattura, riprova",
     "invoice_add_item_before_send": "Aggiungi almeno una voce prima di inviare",
     "invoice_customer_email_required": "Manca l'email del cliente — Stripe ne ha bisogno per inviare la fattura",
     "stripe_connect_before_send": "Collega il tuo account Stripe in Impostazioni → Fatturazione prima di inviare fatture",

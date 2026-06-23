@@ -2379,6 +2379,7 @@
     "invoice_other_tenant": "Fatura de outro inquilino",
     "invoice_only_draft_editable": "Apenas faturas em rascunho podem ser editadas",
     "invoice_already_sent": "Esta fatura já foi enviada",
+    "invoice_number_failed": "Não foi possível gerar o número da fatura, tente novamente",
     "invoice_add_item_before_send": "Adicione pelo menos um item antes de enviar",
     "invoice_customer_email_required": "Falta o e-mail do cliente — o Stripe precisa dele para enviar a fatura",
     "stripe_connect_before_send": "Conecte sua conta Stripe em Configurações → Faturamento antes de enviar faturas",

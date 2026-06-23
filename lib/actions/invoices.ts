@@ -211,6 +211,15 @@ export async function sendInvoiceAction(
   const stripeAccount = tenant.stripe_account_id;
 
   try {
+    // Allocate the human-readable invoice number FIRST. An issued invoice must
+    // always carry a number (accountability) — if we can't mint one, abort
+    // before creating anything in Stripe rather than ship an unnumbered invoice.
+    const { data: numberRow, error: numberErr } = await supabase.rpc("next_invoice_number", {
+      p_tenant_id: tenantId,
+    });
+    const number = (numberRow as string | null) ?? null;
+    if (numberErr || !number) return { error: et("invoice_number_failed") };
+
     // 1. Find or create the Stripe Customer on the connected account
     let stripeCustomerId = invoice.stripe_customer_id as string | null;
     if (!stripeCustomerId) {
@@ -317,12 +326,6 @@ export async function sendInvoiceAction(
       hostedUrl = finalized.hosted_invoice_url ?? null;
       invoicePdf = finalized.invoice_pdf ?? null;
     }
-
-    // Allocate a human-readable number
-    const { data: numberRow } = await supabase.rpc("next_invoice_number", {
-      p_tenant_id: tenantId,
-    });
-    const number = (numberRow as string | null) ?? null;
 
     const applicationFeeCents = Math.round(
       (invoice.total_cents * STRIPE_PLATFORM_FEE_BPS) / 10_000,
