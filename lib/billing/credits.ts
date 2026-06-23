@@ -308,7 +308,10 @@ export async function createTopupCheckoutSession(input: {
       // Save the card so we can offer auto-refill later
       setup_future_usage: customerId ? "off_session" : undefined,
     },
-    success_url: `${base}/dashboard/${input.tenantSlug}/billing?topup=success&session_id={CHECKOUT_SESSION_ID}`,
+    // Land on the confirm route (not straight to billing) so the credits are
+    // applied on redirect even if the platform webhook never delivers — top-ups
+    // must never depend on the webhook alone. It redirects to billing after.
+    success_url: `${base}/api/billing/topup/confirm?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/dashboard/${input.tenantSlug}/billing?topup=canceled`,
   });
 
