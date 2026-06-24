@@ -20,6 +20,9 @@ import { cn } from "@/lib/utils";
 // publishes). Caching would mean Celiel sees stale state until the next
 // deploy; force a fresh render on every request.
 export const dynamic = "force-dynamic";
+// The "Publish" server action runs in this segment; Instagram publishing polls
+// the media container until it's processed (up to ~30s), so give it headroom.
+export const maxDuration = 60;
 
 const STATUS_FILTER_IDS = [
   "pending",

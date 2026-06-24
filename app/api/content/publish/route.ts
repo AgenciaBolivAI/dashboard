@@ -3,6 +3,9 @@ import { checkBearer } from "@/lib/security/bearer";
 import { publishDraft, type PublishTarget } from "@/lib/content/publish";
 
 export const runtime = "nodejs";
+// Instagram publishing polls the media container until it's processed (up to
+// ~30s), so allow headroom beyond the default function timeout.
+export const maxDuration = 60;
 
 /**
  * Native publish endpoint for n8n auto-post (the CCAVAI tick calls this for

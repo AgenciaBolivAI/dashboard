@@ -189,6 +189,13 @@ export async function postToInstagram(args: {
   if (!cr.ok) throw new Error(`Instagram container failed: ${cr.status} ${await cr.text()}`);
   const containerId = ((await cr.json()) as { id: string }).id;
 
+  // Instagram fetches + processes the image ASYNCHRONOUSLY after the container
+  // is created. The container is not publishable until its status_code is
+  // FINISHED — publishing too early returns code 9007 / subcode 2207027
+  // ("The media is not ready for publishing, please wait for a moment"). Poll
+  // until ready (typically 1–5s) before publishing.
+  await waitForIgContainer(g, containerId, args.pageToken);
+
   const pub = await fetch(`https://graph.facebook.com/${g}/${args.igId}/media_publish`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -207,6 +214,37 @@ export async function postToInstagram(args: {
     /* permalink is best-effort */
   }
   return { id: mediaId, url };
+}
+
+/**
+ * Poll an Instagram media container until it has finished processing (status_code
+ * FINISHED) so it's safe to publish. Throws on ERROR/EXPIRED or if it doesn't
+ * become ready within the budget. ~1.5s × 20 ≈ 30s max — well under typical
+ * processing time but generous for branded JPEGs.
+ */
+async function waitForIgContainer(
+  g: string,
+  containerId: string,
+  token: string,
+  opts: { tries?: number; delayMs?: number } = {},
+): Promise<void> {
+  const tries = opts.tries ?? 20;
+  const delayMs = opts.delayMs ?? 1500;
+  for (let i = 0; i < tries; i++) {
+    await new Promise((r) => setTimeout(r, delayMs));
+    const res = await fetch(
+      `https://graph.facebook.com/${g}/${containerId}?fields=status_code,status&access_token=${encodeURIComponent(token)}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) continue; // transient read error — keep polling
+    const j = (await res.json()) as { status_code?: string; status?: string };
+    if (j.status_code === "FINISHED") return;
+    if (j.status_code === "ERROR" || j.status_code === "EXPIRED") {
+      throw new Error(`Instagram container ${j.status_code}: ${j.status ?? "processing failed"}`);
+    }
+    // IN_PROGRESS / PUBLISHED(unexpected) → keep polling
+  }
+  throw new Error("Instagram container not ready after polling (timed out)");
 }
 
 // ─── Webhook signature (X-Hub-Signature-256) ────────────────────────
