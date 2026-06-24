@@ -7,7 +7,7 @@
  * we can prove which version each user accepted (stored on the auth user's
  * user_metadata as { terms_accepted_at, terms_version }).
  */
-export const TERMS_VERSION = "2026-06-19";
+export const TERMS_VERSION = "2026-06-24";
 
 // The public legal pages live on the marketing site (bolivai.com), not the app.
 export const TERMS_URL = "https://bolivai.com/terms.html";

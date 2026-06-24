@@ -31,8 +31,12 @@ export default async function LoginPage({
           <Link href="/forgot-password" className="hover:text-foreground transition">
             {t("forgot_password_link")}
           </Link>
-          {/* No public signup link — BolivAI is invite-only.
-              Invited users land directly on /signup?token=... from their invitation email. */}
+          <span>
+            {t("no_account")}{" "}
+            <Link href="/signup" className="text-foreground hover:underline">
+              {t("sign_up_link")}
+            </Link>
+          </span>
         </div>
       </CardContent>
     </Card>

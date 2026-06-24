@@ -2043,6 +2043,8 @@
     "signup_open_description": "Crea il tuo account e configura il tuo agente AI in meno di 5 minuti.",
     "already_have_account": "Hai già un account?",
     "sign_in_link": "Accedi",
+    "no_account": "Non hai un account?",
+    "sign_up_link": "Creane uno",
     "forgot_meta_title": "Recupera password — BolivAI",
     "forgot_title": "Recupera password",
     "forgot_description": "Ti inviamo un link per reimpostare la tua password.",
