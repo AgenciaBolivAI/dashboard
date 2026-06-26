@@ -40,6 +40,7 @@ import { getActivityStats } from "@/lib/queries/admin-activity";
 import { AreaTrend } from "@/components/charts/area-trend";
 import { KpiCard as StatCard } from "@/components/overview/kpi-card";
 import { GrantCreditsPicker } from "@/components/admin/grant-credits-picker";
+import { KpiDrill } from "@/components/admin/kpi-drill";
 import { createServiceClient } from "@/lib/supabase/service";
 import { Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -181,44 +182,64 @@ export default async function AdminOverviewPage({
         <p className="text-xs text-muted-foreground mt-0.5">{tr("founders_sub")}</p>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <KpiCard
-          icon={Award}
+        <KpiDrill
+          icon={<Award className="size-3.5 text-green-600" />}
           label={tr("kpi_founders")}
           value={fmtCents(founders?.paid_cents ?? 0)}
           subtitle={tr("kpi_founders_sub")}
-          color="text-green-600"
+          valueClassName="text-green-600"
+          metric="founders_window"
+          window={windowKey}
+          dialogTitle={tr("kpi_founders")}
+          loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={Crown}
+        <KpiDrill
+          icon={<Crown className="size-3.5 text-primary" />}
           label={tr("kpi_founders_new")}
           value={String(founders?.paid_count ?? 0)}
           subtitle={tr("kpi_founders_new_sub")}
-          color="text-primary"
+          valueClassName="text-primary"
+          metric="founders_window"
+          window={windowKey}
+          dialogTitle={tr("kpi_founders_new")}
+          loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={DollarSign}
+        <KpiDrill
+          icon={<DollarSign className="size-3.5 text-green-600" />}
           label={tr("kpi_founders_all")}
           value={fmtCents(founders?.all_time_cents ?? 0)}
           subtitle={tr("kpi_founders_all_sub")}
-          color="text-green-600"
+          valueClassName="text-green-600"
+          metric="founders_all"
+          window={windowKey}
+          dialogTitle={tr("kpi_founders_all")}
+          loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={Users}
+        <KpiDrill
+          icon={<Users className="size-3.5 text-cyan-600" />}
           label={tr("kpi_founders_members")}
           value={String(founders?.all_time_count ?? 0)}
           subtitle={tr("kpi_founders_members_sub")}
-          color="text-cyan-600"
+          valueClassName="text-cyan-600"
+          metric="founders_all"
+          window={windowKey}
+          dialogTitle={tr("kpi_founders_members")}
+          loadingLabel={tr("detail_loading")}
         />
       </div>
 
       {/* KPI Cards — 3 rows of context */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <KpiCard
-          icon={DollarSign}
+        <KpiDrill
+          icon={<DollarSign className="size-3.5 text-green-600" />}
           label={tr("kpi_revenue")}
           value={fmtCents(pnl?.topup_cents ?? 0)}
           subtitle={tr("kpi_revenue_sub")}
-          color="text-green-600"
+          valueClassName="text-green-600"
+          metric="topups"
+          window={windowKey}
+          dialogTitle={tr("kpi_revenue")}
+          loadingLabel={tr("detail_loading")}
         />
         <KpiCard
           icon={TrendingDown}
@@ -244,26 +265,38 @@ export default async function AdminOverviewPage({
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <KpiCard
-          icon={Users}
+        <KpiDrill
+          icon={<Users className="size-3.5 text-cyan-600" />}
           label={tr("kpi_active_tenants")}
           value={String(pnl?.active_tenants ?? 0)}
           subtitle={tr("kpi_total_tenants_sub", { total: pnl?.total_tenants ?? 0 })}
-          color="text-cyan-600"
+          valueClassName="text-cyan-600"
+          metric="active_tenants"
+          window={windowKey}
+          dialogTitle={tr("kpi_active_tenants")}
+          loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={Activity}
+        <KpiDrill
+          icon={<Activity className="size-3.5 text-amber-600" />}
           label={tr("kpi_low_balance")}
           value={String(pnl?.tenants_low_balance ?? 0)}
           subtitle={tr("kpi_low_balance_sub")}
-          color="text-amber-600"
+          valueClassName="text-amber-600"
+          metric="low"
+          window={windowKey}
+          dialogTitle={tr("kpi_low_balance")}
+          loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={AlertTriangle}
+        <KpiDrill
+          icon={<AlertTriangle className="size-3.5 text-destructive" />}
           label={tr("kpi_no_credits")}
           value={String(pnl?.tenants_at_zero ?? 0)}
           subtitle={tr("kpi_no_credits_sub")}
-          color="text-destructive"
+          valueClassName="text-destructive"
+          metric="zero"
+          window={windowKey}
+          dialogTitle={tr("kpi_no_credits")}
+          loadingLabel={tr("detail_loading")}
         />
         <KpiCard
           icon={DollarSign}
