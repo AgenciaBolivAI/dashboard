@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Loader2, ChevronRight, Copy, Download } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Dialog,
@@ -12,6 +15,29 @@ import {
 import { cn } from "@/lib/utils";
 import { getAdminKpiDetail, type KpiDetail } from "@/lib/actions/admin-kpi-detail";
 import { getTenantKpiDetail } from "@/lib/actions/tenant-kpi-detail";
+
+const csvEscape = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+function buildCsv(detail: KpiDetail): string {
+  const head = detail.columns.map((c) => csvEscape(c.label)).join(",");
+  const lines = detail.rows.map((r) =>
+    detail.columns.map((c) => csvEscape(String(r[c.key] ?? ""))).join(","),
+  );
+  return [head, ...lines].join("\n");
+}
+function downloadCsv(name: string, csv: string) {
+  // Prepend a BOM so Excel reads UTF-8 (accented business names) correctly.
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+const slugify = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "export";
 
 /**
  * A clickable KPI tile that opens a dialog and lazy-loads the rows behind the
@@ -48,9 +74,23 @@ export function KpiDrill({
   loadingLabel: string;
   children?: React.ReactNode;
 }) {
+  const td = useTranslations("kpi_drill");
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<KpiDetail | null>(null);
   const [pending, start] = useTransition();
+
+  const hasEmail = !!detail?.columns.some((c) => c.key === "email");
+  function copyEmails() {
+    if (!detail) return;
+    const emails = detail.rows.map((r) => r.email).filter(Boolean);
+    if (!emails.length) return;
+    navigator.clipboard.writeText(emails.join(", "));
+    toast.success(td("copied", { count: emails.length }));
+  }
+  function exportCsv() {
+    if (!detail) return;
+    downloadCsv(`${slugify(dialogTitle)}-${new Date().toISOString().slice(0, 10)}.csv`, buildCsv(detail));
+  }
 
   function onOpenChange(next: boolean) {
     setOpen(next);
@@ -159,7 +199,21 @@ export function KpiDrill({
             )}
           </div>
           {detail && detail.rows.length > 0 ? (
-            <p className="text-xs text-muted-foreground">{detail.rows.length}</p>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <span className="text-xs text-muted-foreground tabular-nums">{detail.rows.length}</span>
+              <div className="flex gap-2">
+                {hasEmail ? (
+                  <Button type="button" variant="outline" size="sm" onClick={copyEmails} className="gap-1.5">
+                    <Copy className="size-3.5" />
+                    {td("copy_emails")}
+                  </Button>
+                ) : null}
+                <Button type="button" variant="outline" size="sm" onClick={exportCsv} className="gap-1.5">
+                  <Download className="size-3.5" />
+                  {td("export_csv")}
+                </Button>
+              </div>
+            </div>
           ) : null}
         </DialogContent>
       </Dialog>

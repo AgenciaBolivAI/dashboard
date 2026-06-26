@@ -1,4 +1,9 @@
 {
+  "kpi_drill": {
+    "copy_emails": "Copiar e-mails",
+    "export_csv": "Exportar CSV",
+    "copied": "{count} e-mails copiados"
+  },
   "nav": {
     "overview": "Visão geral",
     "conversations": "Conversas",

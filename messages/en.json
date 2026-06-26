@@ -1,4 +1,9 @@
 {
+  "kpi_drill": {
+    "copy_emails": "Copy emails",
+    "export_csv": "Export CSV",
+    "copied": "{count} emails copied"
+  },
   "nav": {
     "overview": "Overview",
     "conversations": "Conversations",
