@@ -134,35 +134,43 @@ export default async function AdminOverviewPage({
         <p className="text-xs text-muted-foreground mt-0.5">{tr("activity_sub")}</p>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <StatCard
-          label={tr("kpi_dau")}
-          value={dauToday.toLocaleString(locale)}
-          deltaPct={dauDeltaPct}
-          deltaLabel={tr("dau_delta_label")}
-          spark={dauSeries.slice(-14)}
-          icon={UserCheck}
-        />
-        <StatCard
-          label={tr("kpi_wau")}
-          value={activity.wau.toLocaleString(locale)}
-          deltaPct={null}
-          deltaLabel={tr("wau_sub")}
-          icon={CalendarDays}
-        />
-        <StatCard
-          label={tr("kpi_mau")}
-          value={activity.mau.toLocaleString(locale)}
-          deltaPct={null}
-          deltaLabel={tr("mau_sub")}
-          icon={CalendarClock}
-        />
-        <StatCard
-          label={tr("kpi_total_users")}
-          value={activity.total.toLocaleString(locale)}
-          deltaPct={null}
-          deltaLabel={tr("total_users_sub")}
-          icon={Users}
-        />
+        <KpiDrill metric="dau" window={windowKey} dialogTitle={tr("kpi_dau")} loadingLabel={tr("detail_loading")}>
+          <StatCard
+            label={tr("kpi_dau")}
+            value={dauToday.toLocaleString(locale)}
+            deltaPct={dauDeltaPct}
+            deltaLabel={tr("dau_delta_label")}
+            spark={dauSeries.slice(-14)}
+            icon={UserCheck}
+          />
+        </KpiDrill>
+        <KpiDrill metric="wau" window={windowKey} dialogTitle={tr("kpi_wau")} loadingLabel={tr("detail_loading")}>
+          <StatCard
+            label={tr("kpi_wau")}
+            value={activity.wau.toLocaleString(locale)}
+            deltaPct={null}
+            deltaLabel={tr("wau_sub")}
+            icon={CalendarDays}
+          />
+        </KpiDrill>
+        <KpiDrill metric="mau" window={windowKey} dialogTitle={tr("kpi_mau")} loadingLabel={tr("detail_loading")}>
+          <StatCard
+            label={tr("kpi_mau")}
+            value={activity.mau.toLocaleString(locale)}
+            deltaPct={null}
+            deltaLabel={tr("mau_sub")}
+            icon={CalendarClock}
+          />
+        </KpiDrill>
+        <KpiDrill metric="registered_users" window={windowKey} dialogTitle={tr("kpi_total_users")} loadingLabel={tr("detail_loading")}>
+          <StatCard
+            label={tr("kpi_total_users")}
+            value={activity.total.toLocaleString(locale)}
+            deltaPct={null}
+            deltaLabel={tr("total_users_sub")}
+            icon={Users}
+          />
+        </KpiDrill>
       </div>
       <Card className="p-5 mb-8">
         <h2 className="text-sm uppercase tracking-wider text-muted-foreground mb-3">
@@ -241,26 +249,38 @@ export default async function AdminOverviewPage({
           dialogTitle={tr("kpi_revenue")}
           loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={TrendingDown}
+        <KpiDrill
+          icon={<TrendingDown className="size-3.5 text-amber-600" />}
           label={tr("kpi_api_cost")}
           value={fmtUsd(pnl?.cost_micros ?? 0)}
           subtitle="OpenAI · ElevenLabs · Twilio · Apollo · Instantly"
-          color="text-amber-600"
+          valueClassName="text-amber-600"
+          metric="actions"
+          window={windowKey}
+          dialogTitle={tr("kpi_api_cost")}
+          loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={PiggyBank}
+        <KpiDrill
+          icon={<PiggyBank className="size-3.5 text-primary" />}
           label={tr("kpi_gross_margin")}
           value={fmtUsd(pnl?.margin_micros ?? 0)}
           subtitle={pnl?.margin_pct != null ? tr("kpi_margin_pct_sub", { pct: pnl.margin_pct }) : "—"}
-          color="text-primary"
+          valueClassName="text-primary"
+          metric="actions"
+          window={windowKey}
+          dialogTitle={tr("kpi_gross_margin")}
+          loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={TrendingUp}
+        <KpiDrill
+          icon={<TrendingUp className="size-3.5 text-purple-600" />}
           label={tr("kpi_usage_credits")}
           value={fmtCredits(pnl?.usage_credits ?? 0)}
           subtitle={tr("kpi_usage_value_sub", { value: fmtCents((pnl?.usage_credits ?? 0)) })}
-          color="text-purple-600"
+          valueClassName="text-purple-600"
+          metric="actions"
+          window={windowKey}
+          dialogTitle={tr("kpi_usage_credits")}
+          loadingLabel={tr("detail_loading")}
         />
       </div>
 
@@ -298,8 +318,8 @@ export default async function AdminOverviewPage({
           dialogTitle={tr("kpi_no_credits")}
           loadingLabel={tr("detail_loading")}
         />
-        <KpiCard
-          icon={DollarSign}
+        <KpiDrill
+          icon={<DollarSign className="size-3.5 text-foreground" />}
           label={tr("kpi_arpu")}
           value={
             (pnl?.active_tenants ?? 0) > 0
@@ -307,7 +327,11 @@ export default async function AdminOverviewPage({
               : "—"
           }
           subtitle={tr("kpi_arpu_sub")}
-          color="text-foreground"
+          valueClassName="text-foreground"
+          metric="tenant_revenue"
+          window={windowKey}
+          dialogTitle={tr("kpi_arpu")}
+          loadingLabel={tr("detail_loading")}
         />
       </div>
 
@@ -509,35 +533,6 @@ export default async function AdminOverviewPage({
   );
 }
 
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  subtitle,
-  color,
-}: {
-  icon: typeof DollarSign;
-  label: string;
-  value: string;
-  subtitle?: string;
-  color: string;
-}) {
-  return (
-    <Card className="panel-pro group relative overflow-hidden p-4">
-      <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-1">
-        <Icon className={cn("size-3.5", color)} />
-        <span>{label}</span>
-      </div>
-      <p className={cn("font-display text-[1.6rem] font-extrabold leading-none tracking-tight tabular-nums mt-2", color)}>
-        {value}
-      </p>
-      {subtitle && (
-        <p className="text-xs text-muted-foreground mt-1.5">{subtitle}</p>
-      )}
-    </Card>
-  );
-}
 
 function SparkBlock({
   label,

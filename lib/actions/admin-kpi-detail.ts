@@ -4,7 +4,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getTranslations, getLocale } from "next-intl/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, isBolivAIAdmin } from "@/lib/auth";
-import { fmtCents } from "@/lib/queries/admin-pnl";
+import {
+  fmtCents,
+  fmtUsd,
+  getActionBreakdown,
+  getTenantPnlSummary,
+  type PnlWindow,
+} from "@/lib/queries/admin-pnl";
 
 export type KpiMetric =
   | "founders_all"
@@ -12,7 +18,13 @@ export type KpiMetric =
   | "topups"
   | "zero"
   | "low"
-  | "active_tenants";
+  | "active_tenants"
+  | "dau"
+  | "wau"
+  | "mau"
+  | "registered_users"
+  | "actions"
+  | "tenant_revenue";
 
 export type KpiDetailColumn = { key: string; label: string; align?: "left" | "right" };
 export type KpiDetail = {
@@ -81,6 +93,8 @@ export async function getAdminKpiDetail(metric: string, window: string): Promise
   const s = svc();
   const fmtDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" }) : "—";
+  const dtFull = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
   const C = {
     num: { key: "num", label: t("detail_col_num") },
@@ -90,8 +104,59 @@ export async function getAdminKpiDetail(metric: string, window: string): Promise
     code: { key: "code", label: t("detail_col_code") },
     status: { key: "status", label: t("detail_col_status") },
     balance: { key: "balance", label: t("detail_col_balance"), align: "right" as const },
+    email: { key: "email", label: t("detail_col_email") },
+    last_active: { key: "last_active", label: t("detail_col_last_active"), align: "right" as const },
+    registered: { key: "registered", label: t("detail_col_registered"), align: "right" as const },
+    action: { key: "action", label: t("detail_col_action") },
+    units: { key: "units", label: t("detail_col_units"), align: "right" as const },
+    revenue: { key: "revenue", label: t("detail_col_revenue"), align: "right" as const },
+    cost: { key: "cost", label: t("detail_col_cost"), align: "right" as const },
+    margin: { key: "margin", label: t("detail_col_margin"), align: "right" as const },
   };
   const empty = t("detail_empty");
+
+  // ── Active dashboard users behind DAU / WAU / MAU / Registered ─────────
+  if (metric === "dau" || metric === "wau" || metric === "mau" || metric === "registered_users") {
+    const kind = metric === "registered_users" ? "registered" : metric;
+    const { data } = await s.rpc("admin_active_users", { p_kind: kind });
+    const rows = ((data ?? []) as Array<{
+      email: string;
+      business: string | null;
+      last_active: string | null;
+      registered: string | null;
+    }>).map((r) => ({
+      email: r.email,
+      tenant: r.business || "—",
+      last_active: dtFull(r.last_active),
+      registered: fmtDate(r.registered),
+    }));
+    return { columns: [C.email, C.tenant, C.last_active, C.registered], rows, empty };
+  }
+
+  // ── Per-action breakdown (API cost / usage / margin tiles) ────────────
+  if (metric === "actions") {
+    const acts = await getActionBreakdown(window as PnlWindow);
+    const rows = acts.map((a) => ({
+      action: a.action_key,
+      units: a.units.toLocaleString(locale),
+      revenue: fmtCents(a.revenue_credits),
+      cost: fmtUsd(a.cost_micros),
+      margin: fmtUsd(a.margin_micros),
+    }));
+    return { columns: [C.action, C.units, C.revenue, C.cost, C.margin], rows, empty };
+  }
+
+  // ── Per-tenant revenue (ARPU tile) ────────────────────────────────────
+  if (metric === "tenant_revenue") {
+    const tps = await getTenantPnlSummary(window as PnlWindow);
+    const rows = tps.map((tp) => ({
+      tenant: `${tp.name} (/${tp.slug})`,
+      revenue: fmtCents(tp.revenue_cents),
+      cost: fmtUsd(tp.cost_micros),
+      margin: fmtUsd(tp.margin_micros),
+    }));
+    return { columns: [C.tenant, C.revenue, C.cost, C.margin], rows, empty };
+  }
 
   // ── Founding members (all-time or within the window) ──────────────────
   if (metric === "founders_all" || metric === "founders_window") {
