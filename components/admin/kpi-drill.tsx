@@ -10,17 +10,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import {
-  getAdminKpiDetail,
-  type KpiMetric,
-  type KpiDetail,
-} from "@/lib/actions/admin-kpi-detail";
+import { getAdminKpiDetail, type KpiDetail } from "@/lib/actions/admin-kpi-detail";
+import { getTenantKpiDetail } from "@/lib/actions/tenant-kpi-detail";
 
 /**
- * A clickable admin-overview KPI tile. Visually identical to the static KpiCard
- * but opens a dialog and lazy-loads the rows behind the number (e.g. clicking
- * "Founding members" lists who paid). `icon` is passed as a pre-rendered element
- * so this client component needs no icon-name map.
+ * A clickable KPI tile that opens a dialog and lazy-loads the rows behind the
+ * number. Two modes:
+ *  - admin (no `tenantId`): platform-wide data via getAdminKpiDetail (admin-gated).
+ *  - tenant (`tenantId` set): that tenant's own data via getTenantKpiDetail
+ *    (membership-gated + RLS + tenant_id filter — never crosses tenants).
+ *
+ * Pass `children` (a pre-rendered KpiCard) to wrap an existing card, or omit it
+ * to render a built-in admin-style card from icon/label/value/subtitle.
  */
 export function KpiDrill({
   icon,
@@ -30,18 +31,22 @@ export function KpiDrill({
   valueClassName,
   metric,
   window,
+  tenantId,
   dialogTitle,
   loadingLabel,
+  children,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
+  icon?: React.ReactNode;
+  label?: string;
+  value?: string;
   subtitle?: string;
   valueClassName?: string;
-  metric: KpiMetric;
+  metric: string;
   window: string;
+  tenantId?: string;
   dialogTitle: string;
   loadingLabel: string;
+  children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<KpiDetail | null>(null);
@@ -51,42 +56,60 @@ export function KpiDrill({
     setOpen(next);
     if (next && !detail) {
       start(async () => {
-        const d = await getAdminKpiDetail(metric, window);
+        const d = tenantId
+          ? await getTenantKpiDetail(tenantId, metric, window)
+          : await getAdminKpiDetail(metric, window);
         setDetail(d);
       });
     }
   }
 
+  const open0 = () => onOpenChange(true);
+  const keyOpen = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onOpenChange(true);
+    }
+  };
+
   return (
     <>
-      <Card
-        role="button"
-        tabIndex={0}
-        onClick={() => onOpenChange(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onOpenChange(true);
-          }
-        }}
-        className="panel-pro group relative cursor-pointer overflow-hidden p-4 transition hover:border-primary/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-1">
-          {icon}
-          <span>{label}</span>
-          <ChevronRight className="ml-auto size-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
-        </div>
-        <p
-          className={cn(
-            "font-display text-[1.6rem] font-extrabold leading-none tracking-tight tabular-nums mt-2",
-            valueClassName,
-          )}
+      {children ? (
+        // Wrapper mode: make the provided card clickable without changing its look.
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={open0}
+          onKeyDown={keyOpen}
+          className="cursor-pointer rounded-2xl outline-none transition focus-visible:ring-2 focus-visible:ring-ring [&>*]:transition hover:[&>*]:border-primary/40"
         >
-          {value}
-        </p>
-        {subtitle ? <p className="text-xs text-muted-foreground mt-1.5">{subtitle}</p> : null}
-      </Card>
+          {children}
+        </div>
+      ) : (
+        <Card
+          role="button"
+          tabIndex={0}
+          onClick={open0}
+          onKeyDown={keyOpen}
+          className="panel-pro group relative cursor-pointer overflow-hidden p-4 transition hover:border-primary/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-1">
+            {icon}
+            <span>{label}</span>
+            <ChevronRight className="ml-auto size-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+          </div>
+          <p
+            className={cn(
+              "font-display text-[1.6rem] font-extrabold leading-none tracking-tight tabular-nums mt-2",
+              valueClassName,
+            )}
+          >
+            {value}
+          </p>
+          {subtitle ? <p className="text-xs text-muted-foreground mt-1.5">{subtitle}</p> : null}
+        </Card>
+      )}
 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl">

@@ -71,7 +71,7 @@ function windowStartIso(w: string): string {
  * generic { columns, rows } the dialog renders as a table; all values are
  * pre-formatted strings so the client just paints them.
  */
-export async function getAdminKpiDetail(metric: KpiMetric, window: string): Promise<KpiDetail> {
+export async function getAdminKpiDetail(metric: string, window: string): Promise<KpiDetail> {
   await requireUser();
   if (!(await isBolivAIAdmin())) {
     return { columns: [], rows: [], empty: "", error: "forbidden" };
@@ -171,23 +171,27 @@ export async function getAdminKpiDetail(metric: KpiMetric, window: string): Prom
   }
 
   // ── All tenants + balance (active-tenants tile) ───────────────────────
-  // active_tenants
-  const { data } = await s
-    .from("credit_accounts")
-    .select("balance_credits, reserved_credits, tenants(name, slug, status, created_at)");
-  const rows = ((data ?? []) as unknown as Array<{
-    balance_credits: number;
-    reserved_credits: number;
-    tenants: { name: string; slug: string; status: string; created_at: string } | null;
-  }>)
-    .filter((r) => r.tenants)
-    .map((r) => ({
-      tenant: `${r.tenants!.name} (/${r.tenants!.slug})`,
-      status: r.tenants!.status,
-      balance: fmtCents((r.balance_credits ?? 0) - (r.reserved_credits ?? 0)),
-      _sort: r.tenants!.status === "active" ? "0" : "1",
-    }))
-    .sort((a, b) => (a._sort + a.tenant).localeCompare(b._sort + b.tenant))
-    .map(({ _sort, ...rest }) => { void _sort; return rest; });
-  return { columns: [C.tenant, C.status, C.balance], rows, empty };
+  if (metric === "active_tenants") {
+    const { data } = await s
+      .from("credit_accounts")
+      .select("balance_credits, reserved_credits, tenants(name, slug, status, created_at)");
+    const rows = ((data ?? []) as unknown as Array<{
+      balance_credits: number;
+      reserved_credits: number;
+      tenants: { name: string; slug: string; status: string; created_at: string } | null;
+    }>)
+      .filter((r) => r.tenants)
+      .map((r) => ({
+        tenant: `${r.tenants!.name} (/${r.tenants!.slug})`,
+        status: r.tenants!.status,
+        balance: fmtCents((r.balance_credits ?? 0) - (r.reserved_credits ?? 0)),
+        _sort: r.tenants!.status === "active" ? "0" : "1",
+      }))
+      .sort((a, b) => (a._sort + a.tenant).localeCompare(b._sort + b.tenant))
+      .map(({ _sort, ...rest }) => { void _sort; return rest; });
+    return { columns: [C.tenant, C.status, C.balance], rows, empty };
+  }
+
+  // Unknown metric — never fall through to returning data.
+  return { columns: [], rows: [], empty };
 }

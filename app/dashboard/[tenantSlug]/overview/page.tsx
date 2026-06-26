@@ -30,6 +30,7 @@ import { listConversations } from "@/lib/queries/conversations";
 import { formatMoney } from "@/lib/format";
 import { Sparkline } from "@/components/admin/sparkline";
 import { KpiCard } from "@/components/overview/kpi-card";
+import { KpiDrill } from "@/components/admin/kpi-drill";
 import { PeriodSelector } from "@/components/overview/period-selector";
 import { AreaTrend } from "@/components/charts/area-trend";
 import { DonutChart } from "@/components/charts/donut-chart";
@@ -122,38 +123,46 @@ export default async function OverviewPage({
 
       {/* Primary KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          icon={MessageSquare}
-          label={t("kpi_conversations")}
-          value={numFmt(analytics.kpis.conversations.current)}
-          deltaPct={analytics.kpis.conversations.deltaPct}
-          deltaLabel={vsPrev}
-          spark={analytics.kpis.conversations.spark}
-        />
-        <KpiCard
-          icon={UserPlus}
-          label={t("kpi_leads")}
-          value={numFmt(analytics.kpis.leads.current)}
-          deltaPct={analytics.kpis.leads.deltaPct}
-          deltaLabel={vsPrev}
-          spark={analytics.kpis.leads.spark}
-        />
-        <KpiCard
-          icon={CalendarCheck}
-          label={t("kpi_bookings")}
-          value={numFmt(analytics.kpis.bookings.current)}
-          deltaPct={analytics.kpis.bookings.deltaPct}
-          deltaLabel={vsPrev}
-          spark={analytics.kpis.bookings.spark}
-        />
-        <KpiCard
-          icon={Banknote}
-          label={t("kpi_revenue")}
-          value={formatMoney(analytics.kpis.revenueCents.current, currency, locale)}
-          deltaPct={analytics.kpis.revenueCents.deltaPct}
-          deltaLabel={vsPrev}
-          spark={analytics.kpis.revenueCents.spark}
-        />
+        <KpiDrill metric="conversations" tenantId={tenant.id} window={period} dialogTitle={t("kpi_conversations")} loadingLabel={t("dd_loading")}>
+          <KpiCard
+            icon={MessageSquare}
+            label={t("kpi_conversations")}
+            value={numFmt(analytics.kpis.conversations.current)}
+            deltaPct={analytics.kpis.conversations.deltaPct}
+            deltaLabel={vsPrev}
+            spark={analytics.kpis.conversations.spark}
+          />
+        </KpiDrill>
+        <KpiDrill metric="leads" tenantId={tenant.id} window={period} dialogTitle={t("kpi_leads")} loadingLabel={t("dd_loading")}>
+          <KpiCard
+            icon={UserPlus}
+            label={t("kpi_leads")}
+            value={numFmt(analytics.kpis.leads.current)}
+            deltaPct={analytics.kpis.leads.deltaPct}
+            deltaLabel={vsPrev}
+            spark={analytics.kpis.leads.spark}
+          />
+        </KpiDrill>
+        <KpiDrill metric="reservations" tenantId={tenant.id} window={period} dialogTitle={t("kpi_bookings")} loadingLabel={t("dd_loading")}>
+          <KpiCard
+            icon={CalendarCheck}
+            label={t("kpi_bookings")}
+            value={numFmt(analytics.kpis.bookings.current)}
+            deltaPct={analytics.kpis.bookings.deltaPct}
+            deltaLabel={vsPrev}
+            spark={analytics.kpis.bookings.spark}
+          />
+        </KpiDrill>
+        <KpiDrill metric="revenue" tenantId={tenant.id} window={period} dialogTitle={t("kpi_revenue")} loadingLabel={t("dd_loading")}>
+          <KpiCard
+            icon={Banknote}
+            label={t("kpi_revenue")}
+            value={formatMoney(analytics.kpis.revenueCents.current, currency, locale)}
+            deltaPct={analytics.kpis.revenueCents.deltaPct}
+            deltaLabel={vsPrev}
+            spark={analytics.kpis.revenueCents.spark}
+          />
+        </KpiDrill>
       </div>
 
       {/* Secondary stat strip */}
@@ -165,26 +174,30 @@ export default async function OverviewPage({
           deltaPct={analytics.messages.deltaPct}
           deltaLabel={vsPrev}
         />
-        <KpiCard
-          icon={Phone}
-          label={t("kpi_voice_minutes")}
-          value={numFmt(analytics.voiceMinutes)}
-          deltaPct={null}
-          deltaLabel={t("kpi_voice_minutes_hint")}
-        />
-        <KpiCard
-          icon={Wallet}
-          label={t("kpi_balance")}
-          value={numFmt(balance?.available_credits ?? 0)}
-          deltaPct={null}
-          deltaLabel={
-            balance?.is_zero
-              ? t("kpi_balance_zero")
-              : balance?.is_low
-                ? t("kpi_balance_low")
-                : t("kpi_balance_ok")
-          }
-        />
+        <KpiDrill metric="voice" tenantId={tenant.id} window={period} dialogTitle={t("kpi_voice_minutes")} loadingLabel={t("dd_loading")}>
+          <KpiCard
+            icon={Phone}
+            label={t("kpi_voice_minutes")}
+            value={numFmt(analytics.voiceMinutes)}
+            deltaPct={null}
+            deltaLabel={t("kpi_voice_minutes_hint")}
+          />
+        </KpiDrill>
+        <KpiDrill metric="balance" tenantId={tenant.id} window={period} dialogTitle={t("kpi_balance")} loadingLabel={t("dd_loading")}>
+          <KpiCard
+            icon={Wallet}
+            label={t("kpi_balance")}
+            value={numFmt(balance?.available_credits ?? 0)}
+            deltaPct={null}
+            deltaLabel={
+              balance?.is_zero
+                ? t("kpi_balance_zero")
+                : balance?.is_low
+                  ? t("kpi_balance_low")
+                  : t("kpi_balance_ok")
+            }
+          />
+        </KpiDrill>
       </div>
 
       {/* Hero chart + channel mix */}
