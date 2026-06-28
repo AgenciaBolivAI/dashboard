@@ -347,8 +347,15 @@ export async function triggerCcavaiGenerationAction(
   return { error: null, success: true };
 }
 
-// Alias for the new settings form which uses the more concise name
-export const triggerCcavaiRunAction = triggerCcavaiGenerationAction;
+// Alias for the settings form (uses the more concise name). Must be an async
+// function, not a `const` alias — every export in a "use server" file must be
+// an async function or it's an invalid server-action export.
+export async function triggerCcavaiRunAction(
+  tenantId: string,
+  mode: CcavaiMode = "mixed",
+): Promise<CcavaiState> {
+  return triggerCcavaiGenerationAction(tenantId, mode);
+}
 
 // ── Per-tenant settings ──────────────────────────────────────────────
 const PLATFORMS_VALUES = ["linkedin", "instagram", "facebook", "x"] as const;

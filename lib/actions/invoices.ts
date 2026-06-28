@@ -8,6 +8,38 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { getStripe, STRIPE_PLATFORM_FEE_BPS } from "@/lib/stripe";
 
+/**
+ * Reuse-or-create a Stripe TaxRate on the connected account for a given bps rate,
+ * so per-line invoice tax (computed into `total_cents` and shown in the dashboard
+ * + PDF) is ACTUALLY charged to the customer. Without this, Stripe billed only the
+ * pre-tax subtotal — the tax shown was never collected and the platform fee base
+ * was wrong. Cached per-send to avoid duplicate lookups/creates.
+ */
+async function ensureTaxRate(
+  stripe: ReturnType<typeof getStripe>,
+  stripeAccount: string,
+  bps: number,
+  cache: Map<number, string>,
+): Promise<string> {
+  const hit = cache.get(bps);
+  if (hit) return hit;
+  const percentage = bps / 100;
+  const existing = await stripe.taxRates.list({ active: true, limit: 100 }, { stripeAccount });
+  const match = existing.data.find(
+    (r) => r.percentage === percentage && r.inclusive === false && r.metadata?.bolivai === "1",
+  );
+  const id =
+    match?.id ??
+    (
+      await stripe.taxRates.create(
+        { display_name: "Tax", percentage, inclusive: false, metadata: { bolivai: "1" } },
+        { stripeAccount },
+      )
+    ).id;
+  cache.set(bps, id);
+  return id;
+}
+
 export type InvoiceActionState = {
   error: string | null;
   success?: boolean;
@@ -238,6 +270,7 @@ export async function sendInvoiceAction(
     let hostedUrl: string | null = null;
     let invoicePdf: string | null = null;
     let stripeSubscriptionId: string | null = null;
+    const taxCache = new Map<number, string>();
 
     if (invoice.is_recurring && invoice.recurrence_interval) {
       // Recurring: build a Subscription. Stripe will generate invoices on each cycle.
@@ -256,7 +289,15 @@ export async function sendInvoiceAction(
             },
             { stripeAccount },
           );
-          return { price: price.id, quantity: Math.round(it.quantity) };
+          const taxRates =
+            it.tax_rate_bps > 0
+              ? [await ensureTaxRate(stripe, stripeAccount, it.tax_rate_bps, taxCache)]
+              : undefined;
+          return {
+            price: price.id,
+            quantity: Math.round(it.quantity),
+            ...(taxRates ? { tax_rates: taxRates } : {}),
+          };
         }),
       );
 
@@ -306,6 +347,10 @@ export async function sendInvoiceAction(
       // Add items
       for (const it of items) {
         const lineAmount = Math.round(it.quantity * it.unit_price_cents);
+        const taxRates =
+          it.tax_rate_bps > 0
+            ? [await ensureTaxRate(stripe, stripeAccount, it.tax_rate_bps, taxCache)]
+            : undefined;
         await stripe.invoiceItems.create(
           {
             customer: stripeCustomerId,
@@ -313,6 +358,7 @@ export async function sendInvoiceAction(
             currency: invoice.currency.toLowerCase(),
             amount: lineAmount,
             description: `${it.description}${it.quantity !== 1 ? ` ×${it.quantity}` : ""}`,
+            ...(taxRates ? { tax_rates: taxRates } : {}),
           },
           { stripeAccount },
         );

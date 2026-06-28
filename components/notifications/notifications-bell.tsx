@@ -32,9 +32,21 @@ const ICONS: Record<string, typeof Bell> = {
   system: Info,
 };
 
-export function NotificationsBell({ tenantId }: { tenantId: string }) {
+export function NotificationsBell({
+  tenantId,
+  tenantTimezone,
+}: {
+  tenantId: string;
+  tenantTimezone: string;
+}) {
   const t = useTranslations("notifications");
   const locale = useLocale();
+  const fmtDateTime = (iso: string) =>
+    new Intl.DateTimeFormat(locale, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: tenantTimezone,
+    }).format(new Date(iso));
   const router = useRouter();
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [unread, setUnread] = useState(0);
@@ -171,14 +183,14 @@ export function NotificationsBell({ tenantId }: { tenantId: string }) {
             <>
               <DialogHeader>
                 <DialogDescription className="uppercase tracking-wide text-[11px]">
-                  {typeLabel(selected.type)} · {new Date(selected.created_at).toLocaleString(locale)}
+                  {typeLabel(selected.type)} · {fmtDateTime(selected.created_at)}
                 </DialogDescription>
                 <DialogTitle>{selected.title}</DialogTitle>
               </DialogHeader>
 
               {selected.body ? <p className="text-sm text-muted-foreground">{selected.body}</p> : null}
 
-              <DetailGrid meta={selected.meta} t={t} />
+              <DetailGrid meta={selected.meta} t={t} fmt={fmtDateTime} />
 
               <DialogFooter>
                 {selected.href ? (
@@ -206,9 +218,11 @@ export function NotificationsBell({ tenantId }: { tenantId: string }) {
 function DetailGrid({
   meta,
   t,
+  fmt,
 }: {
   meta: Record<string, unknown>;
   t: ReturnType<typeof useTranslations>;
+  fmt: (iso: string) => string;
 }) {
   const LABELS = ["customer_name", "customer_email", "customer_phone", "start_at", "end_at", "name", "email", "status"];
   const rows = LABELS.filter((k) => meta[k] != null && meta[k] !== "").map((k) => [k, meta[k]] as const);
@@ -218,17 +232,19 @@ function DetailGrid({
       {rows.map(([k, v]) => (
         <div key={k} className="flex justify-between gap-3 px-3 py-2">
           <dt className="text-muted-foreground">{t.has(`fields.${k}`) ? t(`fields.${k}`) : k}</dt>
-          <dd className="text-right font-medium truncate">{formatVal(k, v)}</dd>
+          <dd className="text-right font-medium truncate">{formatVal(k, v, fmt)}</dd>
         </div>
       ))}
     </dl>
   );
 }
 
-function formatVal(key: string, v: unknown): string {
+/** Render start/end timestamps in the tenant's business timezone (via `fmt`),
+ *  not the viewer's local tz. */
+function formatVal(key: string, v: unknown, fmt: (iso: string) => string): string {
   if (typeof v === "string" && (key === "start_at" || key === "end_at")) {
     const d = new Date(v);
-    if (!Number.isNaN(d.getTime())) return d.toLocaleString();
+    if (!Number.isNaN(d.getTime())) return fmt(v);
   }
   return String(v);
 }

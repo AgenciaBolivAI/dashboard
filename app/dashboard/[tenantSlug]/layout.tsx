@@ -13,7 +13,6 @@ import { getFoundingCount, FOUNDING_CAP } from "@/lib/billing/lifetime";
 import { LifetimeGate } from "@/components/billing/lifetime-gate";
 import { Sidebar } from "@/components/shell/sidebar";
 import { FxInteractions } from "@/components/fx/fx-interactions";
-import { FxWebgl } from "@/components/fx/fx-webgl";
 import { TenantSwitcher, type TenantOption } from "@/components/shell/tenant-switcher";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -119,7 +118,6 @@ export default async function TenantLayout({
           behind all content (z-index:-1, contained by `relative isolate`). */}
       <div className="app-backdrop" aria-hidden>
         <div className="fx-aurora" />
-        <FxWebgl />
         <div className="fx-grid" />
         <div className="fx-vignette" />
       </div>
@@ -204,7 +202,7 @@ export default async function TenantLayout({
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <BalanceWidget tenantId={tenant.id} tenantSlug={tenant.slug} />
-            <NotificationsBell tenantId={tenant.id} />
+            <NotificationsBell tenantId={tenant.id} tenantTimezone={tenant.timezone ?? "UTC"} />
             <UserMenu email={user.email ?? "—"} />
           </div>
         </header>

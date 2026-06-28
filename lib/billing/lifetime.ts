@@ -137,6 +137,16 @@ export async function grantLifetimeFromStripe(input: {
   code?: string | null; // redeemed discount code, for the usage report
 }): Promise<{ ok: boolean; foundingNumber: number | null; wasAlready: boolean }> {
   const svc = createServiceClient();
+  // Read the PI currently on record so we can tell an idempotent re-process of
+  // the SAME payment (webhook + confirm-route) from a genuinely SECOND, distinct
+  // payment (the founders fee charged twice on a checkout race).
+  const { data: priorRow } = await svc
+    .from("tenants")
+    .select("lifetime_stripe_pi")
+    .eq("id", input.tenantId)
+    .maybeSingle();
+  const priorPi = (priorRow as { lifetime_stripe_pi: string | null } | null)?.lifetime_stripe_pi ?? null;
+
   const { data, error } = await svc.rpc("grant_lifetime_access", {
     p_tenant_id: input.tenantId,
     p_paid_cents: input.paidCents,
@@ -156,9 +166,29 @@ export async function grantLifetimeFromStripe(input: {
     founding_number: number | null;
     was_already: boolean;
   } | null;
+  const wasAlready = row?.was_already ?? false;
+
+  // Duplicate-payment guard: the tenant ALREADY had lifetime access and this is
+  // a DIFFERENT, real payment intent → the $40 founders fee was charged twice
+  // (two checkout sessions paid before either confirmed). Refund this second
+  // charge. Lifetime charges the PLATFORM account, so refund on the platform
+  // client (no connected-account option). Same-PI re-processing is left alone.
+  if (
+    wasAlready &&
+    input.paidCents > 0 &&
+    input.stripePaymentIntentId &&
+    input.stripePaymentIntentId !== priorPi
+  ) {
+    try {
+      await getStripe().refunds.create({ payment_intent: input.stripePaymentIntentId });
+    } catch {
+      /* best-effort — a failed auto-refund still leaves the (idempotent) grant intact */
+    }
+  }
+
   return {
     ok: row?.ok ?? false,
     foundingNumber: row?.founding_number ?? null,
-    wasAlready: row?.was_already ?? false,
+    wasAlready,
   };
 }

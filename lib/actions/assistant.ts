@@ -36,15 +36,26 @@ export async function askAssistantAction(
     return { ok: false, error: "No hay pregunta que responder." };
   }
 
-  // Metering: 1 credit / answered question. Pause at zero like every agent —
-  // refuse upfront if the tenant can't afford it (no free answer at 0 balance).
+  // Metering: 1 credit / answered question. Charge UP FRONT so the asking
+  // employee's per-user budget is actually enforced. `debit_credits_as_user`
+  // returns { ok:false } (it does NOT throw) when a budget is exhausted, so the
+  // old post-answer `debitCredits(...).catch(() => {})` silently swallowed a
+  // budget rejection and served a FREE answer. Charging before the (paid) OpenAI
+  // call also avoids burning model spend for an over-budget actor.
   const bal = await getBalanceWithService(tenant.id);
   if (!bal || bal.available_credits < 1) {
     const et = await getTranslations("action_errors");
-    return {
-      ok: false,
-      error: et("assistant_need_credit"),
-    };
+    return { ok: false, error: et("assistant_need_credit") };
+  }
+  const debit = await debitCredits({
+    tenantId: tenant.id,
+    actionKey: "assistant.query",
+    units: 1,
+    actorUserId: user.id,
+  });
+  if (!debit.ok) {
+    const et = await getTranslations("action_errors");
+    return { ok: false, error: et("assistant_need_credit") };
   }
 
   // Business-context memory (Phase 0b): the AI knows the business each call.
@@ -57,17 +68,7 @@ export async function askAssistantAction(
     history: trimmed,
     businessContext,
   });
-
-  // Only charge for a successful answer (not for OpenAI errors). Best-effort —
-  // the pre-check above already gated affordability.
   if (res.error) return { ok: false, error: res.error };
-  // Attribute the spend to the asking employee + enforce their budget (if any).
-  await debitCredits({
-    tenantId: tenant.id,
-    actionKey: "assistant.query",
-    units: 1,
-    actorUserId: user.id,
-  }).catch(() => {});
   // Persist this exchange (Phase 0c) so the thread carries across sessions.
   // Best-effort: a storage hiccup must not fail an answered question.
   await persistAssistantTurn({

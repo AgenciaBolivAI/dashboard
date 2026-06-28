@@ -58,9 +58,17 @@ export async function getWeekCalendar(
   staff: Staffer[];
 }> {
   const supabase = await createClient();
+  // weekStart is NOON UTC (Monday). Fetch a UTC-day-aligned window padded ±1 day
+  // so no slot in the visible (tenant-tz) week is dropped at any UTC offset — the
+  // page buckets rows by tenant-tz dayKey, so out-of-week rows are harmlessly
+  // discarded. (A noon-UTC window start silently dropped early-Monday-local
+  // slots and leaked next-Monday slots for Americas / UTC-negative tenants.)
   const start = new Date(weekStart);
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - 1);
   const end = new Date(weekStart);
-  end.setDate(end.getDate() + 7);
+  end.setUTCHours(0, 0, 0, 0);
+  end.setUTCDate(end.getUTCDate() + 8);
 
   const [slotsRes, reservationsRes, staffRes] = await Promise.all([
     supabase
