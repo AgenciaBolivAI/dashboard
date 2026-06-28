@@ -799,7 +799,20 @@
     "delete": "Elimina",
     "save": "Salva",
     "dismiss": "Ignora",
-    "export_csv": "Esporta CSV"
+    "export_csv": "Esporta CSV",
+    "book_meeting_title": "Prenota una riunione",
+    "book_tab": "Prenota",
+    "edit_tab": "Modifica fascia",
+    "attendee_name": "Nome del cliente",
+    "attendee_name_ph": "Nome completo",
+    "attendee_email": "Email del cliente",
+    "attendee_email_hint": "Invieremo la conferma della riunione a questa email.",
+    "attendee_phone": "Telefono (facoltativo)",
+    "notes_optional": "Note (facoltativo)",
+    "notes_ph": "Motivo, dettagli…",
+    "book_button": "Prenota riunione",
+    "booking": "Prenotazione…",
+    "meeting_booked": "Riunione prenotata"
   },
   "invoices": {
     "title": "Fatture",
@@ -2508,7 +2521,8 @@
     "rec_invalid_status": "Stato non valido",
     "assistant_need_credit": "Hai bisogno di almeno 1 credito per usare l'assistente. Ricaricalo in Fatturazione.",
     "assistant_action_not_allowed": "Azione non consentita.",
-    "api_key_limit": "Limite di 10 chiavi attive. Revocane una prima."
+    "api_key_limit": "Limite di 10 chiavi attive. Revocane una prima.",
+    "slot_unavailable": "Quella fascia oraria non è più disponibile."
   },
   "settings_apikeys": {
     "title": "Chiavi API",
@@ -2524,5 +2538,26 @@
     "revoke_confirm": "Revocare questa chiave? Le integrazioni che la usano smetteranno di funzionare.",
     "revoked": "Chiave revocata.",
     "copied": "Chiave copiata."
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "empty": "Non hai ancora notifiche.",
+    "mark_all_read": "Segna tutte come lette",
+    "open": "Apri",
+    "types": {
+      "reservation": "Prenotazione",
+      "lead": "Lead",
+      "system": "Sistema"
+    },
+    "fields": {
+      "customer_name": "Cliente",
+      "customer_email": "Email",
+      "customer_phone": "Telefono",
+      "start_at": "Inizio",
+      "end_at": "Fine",
+      "name": "Nome",
+      "email": "Email",
+      "status": "Stato"
+    }
   }
 }

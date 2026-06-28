@@ -112,20 +112,165 @@
   }
   .dark .analytics-surface::before { opacity: 0.9; }
 
-  /* Glassy panel: a subtle top sheen over the card color + inner highlight,
-     glows on hover. Pairs with the existing .rounded-xl border bg-card. */
+  /* ── Universal premium glass — applied to EVERY shadcn <Card> via the base
+     component, so the whole platform reads as one depth-y surface (not just the
+     5 dashboards that opt into .panel-pro). A subtle top sheen + a brand
+     spotlight that follows the cursor (--fx-mx/--fx-my from FxInteractions,
+     parked off-card by default) + soft depth shadow + a gentle lift & brand
+     glow on hover. The radial is a background layer so it auto-clips to the
+     border radius. Theme-aware + per-tenant via --primary. */
+  .card-pro {
+    background-image:
+      radial-gradient(260px circle at var(--fx-mx, -200%) var(--fx-my, -200%), hsl(var(--primary) / 0.12), transparent 60%),
+      linear-gradient(180deg, hsl(var(--foreground) / 0.03), transparent 42%);
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.05), 0 10px 26px -18px hsl(var(--foreground) / 0.22);
+    transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .dark .card-pro {
+    background-image:
+      radial-gradient(260px circle at var(--fx-mx, -200%) var(--fx-my, -200%), hsl(var(--primary) / 0.18), transparent 60%),
+      linear-gradient(180deg, hsl(var(--primary) / 0.06), transparent 46%);
+    box-shadow: inset 0 1px 0 0 hsl(var(--primary) / 0.08), 0 12px 32px -20px rgba(0, 0, 0, 0.7);
+  }
+  .card-pro:hover {
+    transform: translateY(-3px);
+    border-color: hsl(var(--primary) / 0.35);
+    box-shadow: 0 10px 30px -14px hsl(var(--primary) / 0.35);
+  }
+  .dark .card-pro:hover {
+    box-shadow: inset 0 1px 0 0 hsl(var(--primary) / 0.14), 0 0 40px -12px hsl(var(--primary) / 0.55);
+  }
+
+  /* Showcase modifier — opt-in on hero/KPI cards. Adds the 3D tilt (transform
+     set inline by FxInteractions; only .panel-pro cards tilt) and a slightly
+     stronger resting sheen. Layers on top of .card-pro. */
   .panel-pro {
-    background-image: linear-gradient(180deg, hsl(var(--foreground) / 0.025), transparent 42%);
-    box-shadow: inset 0 1px 0 0 hsl(var(--foreground) / 0.05);
-    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+    transform-style: preserve-3d;
+    will-change: transform;
   }
-  .dark .panel-pro {
-    background-image: linear-gradient(180deg, hsl(var(--primary) / 0.05), transparent 46%);
-    box-shadow: inset 0 1px 0 0 hsl(var(--primary) / 0.1);
+  .panel-pro:hover { border-color: hsl(var(--primary) / 0.45); }
+
+  /* ── Persistent ambient depth for the WHOLE shell — applied as the shell
+     root's own background (.app-surface), so it can never be painted over (the
+     old fixed z-index:-1 layer sat behind the opaque bg-background and was
+     invisible). The shell root carries `relative isolate` so this z-index:-1
+     layer is contained in its stacking context — it paints above the root's
+     bg-background but below all content. Holds a LIVE drifting brand aurora +
+     a slowly flowing tech grid. Uses --primary so it takes the tenant's color. */
+  .app-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
   }
-  .panel-pro:hover { border-color: hsl(var(--primary) / 0.35); }
-  .dark .panel-pro:hover {
-    box-shadow: inset 0 1px 0 0 hsl(var(--primary) / 0.14), 0 0 36px -14px hsl(var(--primary) / 0.55);
+  /* Drifting brand aurora — two big blurred blobs that breathe + roam.
+     Absolute-filled so it's the containing block for its blobs and can be
+     parallax-translated as one unit by FxInteractions. */
+  .fx-aurora { position: absolute; inset: 0; will-change: transform; }
+  .fx-aurora::before,
+  .fx-aurora::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+  }
+  .fx-aurora::before {
+    width: 60vw;
+    height: 60vw;
+    top: -22vw;
+    left: 28%;
+    background: radial-gradient(circle, hsl(var(--primary) / 0.30), transparent 62%);
+    animation: fxDriftA 24s ease-in-out infinite alternate;
+  }
+  .fx-aurora::after {
+    width: 48vw;
+    height: 48vw;
+    bottom: -20vw;
+    left: -10vw;
+    background: radial-gradient(circle, hsl(var(--primary) / 0.22), transparent 62%);
+    animation: fxDriftB 30s ease-in-out infinite alternate;
+  }
+  .dark .fx-aurora::before { background: radial-gradient(circle, hsl(var(--primary) / 0.45), transparent 62%); }
+  .dark .fx-aurora::after { background: radial-gradient(circle, hsl(var(--primary) / 0.34), transparent 62%); }
+  @keyframes fxDriftA {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(-7vw, 5vw) scale(1.18); }
+  }
+  @keyframes fxDriftB {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(8vw, -5vw) scale(1.22); }
+  }
+  /* Flowing tech-grid floor that fades downward. */
+  .fx-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.45) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.45) 1px, transparent 1px);
+    background-size: 56px 56px, 56px 56px;
+    -webkit-mask-image: radial-gradient(125% 80% at 50% -5%, #000 6%, transparent 72%);
+    mask-image: radial-gradient(125% 80% at 50% -5%, #000 6%, transparent 72%);
+    animation: fxGridFlow 9s linear infinite;
+  }
+  .dark .fx-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.7) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.7) 1px, transparent 1px);
+  }
+  @keyframes fxGridFlow {
+    from { background-position: 0 0, 0 0; }
+    to { background-position: 0 56px, 56px 0; }
+  }
+
+  /* The 3D starfield canvas (FxScene) — fills the backdrop. Edge-weighted mask
+     keeps the center calm so content stays readable; corners feel alive. */
+  .fx-scene-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.55;
+    -webkit-mask-image: radial-gradient(115% 90% at 50% 42%, rgba(0, 0, 0, 0.22) 12%, #000 62%);
+    mask-image: radial-gradient(115% 90% at 50% 42%, rgba(0, 0, 0, 0.22) 12%, #000 62%);
+  }
+  .dark .fx-scene-canvas { opacity: 0.8; }
+
+  /* Cinematic vignette — darkens the corners like a game / film frame. Sits on
+     top of the scene but still inside the z-index:-1 backdrop (behind content).
+     Dark-mode heavy; barely-there in light. */
+  .fx-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 160px 10px hsl(var(--foreground) / 0.06);
+  }
+  .dark .fx-vignette {
+    box-shadow: inset 0 0 220px 30px rgba(0, 0, 0, 0.7), inset 0 0 80px 0 rgba(0, 0, 0, 0.5);
+  }
+
+  /* Scroll-reveal: cards (+ [data-fx-reveal]) lift UP OUT OF DEPTH as they enter
+     the viewport — a cinematic 3D rise (rotateX + translate + scale), staggered.
+     FxInteractions adds .fx-reveal (hidden state) only when JS + motion exist,
+     then .fx-in to play it — so no-JS / reduced-motion users always see content. */
+  .fx-reveal {
+    opacity: 0;
+    transform: perspective(1200px) rotateX(10deg) translateY(46px) scale(0.94);
+    transform-origin: 50% 100%;
+  }
+  .fx-reveal.fx-in {
+    opacity: 1;
+    transform: perspective(1200px) rotateX(0deg) translateY(0) scale(1);
+    transition: opacity 0.75s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.75s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  /* Honor reduced-motion: freeze the backdrop, drop lift/tilt/reveal motion. */
+  @media (prefers-reduced-motion: reduce) {
+    .fx-aurora::before, .fx-aurora::after, .fx-grid { animation: none; }
+    .card-pro { transition: box-shadow 0.25s ease, border-color 0.25s ease; }
+    .card-pro:hover { transform: none; }
+    .panel-pro { will-change: auto; }
+    .fx-reveal, .fx-reveal.fx-in { opacity: 1; transform: none; }
   }
 
   /* Glow on big hero numbers — dark only, keeps light crisp. */

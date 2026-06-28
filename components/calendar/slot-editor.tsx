@@ -18,8 +18,10 @@ import {
 import {
   updateSlotAction,
   deleteSlotAction,
+  bookSlotManuallyAction,
   type CalendarState,
 } from "@/lib/actions/calendar";
+import { CalendarPlus, Pencil } from "lucide-react";
 
 const initial: CalendarState = { error: null };
 
@@ -94,7 +96,10 @@ function SlotEditDialog({
   staff: StaffOption[];
 }) {
   const t = useTranslations("calendar");
+  // Default to booking — that's what owners reach for when they tap a free slot.
+  const [mode, setMode] = useState<"book" | "edit">("book");
   const [state, action, pending] = useActionState(updateSlotAction, initial);
+  const [bookState, bookAction, booking] = useActionState(bookSlotManuallyAction, initial);
   const [deleting, startDelete] = useTransition();
 
   useEffect(() => {
@@ -105,6 +110,15 @@ function SlotEditDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, onClose]);
+
+  useEffect(() => {
+    if (bookState.error) toast.error(bookState.error);
+    if (bookState.success) {
+      toast.success(t("meeting_booked"));
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookState, onClose]);
 
   function handleDelete() {
     if (!confirm(t("delete_slot_confirm"))) return;
@@ -121,17 +135,75 @@ function SlotEditDialog({
   const initialDate = formatDateInTz(slot.start_at, tenantTimezone);
   const initialStart = formatTime(slot.start_at, tenantTimezone);
   const initialEnd = formatTime(slot.end_at, tenantTimezone);
+  const slotLabel = `${formatDateInTz(slot.start_at, tenantTimezone)} · ${initialStart}–${initialEnd}`;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("edit_slot_title")}</DialogTitle>
+          <DialogTitle>
+            {mode === "book" ? t("book_meeting_title") : t("edit_slot_title")}
+          </DialogTitle>
           <DialogDescription>
-            {t("edit_slot_desc")}
+            {mode === "book" ? slotLabel : t("edit_slot_desc")}
           </DialogDescription>
         </DialogHeader>
 
+        {/* Mode switch */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === "book" ? "default" : "ghost"}
+            onClick={() => setMode("book")}
+          >
+            <CalendarPlus className="size-4" />
+            {t("book_tab")}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === "edit" ? "default" : "ghost"}
+            onClick={() => setMode("edit")}
+          >
+            <Pencil className="size-4" />
+            {t("edit_tab")}
+          </Button>
+        </div>
+
+        {mode === "book" ? (
+          <form action={bookAction} className="space-y-4">
+            <input type="hidden" name="tenant_id" value={tenantId} />
+            <input type="hidden" name="slot_id" value={slot.id} />
+
+            <div className="space-y-2">
+              <Label htmlFor="customer_name">{t("attendee_name")}</Label>
+              <Input id="customer_name" name="customer_name" required maxLength={200} placeholder={t("attendee_name_ph")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customer_email">{t("attendee_email")}</Label>
+              <Input id="customer_email" name="customer_email" type="email" required maxLength={200} placeholder="cliente@email.com" />
+              <p className="text-[11px] text-muted-foreground">{t("attendee_email_hint")}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customer_phone">{t("attendee_phone")}</Label>
+              <Input id="customer_phone" name="customer_phone" type="tel" maxLength={40} placeholder="+1 555 000 0000" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">{t("notes_optional")}</Label>
+              <Input id="notes" name="notes" maxLength={2000} placeholder={t("notes_ph")} />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="ghost" onClick={onClose} disabled={booking}>
+                {t("cancel")}
+              </Button>
+              <Button type="submit" disabled={booking}>
+                {booking ? t("booking") : t("book_button")}
+              </Button>
+            </DialogFooter>
+          </form>
+        ) : (
         <form action={action} className="space-y-4">
           <input type="hidden" name="tenant_id" value={tenantId} />
           <input type="hidden" name="slot_id" value={slot.id} />
@@ -222,6 +294,7 @@ function SlotEditDialog({
             </div>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

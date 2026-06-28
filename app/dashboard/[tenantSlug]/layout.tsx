@@ -12,10 +12,13 @@ import { getTenantBySlug, getMyTenants } from "@/lib/tenant";
 import { getFoundingCount, FOUNDING_CAP } from "@/lib/billing/lifetime";
 import { LifetimeGate } from "@/components/billing/lifetime-gate";
 import { Sidebar } from "@/components/shell/sidebar";
+import { FxInteractions } from "@/components/fx/fx-interactions";
+import { FxWebgl } from "@/components/fx/fx-webgl";
 import { TenantSwitcher, type TenantOption } from "@/components/shell/tenant-switcher";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { UserMenu } from "@/components/shell/user-menu";
 import { BalanceWidget } from "@/components/billing/balance-widget";
+import { NotificationsBell } from "@/components/notifications/notifications-bell";
 import { OutOfCreditsBanner } from "@/components/billing/out-of-credits-banner";
 import { WhatsAppSetupBanner } from "@/components/whatsapp/whatsapp-setup-banner";
 import { Separator } from "@/components/ui/separator";
@@ -111,7 +114,17 @@ export default async function TenantLayout({
   } as React.CSSProperties;
 
   return (
-    <div className="min-h-screen flex bg-background" style={themeStyle}>
+    <div className="relative isolate min-h-screen flex bg-background" style={themeStyle}>
+      {/* Live animated backdrop — drifting brand aurora + flowing tech grid,
+          behind all content (z-index:-1, contained by `relative isolate`). */}
+      <div className="app-backdrop" aria-hidden>
+        <div className="fx-aurora" />
+        <FxWebgl />
+        <div className="fx-grid" />
+        <div className="fx-vignette" />
+      </div>
+      {/* FX engine: cursor-follow glow + 3D tilt + scroll-reveal + parallax. */}
+      <FxInteractions />
       {/* Sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col border-r border-border bg-card print:hidden">
         <div className="flex h-16 items-center gap-2 px-4 border-b border-border">
@@ -191,6 +204,7 @@ export default async function TenantLayout({
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <BalanceWidget tenantId={tenant.id} tenantSlug={tenant.slug} />
+            <NotificationsBell tenantId={tenant.id} />
             <UserMenu email={user.email ?? "—"} />
           </div>
         </header>

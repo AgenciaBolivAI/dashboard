@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { deleteReservationEvent } from "@/lib/google-calendar";
 
@@ -332,6 +333,117 @@ export async function cancelReservationAction(
   // tenant hasn't connected Google). Awaited so it runs on Vercel serverless.
   const googleEventId = (own as { google_event_id?: string | null }).google_event_id;
   if (googleEventId) await deleteReservationEvent(tenantId, googleEventId);
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
+// ─── Manual booking (owner books a slot themselves) ─────────────────
+// FREE: credits are only charged on the agent tool path (credit_action_key).
+// This calls book_slot directly, so no debit happens. The reservations INSERT
+// trigger fires the notify workflow (owner + customer confirmation email +
+// Daily room + Google Calendar) exactly like an agent booking.
+
+/** Resolve (or create) the customer's users row. Phone is optional; we dedupe
+ *  by phone when present, else by email, else create a fresh row. */
+async function resolveCustomerUser(
+  svc: ReturnType<typeof createServiceClient>,
+  tenantId: string,
+  c: { name: string; email: string; phone?: string | null },
+): Promise<string> {
+  const norm = c.phone ? c.phone.replace(/^\+/, "") : null;
+  if (norm) {
+    const { data: ex } = await svc
+      .from("users")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("whatsapp_number", norm)
+      .maybeSingle();
+    if (ex) return (ex as { id: string }).id;
+  } else {
+    const { data: byEmail } = await svc
+      .from("users")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("email", c.email)
+      .maybeSingle();
+    if (byEmail) return (byEmail as { id: string }).id;
+  }
+  // whatsapp_number is NOT NULL + unique per tenant — synthesize one when the
+  // owner didn't give a phone, so the row is still creatable + dedup-safe.
+  const wa = norm ?? `manual-${Math.random().toString(36).slice(2, 10)}`;
+  const { data: created, error } = await svc
+    .from("users")
+    .insert({ tenant_id: tenantId, whatsapp_number: wa, name: c.name, email: c.email } as never)
+    .select("id")
+    .single();
+  if (error || !created) throw new Error(error?.message ?? "user create failed");
+  return (created as { id: string }).id;
+}
+
+const manualBookSchema = z.object({
+  tenant_id: z.string().uuid(),
+  slot_id: z.string().uuid(),
+  service_id: z.string().uuid().optional().or(z.literal("")),
+  customer_name: z.string().trim().min(1).max(200),
+  customer_email: z.string().trim().email().max(200),
+  customer_phone: z.string().trim().max(40).optional().or(z.literal("")),
+  notes: z.string().trim().max(2000).optional().or(z.literal("")),
+});
+
+export async function bookSlotManuallyAction(
+  _prev: CalendarState,
+  formData: FormData,
+): Promise<CalendarState> {
+  const et = await getTranslations("action_errors");
+  const parsed = manualBookSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: et("invalid_data") };
+  const d = parsed.data;
+
+  await requireUser();
+  await requireTenantAccess(d.tenant_id, { minRole: "operator" });
+
+  const svc = createServiceClient();
+
+  // Confirm the slot is real, this tenant's, and still free.
+  const { data: slotRow } = await svc
+    .from("calendar_slots")
+    .select("id, start_at, end_at, is_available")
+    .eq("id", d.slot_id)
+    .eq("tenant_id", d.tenant_id)
+    .maybeSingle();
+  const slot = slotRow as { start_at: string; end_at: string; is_available: boolean } | null;
+  if (!slot) return { error: et("reservation_not_found") };
+  if (!slot.is_available) return { error: et("slot_unavailable") };
+
+  const durationMin = Math.max(
+    5,
+    Math.round((new Date(slot.end_at).getTime() - new Date(slot.start_at).getTime()) / 60_000),
+  );
+
+  let userId: string;
+  try {
+    userId = await resolveCustomerUser(svc, d.tenant_id, {
+      name: d.customer_name,
+      email: d.customer_email,
+      phone: d.customer_phone || null,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "user create failed" };
+  }
+
+  const { error } = await svc.rpc("book_slot", {
+    p_tenant_id: d.tenant_id,
+    p_user_id: userId,
+    p_slot_id: d.slot_id,
+    p_duration_min: durationMin,
+    p_customer_name: d.customer_name,
+    p_customer_email: d.customer_email,
+    p_customer_phone: d.customer_phone || null,
+    p_notes: d.notes || null,
+    p_service_id: d.service_id || null,
+  } as never);
+  if (error) return { error: error.message };
 
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };

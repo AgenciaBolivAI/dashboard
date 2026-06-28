@@ -799,7 +799,20 @@
     "delete": "Delete",
     "save": "Save",
     "dismiss": "Dismiss",
-    "export_csv": "Export CSV"
+    "export_csv": "Export CSV",
+    "book_meeting_title": "Book a meeting",
+    "book_tab": "Book",
+    "edit_tab": "Edit slot",
+    "attendee_name": "Attendee name",
+    "attendee_name_ph": "Full name",
+    "attendee_email": "Attendee email",
+    "attendee_email_hint": "We'll email the meeting confirmation to this address.",
+    "attendee_phone": "Phone (optional)",
+    "notes_optional": "Notes (optional)",
+    "notes_ph": "Reason, details…",
+    "book_button": "Book meeting",
+    "booking": "Booking…",
+    "meeting_booked": "Meeting booked"
   },
   "invoices": {
     "title": "Invoices",
@@ -2508,7 +2521,8 @@
     "rec_invalid_status": "Invalid status",
     "assistant_need_credit": "You need at least 1 credit to use the assistant. Top up in Billing.",
     "assistant_action_not_allowed": "Action not allowed.",
-    "api_key_limit": "Limit of 10 active keys. Revoke one first."
+    "api_key_limit": "Limit of 10 active keys. Revoke one first.",
+    "slot_unavailable": "That time slot is no longer available."
   },
   "settings_apikeys": {
     "title": "API keys",
@@ -2524,5 +2538,26 @@
     "revoke_confirm": "Revoke this key? Integrations using it will stop working.",
     "revoked": "Key revoked.",
     "copied": "Key copied."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet.",
+    "mark_all_read": "Mark all read",
+    "open": "Open",
+    "types": {
+      "reservation": "Booking",
+      "lead": "Lead",
+      "system": "System"
+    },
+    "fields": {
+      "customer_name": "Customer",
+      "customer_email": "Email",
+      "customer_phone": "Phone",
+      "start_at": "Start",
+      "end_at": "End",
+      "name": "Name",
+      "email": "Email",
+      "status": "Status"
+    }
   }
 }

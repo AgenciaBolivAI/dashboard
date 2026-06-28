@@ -799,7 +799,20 @@
     "delete": "Excluir",
     "save": "Salvar",
     "dismiss": "Dispensar",
-    "export_csv": "Exportar CSV"
+    "export_csv": "Exportar CSV",
+    "book_meeting_title": "Agendar reunião",
+    "book_tab": "Agendar",
+    "edit_tab": "Editar horário",
+    "attendee_name": "Nome do cliente",
+    "attendee_name_ph": "Nome completo",
+    "attendee_email": "E-mail do cliente",
+    "attendee_email_hint": "Enviaremos a confirmação da reunião para este e-mail.",
+    "attendee_phone": "Telefone (opcional)",
+    "notes_optional": "Notas (opcional)",
+    "notes_ph": "Motivo, detalhes…",
+    "book_button": "Agendar reunião",
+    "booking": "Agendando…",
+    "meeting_booked": "Reunião agendada"
   },
   "invoices": {
     "title": "Faturas",
@@ -2508,7 +2521,8 @@
     "rec_invalid_status": "Estado inválido",
     "assistant_need_credit": "Você precisa de pelo menos 1 crédito para usar o assistente. Recarregue em Faturamento.",
     "assistant_action_not_allowed": "Ação não permitida.",
-    "api_key_limit": "Limite de 10 chaves ativas. Revogue uma primeiro."
+    "api_key_limit": "Limite de 10 chaves ativas. Revogue uma primeiro.",
+    "slot_unavailable": "Esse horário não está mais disponível."
   },
   "settings_apikeys": {
     "title": "Chaves de API",
@@ -2524,5 +2538,26 @@
     "revoke_confirm": "Revogar esta chave? As integrações que a usam deixarão de funcionar.",
     "revoked": "Chave revogada.",
     "copied": "Chave copiada."
+  },
+  "notifications": {
+    "title": "Notificações",
+    "empty": "Você ainda não tem notificações.",
+    "mark_all_read": "Marcar todas como lidas",
+    "open": "Abrir",
+    "types": {
+      "reservation": "Reserva",
+      "lead": "Lead",
+      "system": "Sistema"
+    },
+    "fields": {
+      "customer_name": "Cliente",
+      "customer_email": "E-mail",
+      "customer_phone": "Telefone",
+      "start_at": "Início",
+      "end_at": "Fim",
+      "name": "Nome",
+      "email": "E-mail",
+      "status": "Status"
+    }
   }
 }

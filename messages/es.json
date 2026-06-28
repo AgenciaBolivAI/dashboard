@@ -799,7 +799,20 @@
     "delete": "Eliminar",
     "save": "Guardar",
     "dismiss": "Descartar",
-    "export_csv": "Exportar CSV"
+    "export_csv": "Exportar CSV",
+    "book_meeting_title": "Agendar reunión",
+    "book_tab": "Agendar",
+    "edit_tab": "Editar horario",
+    "attendee_name": "Nombre del cliente",
+    "attendee_name_ph": "Nombre completo",
+    "attendee_email": "Correo del cliente",
+    "attendee_email_hint": "Le enviaremos la confirmación de la reunión a este correo.",
+    "attendee_phone": "Teléfono (opcional)",
+    "notes_optional": "Notas (opcional)",
+    "notes_ph": "Motivo, detalles…",
+    "book_button": "Agendar reunión",
+    "booking": "Agendando…",
+    "meeting_booked": "Reunión agendada"
   },
   "invoices": {
     "title": "Facturas",
@@ -2508,7 +2521,8 @@
     "rec_invalid_status": "Estado inválido",
     "assistant_need_credit": "Necesitas al menos 1 crédito para usar el asistente. Recárgalo en Facturación.",
     "assistant_action_not_allowed": "Acción no permitida.",
-    "api_key_limit": "Límite de 10 claves activas. Revoca alguna primero."
+    "api_key_limit": "Límite de 10 claves activas. Revoca alguna primero.",
+    "slot_unavailable": "Ese horario ya no está disponible."
   },
   "settings_apikeys": {
     "title": "Claves de API",
@@ -2524,5 +2538,26 @@
     "revoke_confirm": "¿Revocar esta clave? Las integraciones que la usen dejarán de funcionar.",
     "revoked": "Clave revocada.",
     "copied": "Clave copiada."
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "empty": "No tienes notificaciones todavía.",
+    "mark_all_read": "Marcar todas como leídas",
+    "open": "Abrir",
+    "types": {
+      "reservation": "Reserva",
+      "lead": "Lead",
+      "system": "Sistema"
+    },
+    "fields": {
+      "customer_name": "Cliente",
+      "customer_email": "Correo",
+      "customer_phone": "Teléfono",
+      "start_at": "Inicio",
+      "end_at": "Fin",
+      "name": "Nombre",
+      "email": "Correo",
+      "status": "Estado"
+    }
   }
 }
