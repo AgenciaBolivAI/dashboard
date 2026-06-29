@@ -59,9 +59,10 @@ export async function listLeads(
   if (opts.intent) q = q.eq("intent", opts.intent);
   if (opts.source) q = q.eq("source", opts.source);
   if (opts.search) {
-    // PostgREST .or() — commas separate conditions; escape them in input.
-    // Phone matches strip non-digits so "+1 (786)" finds "1786...".
-    const s = opts.search.replace(/[,()]/g, " ").trim();
+    // PostgREST .or() — commas/parens separate conditions; ilike wildcards
+    // (% _) must be stripped too so user input is matched literally (parity
+    // with customers.ts). Phone matches strip non-digits.
+    const s = opts.search.replace(/[,()*]/g, " ").replace(/[%_]/g, "").trim();
     if (s) {
       const digits = s.replace(/\D/g, "");
       const ors = [`name.ilike.%${s}%`, `email.ilike.%${s}%`];
@@ -86,10 +87,11 @@ export async function listLeads(
   // accurate. It used to filter client-side AFTER the fetch, so it only ever
   // saw the first page of rows.
   if (opts.state) {
-    const s = opts.state.replace(/[,()]/g, " ").trim();
+    const s = opts.state.replace(/[,()*]/g, " ").replace(/[%_]/g, "").trim();
     if (s) {
+      // %-wrapped so partial input matches (was exact-match → empty for partials).
       q = q.or(
-        `metadata->>state.ilike.${s},metadata->>region.ilike.${s},metadata->>administrative_area_level_1.ilike.${s}`,
+        `metadata->>state.ilike.%${s}%,metadata->>region.ilike.%${s}%,metadata->>administrative_area_level_1.ilike.%${s}%`,
       );
     }
   }

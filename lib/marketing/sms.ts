@@ -18,6 +18,30 @@ import { createServiceClient } from "@/lib/supabase/service";
  */
 export type SmsResult = { ok: true } | { ok: false; error: string; noConfig?: boolean };
 
+/**
+ * Defense-in-depth SSRF guard: a tenant-supplied gateway URL must be http(s) and
+ * must not point at loopback / link-local / private / cloud-metadata hosts (a
+ * malicious config could otherwise probe internal services, whose status/body we
+ * surface in the message error). Tokens may still be present (validated on the
+ * raw template); the host doesn't change after substitution.
+ */
+export function isSafeGatewayUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  const h = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (h === "localhost" || h === "0.0.0.0" || h === "::1" || h === "metadata.google.internal") return false;
+  if (h.endsWith(".internal") || h.endsWith(".local")) return false;
+  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)) return false;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return false;
+  if (/^(fc|fd)[0-9a-f]{2}:/.test(h) || h.startsWith("fe80:")) return false; // IPv6 ULA / link-local
+  return true;
+}
+
 /** Masked SMS settings for the dashboard — the auth header is NEVER returned. */
 export type SmsSettingsMasked = {
   provider: "twilio" | "http_gateway";
@@ -135,6 +159,9 @@ async function sendViaHttpGateway(s: SmsSettings, to: string, body: string): Pro
 
   // Tokens in the URL are always URL-encoded (covers GET-style gateways like GoIP).
   const url = fill(s.gateway_url, vals, "url");
+  if (!isSafeGatewayUrl(url)) {
+    return { ok: false, noConfig: true, error: "URL del gateway SMS no permitida (debe ser http(s) público)." };
+  }
 
   const headers: Record<string, string> = { accept: "application/json, text/plain, */*" };
   if (s.gateway_auth_header) {

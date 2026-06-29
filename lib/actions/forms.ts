@@ -25,7 +25,20 @@ const formSchema = z.object({
   description: z.string().trim().max(600).nullable().optional(),
   fields: z.array(fieldSchema).min(1).max(4),
   success_message: z.string().trim().max(400).nullable().optional(),
-  redirect_url: z.string().trim().url().max(500).nullable().optional().or(z.literal("")),
+  // http(s) only — the public form does `window.location = redirect`, so a
+  // `javascript:`/`data:` URL (which z.url() would accept) is an XSS vector.
+  redirect_url: z
+    .union([
+      z.literal(""),
+      z
+        .string()
+        .trim()
+        .max(500)
+        .url()
+        .refine((v) => /^https?:\/\//i.test(v), "redirect_url must be http(s)"),
+    ])
+    .nullable()
+    .optional(),
 });
 
 function svcClient(): SupabaseClient {

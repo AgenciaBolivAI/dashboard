@@ -77,8 +77,9 @@ export async function GET(
 
   const match = dataUri.match(DATA_URI_RE);
   if (!match) {
-    // Already a regular URL — redirect the browser to it.
-    return NextResponse.redirect(dataUri);
+    // Already a regular URL — redirect only if it's a plain http(s) URL, never
+    // an open-redirect/SSRF gadget off a DB string (defense-in-depth).
+    return /^https?:\/\//i.test(dataUri) ? NextResponse.redirect(dataUri) : placeholder();
   }
   const [, mime, b64] = match;
   const bytes = Buffer.from(b64, "base64");

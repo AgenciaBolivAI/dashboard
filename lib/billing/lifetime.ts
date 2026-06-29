@@ -137,15 +137,6 @@ export async function grantLifetimeFromStripe(input: {
   code?: string | null; // redeemed discount code, for the usage report
 }): Promise<{ ok: boolean; foundingNumber: number | null; wasAlready: boolean }> {
   const svc = createServiceClient();
-  // Read the PI currently on record so we can tell an idempotent re-process of
-  // the SAME payment (webhook + confirm-route) from a genuinely SECOND, distinct
-  // payment (the founders fee charged twice on a checkout race).
-  const { data: priorRow } = await svc
-    .from("tenants")
-    .select("lifetime_stripe_pi")
-    .eq("id", input.tenantId)
-    .maybeSingle();
-  const priorPi = (priorRow as { lifetime_stripe_pi: string | null } | null)?.lifetime_stripe_pi ?? null;
 
   const { data, error } = await svc.rpc("grant_lifetime_access", {
     p_tenant_id: input.tenantId,
@@ -172,12 +163,27 @@ export async function grantLifetimeFromStripe(input: {
   // a DIFFERENT, real payment intent → the $40 founders fee was charged twice
   // (two checkout sessions paid before either confirmed). Refund this second
   // charge. Lifetime charges the PLATFORM account, so refund on the platform
-  // client (no connected-account option). Same-PI re-processing is left alone.
+  // client (no connected-account option).
+  //
+  // CRITICAL: read the recorded PI AFTER the RPC, not before. The RPC takes a
+  // `for update` lock; when it returns was_already=true the winning grant (incl.
+  // lifetime_stripe_pi) is already committed. A pre-read raced webhook-vs-confirm
+  // for the SAME payment (both saw null) and refunded the one legitimate charge.
+  let recordedPi: string | null = null;
+  if (wasAlready) {
+    const { data: rec } = await svc
+      .from("tenants")
+      .select("lifetime_stripe_pi")
+      .eq("id", input.tenantId)
+      .maybeSingle();
+    recordedPi = (rec as { lifetime_stripe_pi: string | null } | null)?.lifetime_stripe_pi ?? null;
+  }
   if (
     wasAlready &&
     input.paidCents > 0 &&
     input.stripePaymentIntentId &&
-    input.stripePaymentIntentId !== priorPi
+    recordedPi &&
+    input.stripePaymentIntentId !== recordedPi
   ) {
     try {
       await getStripe().refunds.create({ payment_intent: input.stripePaymentIntentId });

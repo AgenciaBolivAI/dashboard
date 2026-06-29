@@ -118,10 +118,11 @@ export function PublicLeadForm({
         </div>
       ))}
 
-      {/* Honeypot — hidden from humans, bots fill it. */}
+      {/* Honeypot — hidden + non-semantic name so password managers / autofill
+          leave it empty (bots fill every field). A filled value = bot → dropped. */}
       <input
         type="text"
-        name="company_website"
+        name="hp_field"
         tabIndex={-1}
         autoComplete="off"
         value={hp}

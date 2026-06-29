@@ -155,6 +155,34 @@ export async function debitCredits(input: {
   };
 }
 
+/**
+ * Refund credits previously debited (e.g. a paid action that then failed). Adds
+ * back to the tenant balance + logs a 'refund' transaction. Best-effort: returns
+ * {ok:false} rather than throwing so a refund failure never masks the original
+ * error. No-op when credits <= 0.
+ */
+export async function refundCredits(input: {
+  tenantId: string;
+  credits: number;
+  actionKey: string;
+  referenceId?: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<{ ok: boolean; balance_after: number }> {
+  if (!Number.isFinite(input.credits) || input.credits <= 0) return { ok: false, balance_after: 0 };
+  const svc = createServiceClient();
+  const rawRpc = svc.rpc as unknown as RawRpc;
+  const { data, error } = await rawRpc("refund_credits", {
+    p_tenant_id: input.tenantId,
+    p_credits: Math.round(input.credits),
+    p_action_key: input.actionKey,
+    p_reference_id: input.referenceId ?? null,
+    p_metadata: input.metadata ?? {},
+  });
+  if (error) return { ok: false, balance_after: 0 };
+  const row = (Array.isArray(data) ? data[0] : data) as { ok: boolean; balance_after: number } | null;
+  return row ?? { ok: false, balance_after: 0 };
+}
+
 export async function reserveCredits(input: {
   tenantId: string;
   actionKey: string;

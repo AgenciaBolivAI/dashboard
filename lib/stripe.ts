@@ -24,11 +24,10 @@ export const STRIPE_PLATFORM_FEE_BPS = (() => {
 })();
 
 export function getAppUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.VERCEL_URL ??
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
+  // VERCEL_URL is a bare host (no scheme) — must be prefixed or absolute-URL
+  // consumers (Stripe success/cancel URLs, marketing unsubscribe links) break.
+  const fromVercel = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined;
+  return (process.env.NEXT_PUBLIC_APP_URL ?? fromVercel ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
 /**

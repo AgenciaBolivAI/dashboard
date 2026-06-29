@@ -49,9 +49,12 @@ export async function listTickets(
     )
     .eq("tenant_id", tenantId)
     .eq("is_ticket", true)
-    // Open work first (by SLA urgency), newest as tiebreak.
-    .order("sla_due_at", { ascending: true, nullsFirst: false })
-    .order("last_message_at", { ascending: false, nullsFirst: false });
+    // Most-recent activity first. In the "All" view this keeps stale resolved/
+    // closed tickets from floating above active work (the prior sla_due_at-asc
+    // primary surfaced long-overdue *terminal* tickets at the top). SLA is the
+    // tiebreak so same-recency tickets still order by urgency.
+    .order("last_message_at", { ascending: false, nullsFirst: false })
+    .order("sla_due_at", { ascending: true, nullsFirst: false });
 
   if (opts.status) q = q.eq("ticket_status", opts.status);
   if (opts.priority) q = q.eq("priority", opts.priority);

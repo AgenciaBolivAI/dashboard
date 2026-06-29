@@ -55,8 +55,9 @@ export async function createBroadcastAction(
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
   const d = parsed.data;
-  // Email needs a subject; messaging channels never carry one.
-  const subject = d.channel === "email" ? (d.subject?.trim() || null) : null;
+  // Email needs a subject; fall back to the campaign title. Messaging channels
+  // never carry one.
+  const subject = d.channel === "email" ? (d.subject?.trim() || d.title) : null;
 
   const svc = svcClient();
   const { data: camp, error } = await svc
@@ -144,7 +145,11 @@ export async function approveBroadcastAction(
     scheduled_at: scheduledAt,
   }));
 
-  // Chunked insert (the unique enrollment index dedupes any accidental repeat).
+  // Idempotent retry: clear any messages left by a failed prior approve. Safe —
+  // this only runs while status='draft', i.e. nothing has been sent yet.
+  await svc.from("marketing_messages").delete().eq("campaign_id", campaignId).eq("tenant_id", tenantId);
+
+  // Chunked insert (the unique enrollment index still guards against duplicates).
   for (let i = 0; i < rows.length; i += 500) {
     const { error } = await svc.from("marketing_messages").insert(rows.slice(i, i + 500));
     if (error) return { ok: false, error: error.message };

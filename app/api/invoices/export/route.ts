@@ -31,7 +31,11 @@ export async function GET(req: NextRequest) {
         : "number, status, customer_name, customer_email, currency, subtotal_cents, tax_cents, total_cents, amount_paid_cents, application_fee_cents, issue_date, due_date, sent_at, paid_at, is_recurring, stripe_invoice_id, stripe_payment_link",
     )
     .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // Cap like the other export routes — an uncapped CSV (esp. detailed, which
+    // fans into line-item rows) can blow Vercel's 4.5MB response cap → empty
+    // download on prod.
+    .limit(10000);
 
   if (status === "recurring") {
     q = q.eq("is_recurring", true).is("recurrence_end_date", null);

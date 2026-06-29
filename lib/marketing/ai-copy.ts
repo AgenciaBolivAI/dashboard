@@ -1,6 +1,8 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatCompletion } from "@/lib/llm";
-import { debitCredits } from "@/lib/billing/credits";
+import { debitCredits, getBalanceWithService } from "@/lib/billing/credits";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { MarketingChannel } from "./channels";
 
 /**
@@ -25,16 +27,19 @@ export async function draftCampaignCopy(
   input: DraftInput,
   actorUserId?: string | null,
 ): Promise<DraftResult> {
-  // Charge first (cheap) — refuses if the tenant is out of credits.
-  const deb = await debitCredits({
-    tenantId,
-    actionKey: "marketing.ai_copy_draft",
-    units: 1,
-    actorUserId: actorUserId ?? null,
-    metadata: { channel: input.channel },
-  });
-  if (!deb.ok) {
-    return { ok: false, error: deb.reason || "Saldo de créditos insuficiente para generar." };
+  // Pre-check the balance against the real price so a broke tenant can't burn the
+  // model, but only DEBIT after a successful, delivered draft (no charge for an
+  // LLM error). The debit itself enforces the per-user budget + final price.
+  const svc = createServiceClient() as unknown as SupabaseClient;
+  const { data: pr } = await svc
+    .from("credit_pricing")
+    .select("credits_per_unit")
+    .eq("action_key", "marketing.ai_copy_draft")
+    .maybeSingle();
+  const cost = Number((pr as { credits_per_unit: number } | null)?.credits_per_unit ?? 3);
+  const bal = await getBalanceWithService(tenantId);
+  if (!bal || bal.available_credits < cost) {
+    return { ok: false, error: "Saldo de créditos insuficiente para generar." };
   }
 
   const lang = (input.language || "es").slice(0, 5);
@@ -74,6 +79,19 @@ export async function draftCampaignCopy(
     isEmail && typeof parsed.subject === "string" && parsed.subject.trim()
       ? parsed.subject.trim().slice(0, 180)
       : null;
+
+  // Charge only for the delivered draft. If the debit now fails (a concurrent
+  // drain or a per-user budget cap), don't hand back the copy.
+  const deb = await debitCredits({
+    tenantId,
+    actionKey: "marketing.ai_copy_draft",
+    units: 1,
+    actorUserId: actorUserId ?? null,
+    metadata: { channel: input.channel },
+  });
+  if (!deb.ok) {
+    return { ok: false, error: deb.reason || "Saldo de créditos insuficiente para generar." };
+  }
 
   return { ok: true, subject, body: body.slice(0, 5000) };
 }

@@ -147,15 +147,25 @@ function encodeHeader(v: string): string {
 /** Build a base64url RFC822 message for the Gmail send API. Every header value
  * is CR/LF-stripped first so neither the model-supplied subject nor the
  * DB-sourced recipient can inject additional headers. */
-function buildGmailRaw(opts: { from: string; to: string; subject: string; html: string }): string {
-  const headers = [
+function buildGmailRaw(opts: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  headers?: Record<string, string>;
+}): string {
+  const lines = [
     `From: ${sanitizeHeader(opts.from)}`,
     `To: ${sanitizeHeader(opts.to)}`,
     `Subject: ${encodeHeader(sanitizeHeader(opts.subject))}`,
-    "MIME-Version: 1.0",
-    'Content-Type: text/html; charset="UTF-8"',
-    "Content-Transfer-Encoding: base64",
-  ].join("\r\n");
+  ];
+  // Extra headers (e.g. List-Unsubscribe). CR/LF-stripped so a value can't inject
+  // additional headers or a body.
+  for (const [k, v] of Object.entries(opts.headers ?? {})) {
+    lines.push(`${sanitizeHeader(k)}: ${sanitizeHeader(v)}`);
+  }
+  lines.push("MIME-Version: 1.0", 'Content-Type: text/html; charset="UTF-8"', "Content-Transfer-Encoding: base64");
+  const headers = lines.join("\r\n");
   const body = Buffer.from(opts.html, "utf8").toString("base64").replace(/(.{76})/g, "$1\r\n");
   return Buffer.from(`${headers}\r\n\r\n${body}`, "utf8").toString("base64url");
 }
@@ -169,7 +179,7 @@ export type SendResult = { ok: true; via: "gmail" | "smtp"; from: string } | { o
  */
 export async function sendTenantEmail(
   tenantId: string,
-  msg: { to: string; subject: string; html: string },
+  msg: { to: string; subject: string; html: string; headers?: Record<string, string> },
 ): Promise<SendResult> {
   // Defense-in-depth: the recipient comes from tenant data (a lead/customer row)
   // and could in theory carry CRLF or a second address — reject anything that
@@ -187,7 +197,7 @@ export async function sendTenantEmail(
   if (sender.kind === "gmail") {
     const g = await getTenantGoogleAccess(tenantId);
     if (!g?.accessToken) return { ok: false, noSender: true, error: "La conexión de Google no está disponible." };
-    const raw = buildGmailRaw({ from: sender.fromEmail, to: msg.to, subject: safeSubject, html: msg.html });
+    const raw = buildGmailRaw({ from: sender.fromEmail, to: msg.to, subject: safeSubject, html: msg.html, headers: msg.headers });
     try {
       const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
         method: "POST",
@@ -214,7 +224,7 @@ export async function sendTenantEmail(
       auth: { user: sender.user, pass: sender.pass },
     });
     const from = sender.fromName ? `${sanitizeHeader(sender.fromName)} <${sender.fromEmail}>` : sender.fromEmail;
-    await transport.sendMail({ from, to: msg.to, subject: safeSubject, html: msg.html });
+    await transport.sendMail({ from, to: msg.to, subject: safeSubject, html: msg.html, headers: msg.headers });
     return { ok: true, via: "smtp", from: sender.fromEmail };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Fallo al enviar por SMTP." };

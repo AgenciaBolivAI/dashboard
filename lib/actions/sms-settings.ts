@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getTranslations } from "next-intl/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isSafeGatewayUrl } from "@/lib/marketing/sms";
 
 export type SmsSettingsResult = { ok: boolean; error?: string };
 
@@ -37,8 +38,12 @@ export async function saveSmsSettingsAction(
   await requireTenantAccess(tenantId, { minRole: "operator" });
 
   const d = parsed.data;
-  if (d.provider === "http_gateway" && !(d.gateway_url ?? "").trim()) {
-    return { ok: false, error: et("sms_gateway_url_required") };
+  if (d.provider === "http_gateway") {
+    const url = (d.gateway_url ?? "").trim();
+    if (!url) return { ok: false, error: et("sms_gateway_url_required") };
+    // Validate the host now (with tokens still present — the host doesn't change
+    // after {to}/{from}/{text} substitution). Blocks SSRF-y private/internal URLs.
+    if (!isSafeGatewayUrl(url)) return { ok: false, error: et("sms_gateway_url_invalid") };
   }
 
   const patch: Record<string, unknown> = {

@@ -99,6 +99,12 @@ export async function createInstance(
  */
 export async function setInstanceWebhook(instance: string): Promise<void> {
   const base = (process.env.N8N_BASE_URL ?? "").replace(/\/+$/, "");
+  // A missing N8N_BASE_URL would point Evolution at the host-less relative URL
+  // "/webhook/evolution-webhook" → it accepts it, the QR scan "succeeds", but the
+  // agent NEVER receives a message (silent dead bot). Fail loudly instead.
+  if (!base || !/^https?:\/\//i.test(base)) {
+    throw new Error("N8N_BASE_URL no está configurado — no se puede conectar el webhook de WhatsApp.");
+  }
   const url = `${base}/webhook/evolution-webhook`;
   const res = await fetch(`${BASE}/webhook/set/${instance}`, {
     method: "POST",

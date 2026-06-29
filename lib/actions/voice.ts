@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import {
   buildAgentPayload,
@@ -576,11 +577,12 @@ export async function initiateSandraCallAction(
 
   // Audit log — best-effort, non-fatal. The dedicated columns are
   // tenant_id/lead_id/status/call_conversation_id; everything else (phone,
-  // EL conversation id, call context) lives in metadata (jsonb). Previously
-  // this wrote non-existent columns (to_number/context/elevenlabs_*), so every
-  // insert errored and the audit trail was silently empty.
+  // EL conversation id, call context) lives in metadata (jsonb). Written with
+  // the SERVICE client: sandra_call_queue has only a member SELECT policy (no
+  // INSERT policy), so the RLS-bound client would silently fail this insert.
+  // Auth is already verified (requireUser + requireTenantAccess) above.
   try {
-    await supabase.from("sandra_call_queue").insert({
+    await createServiceClient().from("sandra_call_queue").insert({
       tenant_id: parsed.data.tenant_id,
       lead_id: parsed.data.lead_id ?? null,
       status: "calling",
@@ -821,8 +823,8 @@ export async function initiateBatchSandraCallAction(
   }
 
   // 4. Mirror into sandra_call_queue for audit (best-effort, non-fatal). Extra
-  // detail (phone, batch id, dynamic vars) goes in metadata (jsonb); the prior
-  // version wrote non-existent columns so the mirror never persisted.
+  // detail (phone, batch id, dynamic vars) goes in metadata (jsonb). SERVICE
+  // client because the table has no member INSERT policy (auth already verified).
   try {
     const rows = recipients.map((r) => ({
       tenant_id: parsed.data.tenant_id,
@@ -834,7 +836,7 @@ export async function initiateBatchSandraCallAction(
         context: r.conversation_initiation_client_data.dynamic_variables,
       },
     }));
-    await supabase.from("sandra_call_queue").insert(rows);
+    await createServiceClient().from("sandra_call_queue").insert(rows);
   } catch {
     /* non-fatal */
   }

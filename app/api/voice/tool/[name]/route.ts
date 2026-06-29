@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TOOLS } from "@/lib/voice-tools";
-import { debitCredits } from "@/lib/billing/credits";
+import { debitCredits, refundCredits } from "@/lib/billing/credits";
 import {
   computeTenantBearer,
   timingSafeEqualStr,
@@ -97,12 +97,14 @@ export async function POST(
   // (search_slots, get_business_info, lookup_customer_reservations,
   // capture_lead) skip this entirely. The actual voice MINUTE charge
   // is debited separately by the Rebecca/Sandra tick workflows.
+  let creditsCharged = 0;
+  const creditRef = `voice_tool:${name}:${Date.now()}`;
   if (tool.credit_action_key) {
     const debit = await debitCredits({
       tenantId,
       actionKey: tool.credit_action_key,
       units: tool.credit_units ?? 1,
-      referenceId: `voice_tool:${name}:${Date.now()}`,
+      referenceId: creditRef,
       metadata: { tool: name },
     });
     if (!debit.ok) {
@@ -119,14 +121,34 @@ export async function POST(
         { status: 200 },
       );
     }
+    creditsCharged = debit.credits_debited;
   }
+
+  // Refund the up-front charge when the action didn't actually happen — covers
+  // BOTH a thrown handler AND a handler that returns { ok:false } on an expected
+  // failure (slot taken, past time, no service). Otherwise the tenant loses
+  // credits for a booking that never occurred.
+  const refundCharge = async (reason: string) => {
+    if (creditsCharged <= 0 || !tool.credit_action_key) return;
+    await refundCredits({
+      tenantId,
+      credits: creditsCharged,
+      actionKey: tool.credit_action_key,
+      referenceId: `${creditRef}:refund`,
+      metadata: { tool: name, reason },
+    });
+  };
 
   try {
     const result = await tool.handler(parsed.data, { tenantId });
+    if (result && typeof result === "object" && (result as { ok?: unknown }).ok === false) {
+      await refundCharge("handler_not_ok");
+    }
     return NextResponse.json(result, { status: 200 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[voice tool ${name}] handler threw`, msg);
+    await refundCharge("handler_error");
     return NextResponse.json(
       {
         ok: false,

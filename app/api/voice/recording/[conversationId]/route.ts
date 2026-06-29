@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 
-const BOLIVAI_TENANT_ID = "5e0a3c3a-3a64-4d51-a51d-9e233fb9da4f";
-
 /** Resolve a voice conversation's tenant from brain.episodes via REST. */
 async function tenantForConversation(conversationId: string): Promise<string | null> {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -25,9 +23,10 @@ async function tenantForConversation(conversationId: string): Promise<string | n
   const rows = (await res.json()) as Array<{ metadata?: Record<string, unknown> }>;
   const meta = rows[0]?.metadata;
   if (!meta) return null;
-  return typeof meta.tenant_id === "string" && meta.tenant_id
-    ? meta.tenant_id
-    : BOLIVAI_TENANT_ID;
+  // Only proxy when the episode explicitly names its tenant. Defaulting to the
+  // BolivAI tenant would let a BolivAI member fetch any episode lacking a
+  // tenant_id — a latent cross-tenant exposure once brain holds other tenants.
+  return typeof meta.tenant_id === "string" && meta.tenant_id ? meta.tenant_id : null;
 }
 
 /**

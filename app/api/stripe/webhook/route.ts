@@ -334,18 +334,26 @@ export async function POST(req: NextRequest) {
         // Mirror the line items so list views and PDFs render correctly
         const newInvId = (newInv as { id?: string } | null)?.id;
         if (newInvId && inv.lines?.data?.length) {
-          const items = inv.lines.data.map((line, idx) => ({
-            invoice_id: newInvId,
-            position: idx,
-            description: line.description ?? "Cargo recurrente",
-            quantity: line.quantity ?? 1,
-            unit_price_cents:
-              line.quantity && line.quantity > 0
-                ? Math.round((line.amount ?? 0) / line.quantity)
-                : line.amount ?? 0,
-            tax_rate_bps: 0,
-            amount_cents: line.amount ?? 0,
-          }));
+          const items = inv.lines.data.map((line, idx) => {
+            const qty = line.quantity ?? 1;
+            const base = line.amount ?? 0; // Stripe line amount = pre-tax (exclusive)
+            // Derive the line's effective tax rate from Stripe's tax_amounts so
+            // recompute_invoice_totals stamps the correct tax_cents/total_cents
+            // (was hardcoded 0 → recurring totals understated until invoice.paid).
+            const lineTax = ((line as { tax_amounts?: Array<{ amount?: number }> }).tax_amounts ?? []).reduce(
+              (s, t) => s + (t.amount ?? 0),
+              0,
+            );
+            return {
+              invoice_id: newInvId,
+              position: idx,
+              description: line.description ?? "Cargo recurrente",
+              quantity: qty,
+              unit_price_cents: qty > 0 ? Math.round(base / qty) : base,
+              tax_rate_bps: base > 0 && lineTax > 0 ? Math.round((lineTax / base) * 10000) : 0,
+              amount_cents: base,
+            };
+          });
           await supabase.from("invoice_items").insert(items);
         }
         break;

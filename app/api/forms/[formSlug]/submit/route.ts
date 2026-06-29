@@ -97,17 +97,22 @@ export async function POST(req: Request, ctx: { params: Promise<{ formSlug: stri
   if (email && !EMAIL_RE.test(email)) {
     return NextResponse.json({ ok: false, error: "Invalid email." }, { status: 400 });
   }
-  // Need at least one way to reach them.
-  if (!email && !phone) {
+  // Normalize + sanity-check the phone (must carry real digits if provided).
+  const whatsapp = phone ? phone.replace(/[^\d+]/g, "") : "";
+  const phoneValid = whatsapp.replace(/\D/g, "").length >= 6;
+  if (phone && !phoneValid) {
+    return NextResponse.json({ ok: false, error: "Invalid phone." }, { status: 400 });
+  }
+  // Need at least one real way to reach them.
+  if (!email && !phoneValid) {
     return NextResponse.json({ ok: false, error: "Provide an email or phone." }, { status: 400 });
   }
 
-  const whatsapp = phone ? phone.replace(/[^\d+]/g, "") : null;
   const { error: insErr } = await svc.from("leads").insert({
     tenant_id: form.tenant_id,
     name: name || null,
     email: email || null,
-    whatsapp_number: whatsapp,
+    whatsapp_number: phoneValid ? whatsapp : null,
     notes: message || null,
     intent: "other",
     status: "new",

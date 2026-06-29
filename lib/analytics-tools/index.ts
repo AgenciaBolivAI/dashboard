@@ -203,7 +203,10 @@ const QUERYABLE_TABLES = [
   "vira_jobs", "vira_clips", "documents", "aima_scrape_runs",
   "sandra_call_queue", "credit_transactions", "subscriptions",
   "ai_recommendations", "tasks", "campaigns",
-  "employee_groups", "credit_budgets", "invoice_items",
+  "employee_groups", "credit_budgets",
+  // NB: invoice_items intentionally excluded — it has no tenant_id column
+  // (scoped by invoice_id), so the forced .eq("tenant_id") errors → always
+  // empty. Invoice line items are reachable via the tenant-scoped `invoices`.
 ] as const;
 // Default time column per table (most use created_at). These don't have one.
 const TIME_COL: Record<string, string> = {

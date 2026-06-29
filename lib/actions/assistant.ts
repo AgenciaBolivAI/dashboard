@@ -5,7 +5,7 @@ import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { getTenantBySlug } from "@/lib/tenant";
 import { runAssistant, type ChatMsg, type PendingAction } from "@/lib/analytics-tools/run";
 import { dispatchTool, WRITE_TOOL_NAMES } from "@/lib/analytics-tools/index";
-import { getBalanceWithService, debitCredits } from "@/lib/billing/credits";
+import { getBalanceWithService, debitCredits, refundCredits } from "@/lib/billing/credits";
 import { buildBusinessContext } from "@/lib/assistant-context";
 import { persistAssistantTurn, clearAssistantHistory } from "@/lib/queries/assistant";
 
@@ -68,7 +68,16 @@ export async function askAssistantAction(
     history: trimmed,
     businessContext,
   });
-  if (res.error) return { ok: false, error: res.error };
+  if (res.error) {
+    // No answer was produced — refund the up-front charge.
+    await refundCredits({
+      tenantId: tenant.id,
+      credits: debit.credits_debited,
+      actionKey: "assistant.query",
+      metadata: { reason: "no_answer", actor_user_id: user.id },
+    });
+    return { ok: false, error: res.error };
+  }
   // Persist this exchange (Phase 0c) so the thread carries across sessions.
   // Best-effort: a storage hiccup must not fail an answered question.
   await persistAssistantTurn({

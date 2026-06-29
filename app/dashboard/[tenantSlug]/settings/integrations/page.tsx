@@ -47,7 +47,9 @@ export default async function IntegrationsPage({
   };
   if (tenant.gateway === "evolution") {
     const instance = (tenant.gateway_config?.instance as string | undefined) ?? null;
-    if (instance) {
+    // A freshly-provisioned tenant has the placeholder "pending_<slug>" which is
+    // truthy but isn't a real Evolution instance — treat it as "no instance".
+    if (instance && !instance.startsWith("pending_")) {
       try {
         const res = (await getInstanceStatus(instance)) as {
           instance?: { state?: string };

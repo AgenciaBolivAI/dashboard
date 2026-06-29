@@ -47,10 +47,11 @@ export async function signInAction(_prev: AuthState, formData: FormData): Promis
 }
 
 // ─── Sign up ─────────────────────────────────────────────────────────
-// Invitation-only: signup is rejected unless an invitation_token is present.
-// The token authenticates that the email was authorized by a tenant admin.
-// Account creation goes through the admin API so it works even when public
-// signups are disabled at the Supabase project level.
+// Two paths: SELF-SERVE (no token) → creates the account, signs in, lands on
+// /onboarding to create a tenant; INVITED (with invitation_token) → accepts the
+// invite (joins the inviting tenant) and lands on /dashboard. Account creation
+// goes through the admin API so it works even when public signups are disabled
+// at the Supabase project level.
 export async function signUpAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const t = await getTranslations("auth");
   const signUpSchema = z
@@ -142,7 +143,10 @@ export async function signUpAction(_prev: AuthState, formData: FormData): Promis
   if (!userId) return { error: t("err_account_create_failed") };
 
   if (invitation) {
-    await acceptInvitationFor(userId, parsed.data.invitation_token!);
+    // Surface a failed acceptance (e.g. the invite expired between page-load and
+    // submit) instead of silently dropping the invited user into tenant-creation.
+    const accepted = await acceptInvitationFor(userId, parsed.data.invitation_token!);
+    if (accepted?.error) return { error: accepted.error };
   }
 
   // Sign the user in so they land authenticated on /onboarding (or /dashboard
@@ -177,10 +181,11 @@ export async function forgotPasswordAction(_prev: AuthState, formData: FormData)
   if (!parsed.success) return { error: t("err_email_invalid") };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+  // Result intentionally ignored — always return success to prevent email
+  // enumeration (don't reveal whether the address exists).
+  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
   });
-  // Always return success to prevent email enumeration
   return { error: null, success: true };
 }
 

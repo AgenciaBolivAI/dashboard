@@ -23,16 +23,17 @@ export const lookupCustomerReservations: ToolDef<z.infer<typeof schema>> = {
   },
   async handler(input, ctx) {
     const supabase = createServiceClient();
-    const e164 = input.customer_phone.startsWith("+")
-      ? input.customer_phone
-      : `+${input.customer_phone.replace(/^\+/, "")}`;
+    // Match both the +E.164 and bare-digits forms — reservations booked via
+    // different paths (manual / WhatsApp) may store either. `digits` is digits-
+    // only so it's safe to interpolate into the PostgREST .or() filter.
+    const digits = input.customer_phone.replace(/\D/g, "");
     const { data, error } = await supabase
       .from("reservations")
       .select(
         "id, start_at, end_at, duration_minutes, status, services(name)",
       )
       .eq("tenant_id", ctx.tenantId)
-      .eq("customer_phone", e164)
+      .or(`customer_phone.eq.+${digits},customer_phone.eq.${digits}`)
       .eq("status", "confirmed")
       .gt("start_at", new Date().toISOString())
       .order("start_at", { ascending: true })

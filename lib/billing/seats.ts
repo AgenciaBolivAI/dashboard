@@ -171,31 +171,31 @@ export async function billTenantSeats(tenantId: string): Promise<SeatTickResult>
     .eq("tenant_id", tenantId);
   const billable = Math.max(0, (members ?? 0) - included);
 
-  const { data: row } = await s
-    .from("seat_charges")
-    .select("seats_charged")
-    .eq("tenant_id", tenantId)
-    .eq("period", period)
-    .maybeSingle();
-  const alreadyCharged = (row as { seats_charged?: number } | null)?.seats_charged ?? 0;
-  const due = Math.max(0, billable - alreadyCharged);
-
-  if (due <= 0) {
-    return { tenantId, billable, alreadyCharged, due: 0, charged: 0, ok: true };
-  }
-
-  const debit = await debitCredits({
-    tenantId,
-    actionKey: "seat_fee",
-    units: due,
-    metadata: { kind: "seat_monthly", period },
+  // Atomic: check the ledger + debit + bump in ONE transaction under a row lock
+  // (bill_tenant_seats, step71) — no double-charge across concurrent ticks, no
+  // re-charge if a step fails (debit + bump commit together or not at all).
+  const { data, error } = await s.rpc("bill_tenant_seats", {
+    p_tenant_id: tenantId,
+    p_period: period,
+    p_billable: billable,
   });
-  if (!debit.ok) {
-    return { tenantId, billable, alreadyCharged, due, charged: 0, ok: false, reason: debit.reason ?? "debit_failed" };
+  if (error) {
+    return { tenantId, billable, alreadyCharged: 0, due: 0, charged: 0, ok: false, reason: error.message };
   }
-  const { error: bumpErr } = await s.rpc("add_seat_charge", { p_tenant_id: tenantId, p_period: period, p_delta: due });
-  if (bumpErr) console.warn("[seats] add_seat_charge(tick) failed after debit", tenantId, bumpErr.message);
-  return { tenantId, billable, alreadyCharged, due, charged: due, ok: true };
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { ok: boolean; due: number; charged: number; reason: string | null }
+    | null;
+  const due = row?.due ?? 0;
+  const charged = row?.charged ?? 0;
+  return {
+    tenantId,
+    billable,
+    alreadyCharged: Math.max(0, billable - due),
+    due,
+    charged,
+    ok: row?.ok ?? false,
+    reason: row?.reason ?? undefined,
+  };
 }
 
 /**

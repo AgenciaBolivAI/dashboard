@@ -239,6 +239,27 @@ export async function sendInvoiceAction(
     return { error: et("stripe_connect_before_send") };
   }
 
+  // Atomic send-lock: claim the draft before doing anything in Stripe so a
+  // double-click / retry can't create two Stripe invoices (double-charge the
+  // customer). Only one caller wins the `status='draft' AND lock free/stale`
+  // update; a crashed send self-heals after 5 min via the staleness window.
+  const staleBefore = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { data: claim } = await supabase
+    .from("invoices")
+    .update({ send_lock_at: new Date().toISOString() } as never)
+    .eq("id", invoiceId)
+    .eq("tenant_id", tenantId)
+    .eq("status", "draft")
+    // Never re-claim a draft that already produced a Stripe invoice — if the
+    // status write failed after Stripe sent, the stale-lock window must NOT
+    // create a second invoice (double charge).
+    .is("stripe_invoice_id", null)
+    .or(`send_lock_at.is.null,send_lock_at.lt.${staleBefore}`)
+    .select("id");
+  if (!claim || (claim as unknown[]).length === 0) {
+    return { error: et("invoice_already_sent") };
+  }
+
   const stripe = getStripe();
   const stripeAccount = tenant.stripe_account_id;
 
@@ -321,7 +342,13 @@ export async function sendInvoiceAction(
       stripeInvoiceId =
         typeof sub.latest_invoice === "string" ? sub.latest_invoice : (sub.latest_invoice as { id?: string } | null)?.id ?? "";
       if (stripeInvoiceId) {
-        const inv = await stripe.invoices.retrieve(stripeInvoiceId, { stripeAccount });
+        let inv = await stripe.invoices.retrieve(stripeInvoiceId, { stripeAccount });
+        // Finalize + send the first cycle now so the customer is emailed on
+        // "Send" — otherwise it sits as a draft until Stripe auto-advances ~1h later.
+        if (inv.status === "draft") {
+          inv = await stripe.invoices.finalizeInvoice(stripeInvoiceId, {}, { stripeAccount });
+          await stripe.invoices.sendInvoice(stripeInvoiceId, {}, { stripeAccount });
+        }
         hostedUrl = inv.hosted_invoice_url ?? null;
         invoicePdf = inv.invoice_pdf ?? null;
       }
@@ -373,6 +400,17 @@ export async function sendInvoiceAction(
       invoicePdf = finalized.invoice_pdf ?? null;
     }
 
+    // Persist the Stripe id IMMEDIATELY (before the status write). If the status
+    // update below fails, the draft already carries stripe_invoice_id, so the
+    // stale-lock retry is refused by the claim guard → no second Stripe invoice.
+    if (stripeInvoiceId) {
+      await supabase
+        .from("invoices")
+        .update({ stripe_invoice_id: stripeInvoiceId } as never)
+        .eq("id", invoice.id)
+        .eq("tenant_id", tenantId);
+    }
+
     const applicationFeeCents = Math.round(
       (invoice.total_cents * STRIPE_PLATFORM_FEE_BPS) / 10_000,
     );
@@ -383,6 +421,7 @@ export async function sendInvoiceAction(
         status: "open",
         number,
         sent_at: new Date().toISOString(),
+        issue_date: new Date().toISOString(),
         stripe_invoice_id: stripeInvoiceId,
         stripe_subscription_id: stripeSubscriptionId,
         stripe_customer_id: stripeCustomerId,
@@ -393,6 +432,9 @@ export async function sendInvoiceAction(
       .eq("id", invoice.id);
     if (updErr) return { error: updErr.message };
   } catch (e) {
+    // Release the send-lock so the operator can retry (the send failed before
+    // status flipped to 'open', so it's still a draft).
+    await supabase.from("invoices").update({ send_lock_at: null } as never).eq("id", invoiceId).eq("tenant_id", tenantId);
     const msg = e instanceof Error ? e.message : String(e);
     return { error: et("stripe_rejected_invoice", { message: msg }) };
   }

@@ -77,7 +77,7 @@ export async function listViraJobs(tenantId: string, limit = 20): Promise<ViraJo
   return (data ?? []) as ViraJob[];
 }
 
-export async function listViraClipsForJob(jobId: string): Promise<ViraClip[]> {
+export async function listViraClipsForJob(jobId: string, tenantId: string): Promise<ViraClip[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("vira_clips")
@@ -85,6 +85,9 @@ export async function listViraClipsForJob(jobId: string): Promise<ViraClip[]> {
       "id, job_id, clip_index, title, reasoning, start_seconds, end_seconds, output_url, thumbnail_url, transcript_excerpt, created_at",
     )
     .eq("job_id", jobId)
+    // Defense-in-depth: scope by tenant too (RLS + the caller's ownership check
+    // already cover it, but a future service-client caller can't cross tenants).
+    .eq("tenant_id", tenantId)
     .order("clip_index");
   return (data ?? []) as unknown as ViraClip[];
 }

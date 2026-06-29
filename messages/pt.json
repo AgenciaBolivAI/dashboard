@@ -732,7 +732,8 @@
     "profile_saved": "Perfil atualizado",
     "clear_search": "Limpar busca",
     "count_one": "{count} cliente",
-    "count_other": "{count} clientes"
+    "count_other": "{count} clientes",
+    "deleting": "Excluindo…"
   },
   "calendar": {
     "title": "Calendário",
@@ -2541,7 +2542,9 @@
     "slot_unavailable": "Esse horário não está mais disponível.",
     "marketing_no_recipients": "Nenhum destinatário corresponde a este público (ou não têm endereço para este canal).",
     "form_needs_contact_field": "Ative pelo menos email ou telefone.",
-    "sms_gateway_url_required": "Adicione a URL do gateway."
+    "sms_gateway_url_required": "Adicione a URL do gateway.",
+    "sms_gateway_url_invalid": "A URL do gateway deve ser um endereço http(s) público.",
+    "vira_need_credit": "Você precisa de pelo menos 10 créditos para iniciar um trabalho VIRA. Recarregue para continuar."
   },
   "settings_apikeys": {
     "title": "Chaves de API",
@@ -2566,7 +2569,8 @@
     "types": {
       "reservation": "Reserva",
       "lead": "Lead",
-      "system": "Sistema"
+      "system": "Sistema",
+      "marketing": "Marketing"
     },
     "fields": {
       "customer_name": "Cliente",

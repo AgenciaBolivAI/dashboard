@@ -332,7 +332,16 @@ export async function cancelReservationAction(
   // Mirror the cancellation to Google Calendar (best-effort; no-op when the
   // tenant hasn't connected Google). Awaited so it runs on Vercel serverless.
   const googleEventId = (own as { google_event_id?: string | null }).google_event_id;
-  if (googleEventId) await deleteReservationEvent(tenantId, googleEventId);
+  if (googleEventId) {
+    await deleteReservationEvent(tenantId, googleEventId);
+    // Null the id so the async notify → /api/calendar/sync path doesn't try to
+    // delete the same event again (it re-reads the row; was a redundant 410).
+    await supabase
+      .from("reservations")
+      .update({ google_event_id: null } as never)
+      .eq("id", reservationId)
+      .eq("tenant_id", tenantId);
+  }
 
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
@@ -351,7 +360,11 @@ async function resolveCustomerUser(
   tenantId: string,
   c: { name: string; email: string; phone?: string | null },
 ): Promise<string> {
-  const norm = c.phone ? c.phone.replace(/^\+/, "") : null;
+  // Digits-only — matches the lookup convention (lib/queries/calendar.ts +
+  // user-lookup.ts key on `replace(/\D/g,"")`). Stripping only a leading "+"
+  // left spaces/parens in, causing duplicate customer rows + a customer-name
+  // link that never resolved.
+  const norm = c.phone ? c.phone.replace(/\D/g, "") || null : null;
   if (norm) {
     const { data: ex } = await svc
       .from("users")

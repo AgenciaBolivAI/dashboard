@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getBalanceWithService } from "@/lib/billing/credits";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
+
+// A VIRA job costs at least one input-minute (10 credits) before any output
+// seconds — gate submission so a broke tenant can't pile up an unbillable queue.
+// The per-minute/per-second debit happens in the n8n worker once durations are
+// known (that worker is the follow-up).
+const VIRA_MIN_CREDITS = 10;
 
 export type ViraState = { error: string | null; success?: boolean; job_id?: string };
 
@@ -107,6 +114,12 @@ export async function submitViraJobAction(
     return { error: et("vira_disabled") };
   }
 
+  // Balance gate — refuse when the tenant can't cover even one input-minute.
+  const bal = await getBalanceWithService(tenantId);
+  if (!bal || bal.available_credits < VIRA_MIN_CREDITS) {
+    return { error: et("vira_need_credit") };
+  }
+
   const sourceType = detectSourceType(parsed.data.source_url);
 
   const { data: job, error } = await svc
@@ -123,24 +136,21 @@ export async function submitViraJobAction(
 
   if (error || !job) return { error: error?.message ?? et("vira_enqueue_failed") };
 
-  // Fire-and-forget: poke the n8n VIRA worker if configured. The worker
-  // picks pending jobs anyway via its own poll, so this is just to nudge.
+  // Poke the n8n VIRA worker. AWAITED — on Vercel an un-awaited fetch is killed
+  // when the response returns, and (until the polling worker exists) this nudge
+  // is the only trigger, so it must actually go out. Failure is non-fatal.
   const webhookUrl = process.env.VIRA_WEBHOOK_URL;
   const webhookSecret = process.env.VIRA_WEBHOOK_SECRET ?? process.env.CCAVAI_WEBHOOK_SECRET;
   if (webhookUrl && webhookSecret) {
-    try {
-      fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${webhookSecret}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ tenant_id: tenantId, job_id: (job as { id: string }).id }),
-        signal: AbortSignal.timeout(8000),
-      }).catch(() => {});
-    } catch {
-      // ignore — worker polls anyway
-    }
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${webhookSecret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ tenant_id: tenantId, job_id: (job as { id: string }).id }),
+      signal: AbortSignal.timeout(8000),
+    }).catch(() => {});
   }
 
   revalidatePath("/dashboard", "layout");

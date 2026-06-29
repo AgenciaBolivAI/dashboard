@@ -732,7 +732,8 @@
     "profile_saved": "Profile updated",
     "clear_search": "Clear search",
     "count_one": "{count} customer",
-    "count_other": "{count} customers"
+    "count_other": "{count} customers",
+    "deleting": "Deleting…"
   },
   "calendar": {
     "title": "Calendar",
@@ -2541,7 +2542,9 @@
     "slot_unavailable": "That time slot is no longer available.",
     "marketing_no_recipients": "No recipients match this audience (or they have no address for this channel).",
     "form_needs_contact_field": "Enable at least one of email or phone.",
-    "sms_gateway_url_required": "Add the gateway URL."
+    "sms_gateway_url_required": "Add the gateway URL.",
+    "sms_gateway_url_invalid": "The gateway URL must be a public http(s) address.",
+    "vira_need_credit": "You need at least 10 credits to start a VIRA job. Top up to continue."
   },
   "settings_apikeys": {
     "title": "API keys",
@@ -2566,7 +2569,8 @@
     "types": {
       "reservation": "Booking",
       "lead": "Lead",
-      "system": "System"
+      "system": "System",
+      "marketing": "Marketing"
     },
     "fields": {
       "customer_name": "Customer",

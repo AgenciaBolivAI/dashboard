@@ -1,9 +1,7 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { transliterate } from "transliteration";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireUser } from "@/lib/auth";
 import { TEMPLATES } from "@/lib/templates";
@@ -154,15 +152,22 @@ export async function provisionTenant(
 
   const tenantId = (tenantRow as { id: string }).id;
 
-  // Membership: this user is the owner
-  await svc.from("dashboard_users").insert({
+  // Membership: this user is the owner. CRITICAL — if this insert fails, the user
+  // owns a tenant with NO membership → every dashboard route bounces them back to
+  // /onboarding (and the double-tenant guard, reading dashboard_users, lets them
+  // create yet another orphan). So roll the tenant back and surface the error.
+  const { error: memberErr } = await svc.from("dashboard_users").insert({
     user_id: userId,
     tenant_id: tenantId,
     role: "owner",
   });
+  if (memberErr) {
+    await svc.from("tenants").delete().eq("id", tenantId);
+    return { ok: false, error: memberErr.message };
+  }
 
-  // AIMA settings row + credit account auto-init via debit/topup, but seed
-  // them now so /marketing + /billing render cleanly on first visit.
+  // Seed AIMA settings + credit account so /marketing + /billing render cleanly
+  // on first visit (best-effort — a failure here does NOT orphan the tenant).
   await Promise.all([
     svc.from("aima_settings").insert({ tenant_id: tenantId }),
     svc.from("credit_accounts").insert({ tenant_id: tenantId }),

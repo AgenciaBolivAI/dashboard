@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getSuppressionSet, canonicalAddress } from "./suppression";
 import type { MarketingChannel } from "./channels";
 
 /**
@@ -60,10 +61,12 @@ export async function resolveAudience(
   const src = filter.source ?? "both";
   const out: Recipient[] = [];
   const seen = new Set<string>();
+  const suppressed = await getSuppressionSet(tenantId); // opt-outs
 
   const push = (kind: "lead" | "user", id: string, addr: unknown, name: string | null) => {
     const norm = normalizeAddress(channel, addr);
     if (!norm || seen.has(norm)) return;
+    if (suppressed.has(canonicalAddress(norm))) return; // honor opt-out
     seen.add(norm);
     out.push({ kind, id, to: norm, name });
   };
@@ -74,6 +77,7 @@ export async function resolveAudience(
       .select("id, name, email, whatsapp_number, status")
       .eq("tenant_id", tenantId)
       .neq("status", "do_not_contact")
+      .order("created_at", { ascending: false })
       .limit(cap);
     if (filter.lead_status) q = q.eq("status", filter.lead_status);
     if (filter.lead_source) q = q.eq("source", filter.lead_source);
@@ -89,6 +93,7 @@ export async function resolveAudience(
       .from("users")
       .select("id, name, email, whatsapp_number, is_vip")
       .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
       .limit(cap);
     if (filter.vip_only) q = q.eq("is_vip", true);
     const { data } = await q;

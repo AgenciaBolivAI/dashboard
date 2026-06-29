@@ -74,7 +74,7 @@ export default async function JobClipsPage({
   type RawJob = ViraJob & { transcript: string | null; settings_snapshot: Record<string, unknown> };
   const job = jobData as unknown as RawJob;
 
-  const clips = await listViraClipsForJob(jobId);
+  const clips = await listViraClipsForJob(jobId, tenant.id);
   const totalClipSeconds = clips.reduce((s, c) => s + (Number(c.end_seconds) - Number(c.start_seconds)), 0);
   const meta = STATUS_META[job.status];
   const Icon = meta.icon;

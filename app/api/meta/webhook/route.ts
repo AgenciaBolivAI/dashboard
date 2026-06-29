@@ -137,6 +137,9 @@ async function dispatch(channel: string, entries: MetaEntry[]) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(event),
+          // Bound the forward so a hung n8n can't stall the handler past Meta's
+          // response window (which would trigger retries / subscription disable).
+          signal: AbortSignal.timeout(5000),
         }).catch(() => {});
       }
       // If META_AGENT_WEBHOOK_URL isn't set yet, the event is acknowledged and
