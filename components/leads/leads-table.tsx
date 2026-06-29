@@ -26,6 +26,7 @@ import { intentLabel, intentBadgeClass } from "@/lib/leads-intents";
 import { getCountryFromPhone, getStateFromMetadata } from "@/lib/leads-geo";
 import { formatDate, cn } from "@/lib/utils";
 import { CallSandraButton } from "./call-sandra-button";
+import { LeadWebsiteCell } from "./lead-website-cell";
 
 export type LeadFromQuery = {
   id: string;
@@ -37,6 +38,7 @@ export type LeadFromQuery = {
   created_at: string;
   conversation_id?: string | null;
   notes?: string | null;
+  website?: string | null;
   source?: string | null;
   metadata?: { city?: string; vertical?: string; website?: string; primary_type?: string } | null;
 };
@@ -239,6 +241,7 @@ export function LeadsTable({
               <TableHead className="w-8" />
               <TableHead>{t("col_name")}</TableHead>
               <TableHead>{t("col_contact")}</TableHead>
+              <TableHead>{t("col_website")}</TableHead>
               <TableHead>{t("col_intent")}</TableHead>
               <TableHead>{t("col_status")}</TableHead>
               <TableHead className="w-32">{t("col_captured")}</TableHead>
@@ -294,6 +297,13 @@ export function LeadsTable({
                         </div>
                       ) : null;
                     })()}
+                  </TableCell>
+                  <TableCell>
+                    <LeadWebsiteCell
+                      tenantId={tenantId}
+                      leadId={l.id}
+                      website={l.website ?? l.metadata?.website ?? null}
+                    />
                   </TableCell>
                   <TableCell>
                     {l.intent ? (

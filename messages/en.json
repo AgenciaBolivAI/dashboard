@@ -628,6 +628,13 @@
     "col_intent": "Intent",
     "col_status": "Status",
     "col_captured": "Captured",
+    "col_website": "Website",
+    "website_placeholder": "example.com",
+    "website_saved": "Website saved",
+    "website_add": "Add site",
+    "website_edit": "Edit website",
+    "website_save": "Save",
+    "website_cancel": "Cancel",
     "checkbox_select": "Select",
     "checkbox_no_phone": "No phone",
     "website": "Website"
@@ -714,6 +721,11 @@
     "mark_as_vip": "Mark as VIP",
     "notes_placeholder": "Allergies, preferences, history, anything useful for your team...",
     "save_profile": "Save changes",
+    "danger_zone": "Danger zone",
+    "delete_customer": "Delete customer",
+    "delete_customer_hint": "Removes the customer and their conversations. Their reservations are kept, just unlinked. This cannot be undone.",
+    "confirm_delete_customer": "Delete this customer and all their conversations? This cannot be undone.",
+    "customer_deleted": "Customer deleted",
     "saving": "Saving...",
     "profile_saved": "Profile updated",
     "clear_search": "Clear search",
@@ -1250,7 +1262,9 @@
     "tab_branding": "Branding",
     "tab_team": "Team",
     "tab_integrations": "Integrations",
-    "tab_billing": "Billing"
+    "tab_billing": "Billing",
+    "heading": "Settings",
+    "subtitle": "Configure how your agent works."
   },
   "settings_integrations": {
     "agent_type_title": "Agent type",

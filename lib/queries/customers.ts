@@ -31,7 +31,10 @@ export async function listCustomers(
   if (opts.vipOnly) q = q.eq("is_vip", true);
   if (opts.search) {
     // Match against name OR phone. Use ilike for case-insensitive partial.
-    const s = `%${opts.search.replace(/[%_]/g, "")}%`;
+    // Strip PostgREST .or() delimiters `,()*` (injection / parse-break vector)
+    // AND the ilike wildcards `% _` so user input is treated as a literal.
+    const clean = opts.search.replace(/[,()*]/g, " ").replace(/[%_]/g, "");
+    const s = `%${clean}%`;
     q = q.or(`name.ilike.${s},whatsapp_number.ilike.${s}`);
   }
 
@@ -154,10 +157,15 @@ export async function getCustomer360(
   let lifetimeSpend = 0;
   let outstanding = 0;
   let activeSubs = 0;
-  if (e164 || user.email) {
+  // Only add the email branch when the value is a plain address with no
+  // PostgREST .or() delimiters (`,()*` or whitespace) — interpolating raw user
+  // input into a .or() string would break the filter or open an injection
+  // vector. e164 is already digit/`+`-only so it's safe.
+  const safeEmail = user.email && /^[^,()*\s]+@[^,()*\s]+$/.test(user.email) ? user.email : null;
+  if (e164 || safeEmail) {
     const ors: string[] = [];
     if (e164) ors.push(`customer_phone.eq.${e164}`);
-    if (user.email) ors.push(`customer_email.eq.${user.email}`);
+    if (safeEmail) ors.push(`customer_email.eq.${safeEmail}`);
     const { data } = await supabase
       .from("invoices")
       .select(

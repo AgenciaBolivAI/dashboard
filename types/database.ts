@@ -1390,6 +1390,7 @@ export type Database = {
           tenant_id: string
           user_id: string | null
           value_cents: number | null
+          website: string | null
           whatsapp_number: string | null
           won_at: string | null
         }
@@ -1409,6 +1410,7 @@ export type Database = {
           tenant_id: string
           user_id?: string | null
           value_cents?: number | null
+          website?: string | null
           whatsapp_number?: string | null
           won_at?: string | null
         }
@@ -1428,6 +1430,7 @@ export type Database = {
           tenant_id?: string
           user_id?: string | null
           value_cents?: number | null
+          website?: string | null
           whatsapp_number?: string | null
           won_at?: string | null
         }

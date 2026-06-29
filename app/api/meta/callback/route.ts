@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   verifyState,
@@ -30,6 +31,13 @@ export async function GET(request: NextRequest) {
 
   if (err) return back("meta=denied");
   if (!code || !payload) return NextResponse.redirect(`${origin}/dashboard?error=meta_state`);
+
+  // The signed state proves the OAuth flow originated here, but not WHO is
+  // completing it. Re-confirm the caller is still signed in and is an admin of
+  // the tenant named in the state before attaching any channels (mirrors the
+  // Google callback). Both helpers redirect on failure.
+  await requireUser();
+  await requireTenantAccess(payload.tenant_id, { minRole: "admin" });
 
   try {
     const shortToken = await exchangeCode(code);

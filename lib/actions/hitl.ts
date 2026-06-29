@@ -72,7 +72,8 @@ export async function takeoverAction(conversationId: string): Promise<HitlState>
         hitl_operator_id: user.id,
         hitl_taken_over_at: new Date().toISOString(),
       })
-      .eq("id", conversationId);
+      .eq("id", conversationId)
+      .eq("tenant_id", ctx.tenant_id);
 
     if (error) return { error: error.message };
 
@@ -110,7 +111,8 @@ export async function releaseAction(conversationId: string): Promise<HitlState> 
         hitl_operator_id: null,
         hitl_taken_over_at: null,
       })
-      .eq("id", conversationId);
+      .eq("id", conversationId)
+      .eq("tenant_id", ctx.tenant_id);
 
     if (error) return { error: error.message };
 
@@ -211,7 +213,8 @@ export async function sendOperatorMessageAction(
     await svc
       .from("conversations")
       .update({ last_message_at: new Date().toISOString() })
-      .eq("id", ctx.id);
+      .eq("id", ctx.id)
+      .eq("tenant_id", ctx.tenant_id);
 
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations/${ctx.id}`);
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations`);

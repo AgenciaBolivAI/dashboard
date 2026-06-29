@@ -146,6 +146,13 @@ export async function revokeToken(token: string): Promise<void> {
 }
 
 // ─── Lookup the signed-in user's email from id_token ─────────────────
+// SECURITY: This decodes the id_token payload WITHOUT verifying its JWS
+// signature. That is only safe because the token is obtained server-to-server
+// from Google's token endpoint over TLS inside `exchangeCode` (a trusted
+// channel) and the email is used for display/metadata only — never as an
+// authz decision. DO NOT reuse this on an id_token that arrived from an
+// untrusted source (e.g. a client request); verify the signature against
+// Google's JWKS first, or it can be trivially forged.
 export function decodeIdTokenEmail(idToken: string): string | null {
   try {
     const [, payload] = idToken.split(".");

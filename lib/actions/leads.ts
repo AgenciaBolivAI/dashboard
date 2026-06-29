@@ -134,6 +134,41 @@ export async function deleteLeadAction(
   return { error: null, success: true };
 }
 
+/**
+ * Set/clear a lead's website (the dedicated `leads.website` column — editable
+ * source of truth, distinct from the scraped `metadata.website` AIMA fills in).
+ * Used to spot prospects with no site and upsell web development. operator+.
+ * A bare domain is normalized to https://. Empty string clears it (null).
+ */
+export async function updateLeadWebsiteAction(
+  tenantId: string,
+  leadId: string,
+  website: string,
+): Promise<LeadState> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "operator" });
+
+  const trimmed = (website ?? "").trim();
+  const value =
+    trimmed === ""
+      ? null
+      : /^https?:\/\//i.test(trimmed)
+        ? trimmed
+        : `https://${trimmed}`;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("leads")
+    .update({ website: value } as never)
+    .eq("id", leadId)
+    .eq("tenant_id", tenantId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}
+
 export async function updateLeadNotesAction(
   tenantId: string,
   leadId: string,

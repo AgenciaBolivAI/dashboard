@@ -8,6 +8,7 @@ export type Lead = {
   intent: string | null;
   status: string;
   notes: string | null;
+  website: string | null;
   created_at: string;
   conversation_id: string | null;
   source: string | null;
@@ -35,7 +36,7 @@ export type LeadFilters = {
 import { COUNTRY_BY_CODE, getCountryFromPhone, getStateFromMetadata } from "@/lib/leads-geo";
 
 const LEAD_COLS =
-  "id, name, whatsapp_number, email, intent, status, notes, created_at, conversation_id, source, metadata, value_cents, currency, expected_close_at, won_at";
+  "id, name, whatsapp_number, email, intent, status, notes, website, created_at, conversation_id, source, metadata, value_cents, currency, expected_close_at, won_at";
 
 /**
  * Paginated lead listing. Returns the requested window plus the TOTAL count of

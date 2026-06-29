@@ -11,9 +11,12 @@ import { applyTopupFromStripe } from "@/lib/billing/credits";
 import { grantLifetimeFromStripe } from "@/lib/billing/lifetime";
 
 /**
- * Fire-and-forget POST to the n8n Invoice Notify webhook. We don't await
- * any response — the webhook is fast and we'd rather return 200 to Stripe
- * quickly even if the notification path is briefly down.
+ * POST to the n8n Invoice Notify webhook. The fetch IS awaited (callers
+ * await this function before responding to Stripe): on Vercel serverless any
+ * work left running after the response is sent is killed, so an un-awaited
+ * notify could silently never fire. The webhook is fast; on failure we log and
+ * still return 200 to Stripe (we don't want a flaky notifier to trigger
+ * Stripe retries of an event we already processed).
  */
 async function notifyTenantOfInvoiceEvent(
   event: "invoice.paid" | "invoice.payment_failed",
@@ -199,7 +202,21 @@ export async function POST(req: NextRequest) {
       }
       case "invoice.paid": {
         const inv = event.data.object as Stripe.Invoice;
-        const bolivaiId = inv.metadata?.bolivai_invoice_id ?? null;
+        // Resolve the owning invoice by its Stripe id (the only trustworthy
+        // selector — `metadata.bolivai_invoice_id` is client-influencable and
+        // must NEVER be used to choose which row to write). Then scope the
+        // update to that exact (id, tenant_id) pair so a forged event can't
+        // touch another tenant's invoice.
+        const { data: ownRow } = await supabase
+          .from("invoices")
+          .select("id, tenant_id")
+          .eq("stripe_invoice_id", inv.id)
+          .maybeSingle();
+        const own = ownRow as { id: string; tenant_id: string } | null;
+        if (!own) {
+          console.warn("[stripe webhook] invoice.paid: no invoice matches stripe_invoice_id", inv.id);
+          break;
+        }
         await supabase
           .from("invoices")
           .update({
@@ -211,11 +228,8 @@ export async function POST(req: NextRequest) {
             stripe_payment_link: inv.hosted_invoice_url ?? null,
             stripe_invoice_pdf: inv.invoice_pdf ?? null,
           })
-          .or(
-            bolivaiId
-              ? `id.eq.${bolivaiId},stripe_invoice_id.eq.${inv.id}`
-              : `stripe_invoice_id.eq.${inv.id}`,
-          );
+          .eq("id", own.id)
+          .eq("tenant_id", own.tenant_id);
         await notifyTenantOfInvoiceEvent("invoice.paid", inv);
         break;
       }

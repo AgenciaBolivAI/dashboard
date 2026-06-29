@@ -187,3 +187,28 @@ export async function updateCustomerProfileAction(
   revalidatePath("/dashboard", "layout");
   return { error: null, success: true };
 }
+
+/**
+ * Delete a customer (the `users` row). Admin+ only. The DB cascades the
+ * customer's conversations + chat_history and null-links their reservations /
+ * leads / voice calls (those records survive, just unlinked). Tenant-scoped
+ * on both id and tenant_id as defense in depth.
+ */
+export async function deleteCustomerAction(
+  tenantId: string,
+  userId: string,
+): Promise<CustomerActionState> {
+  await requireUser();
+  await requireTenantAccess(tenantId, { minRole: "admin" });
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("users")
+    .delete()
+    .eq("id", userId)
+    .eq("tenant_id", tenantId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard", "layout");
+  return { error: null, success: true };
+}

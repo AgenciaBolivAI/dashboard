@@ -1,15 +1,17 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useTransition } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Star, User, Phone, Mail, Building2, Contact } from "lucide-react";
+import { Star, User, Phone, Mail, Building2, Contact, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
   updateCustomerProfileAction,
+  deleteCustomerAction,
   type CustomerActionState,
 } from "@/lib/actions/customers";
 
@@ -37,10 +39,13 @@ export function CustomerProfileForm({
   pointOfContact: string | null;
 }) {
   const t = useTranslations("customers");
+  const router = useRouter();
+  const pathname = usePathname();
   const [state, action, pending] = useActionState(
     updateCustomerProfileAction,
     initial,
   );
+  const [deleting, startDelete] = useTransition();
 
   useEffect(() => {
     if (state.error) toast.error(state.error);
@@ -49,7 +54,23 @@ export function CustomerProfileForm({
     }
   }, [state, t]);
 
+  function handleDelete() {
+    if (!confirm(t("confirm_delete_customer"))) return;
+    startDelete(async () => {
+      const res = await deleteCustomerAction(tenantId, userId);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(t("customer_deleted"));
+      // Back to the customers list (parent of /customers/[userId])
+      router.push(pathname.replace(/\/customers\/[^/]+$/, "/customers"));
+      router.refresh();
+    });
+  }
+
   return (
+    <>
     <form action={action} className="space-y-5">
       <input type="hidden" name="tenant_id" value={tenantId} />
       <input type="hidden" name="user_id" value={userId} />
@@ -175,5 +196,25 @@ export function CustomerProfileForm({
         {pending ? t("saving") : t("save_profile")}
       </Button>
     </form>
+
+    <div className="mt-6 border-t border-destructive/30 pt-4">
+      <p className="text-xs uppercase tracking-wider text-destructive/80 font-semibold mb-2">
+        {t("danger_zone")}
+      </p>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleDelete}
+        disabled={deleting}
+        className="w-full gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+      >
+        <Trash2 className="size-4" />
+        {deleting ? t("deleting") : t("delete_customer")}
+      </Button>
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        {t("delete_customer_hint")}
+      </p>
+    </div>
+    </>
   );
 }

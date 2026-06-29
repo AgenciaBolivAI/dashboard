@@ -628,6 +628,13 @@
     "col_intent": "Intención",
     "col_status": "Estado",
     "col_captured": "Capturado",
+    "col_website": "Sitio web",
+    "website_placeholder": "ejemplo.com",
+    "website_saved": "Sitio web guardado",
+    "website_add": "Añadir web",
+    "website_edit": "Editar sitio web",
+    "website_save": "Guardar",
+    "website_cancel": "Cancelar",
     "checkbox_select": "Seleccionar",
     "checkbox_no_phone": "Sin teléfono",
     "website": "Sitio web"
@@ -714,6 +721,11 @@
     "mark_as_vip": "Marcar como VIP",
     "notes_placeholder": "Alergias, preferencias, historial, lo que sea util para tu equipo...",
     "save_profile": "Guardar cambios",
+    "danger_zone": "Zona de peligro",
+    "delete_customer": "Eliminar cliente",
+    "delete_customer_hint": "Borra el cliente y sus conversaciones. Sus reservas se conservan sin vincular. No se puede deshacer.",
+    "confirm_delete_customer": "¿Eliminar este cliente y todas sus conversaciones? Esta acción no se puede deshacer.",
+    "customer_deleted": "Cliente eliminado",
     "saving": "Guardando...",
     "profile_saved": "Perfil actualizado",
     "clear_search": "Limpiar búsqueda",
@@ -1250,7 +1262,9 @@
     "tab_branding": "Marca",
     "tab_team": "Equipo",
     "tab_integrations": "Integraciones",
-    "tab_billing": "Facturación"
+    "tab_billing": "Facturación",
+    "heading": "Ajustes",
+    "subtitle": "Configura cómo trabaja tu agente."
   },
   "settings_integrations": {
     "agent_type_title": "Tipo de agente",

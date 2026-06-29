@@ -628,6 +628,13 @@
     "col_intent": "Intention",
     "col_status": "Statut",
     "col_captured": "Capturé",
+    "col_website": "Site web",
+    "website_placeholder": "exemple.com",
+    "website_saved": "Site web enregistré",
+    "website_add": "Ajouter un site",
+    "website_edit": "Modifier le site web",
+    "website_save": "Enregistrer",
+    "website_cancel": "Annuler",
     "checkbox_select": "Sélectionner",
     "checkbox_no_phone": "Sans téléphone",
     "website": "Site web"
@@ -714,6 +721,11 @@
     "mark_as_vip": "Marquer comme VIP",
     "notes_placeholder": "Allergies, preferences, historique, tout ce qui peut etre utile a votre equipe...",
     "save_profile": "Enregistrer les modifications",
+    "danger_zone": "Zone de danger",
+    "delete_customer": "Supprimer le client",
+    "delete_customer_hint": "Supprime le client et ses conversations. Ses réservations sont conservées, simplement dissociées. Irréversible.",
+    "confirm_delete_customer": "Supprimer ce client et toutes ses conversations ? Cette action est irréversible.",
+    "customer_deleted": "Client supprimé",
     "saving": "Enregistrement...",
     "profile_saved": "Profil mis a jour",
     "clear_search": "Effacer la recherche",
@@ -1250,7 +1262,9 @@
     "tab_branding": "Marque",
     "tab_team": "Équipe",
     "tab_integrations": "Intégrations",
-    "tab_billing": "Facturation"
+    "tab_billing": "Facturation",
+    "heading": "Paramètres",
+    "subtitle": "Configurez le fonctionnement de votre agent."
   },
   "settings_integrations": {
     "agent_type_title": "Type d'agent",

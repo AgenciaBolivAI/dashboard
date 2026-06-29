@@ -175,33 +175,30 @@ export async function performVoiceKbSync(tenantId: string): Promise<KbSyncResult
 }
 
 /**
- * Fire-and-forget helper for use after a knowledge insert/update/delete.
- * Returns immediately; the sync happens in the background.
+ * Auto-sync helper for use after a knowledge insert/update/delete.
  *
- * Errors are logged but not surfaced — knowledge mutations should never
- * fail because the voice sync is flaky.
+ * MUST be awaited by callers — on Vercel serverless any work left running
+ * after the response is sent is killed, so an un-awaited sync would silently
+ * never reach ElevenLabs (the KB would go stale in prod). It is internally
+ * safe to await from a user-facing write: it never throws, it short-circuits
+ * when voice isn't enabled, and any sync failure is logged (not surfaced) so
+ * the knowledge mutation still succeeds for the user.
  */
-async function runVoiceKbSync(tenantId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("tenants")
-    .select("voice_enabled, elevenlabs_agent_id")
-    .eq("id", tenantId)
-    .maybeSingle();
-  const t = data as { voice_enabled: boolean; elevenlabs_agent_id: string | null } | null;
-  if (!t || !t.voice_enabled || !t.elevenlabs_agent_id) return;
-  const result = await performVoiceKbSync(tenantId);
-  if (!result.ok) {
-    console.warn(`[voice-kb auto-sync] ${tenantId}: ${result.error}`);
-  }
-}
-
-export async function fireAndForgetVoiceKbSync(tenantId: string): Promise<void> {
-  // Intentionally NOT awaited — the inner sync runs in the background,
-  // the outer async function returns immediately. "use server" requires
-  // every export to be async; this satisfies that without losing the
-  // fire-and-forget semantics callers depend on.
-  runVoiceKbSync(tenantId).catch((e) => {
+export async function runVoiceKbSync(tenantId: string): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("tenants")
+      .select("voice_enabled, elevenlabs_agent_id")
+      .eq("id", tenantId)
+      .maybeSingle();
+    const t = data as { voice_enabled: boolean; elevenlabs_agent_id: string | null } | null;
+    if (!t || !t.voice_enabled || !t.elevenlabs_agent_id) return;
+    const result = await performVoiceKbSync(tenantId);
+    if (!result.ok) {
+      console.warn(`[voice-kb auto-sync] ${tenantId}: ${result.error}`);
+    }
+  } catch (e) {
     console.error("[voice-kb auto-sync] threw", e);
-  });
+  }
 }

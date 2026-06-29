@@ -6,6 +6,7 @@
  * Tenant is resolved from the API key; all rows are hard-scoped to it.
  */
 import { apiAuth, isErr, v1svc, listParams, jsonBody, str, ok, bad } from "@/lib/api/v1";
+import { LEAD_STATUSES, type LeadStatus } from "@/lib/leads-types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,14 @@ export async function POST(req: Request) {
   const email = str(body, "email");
   if (!name && !phone && !email) return bad("Provide at least one of: name, phone (whatsapp_number), email.");
 
+  // Validate status against the canonical enum — never persist an arbitrary
+  // string (a bad status escapes pipeline/DNC logic). Default to "new".
+  const statusRaw = str(body, "status");
+  if (statusRaw && !(LEAD_STATUSES as readonly string[]).includes(statusRaw)) {
+    return bad(`Invalid status "${statusRaw}". Allowed: ${LEAD_STATUSES.join(", ")}.`);
+  }
+  const status = (statusRaw as LeadStatus | undefined) ?? "new";
+
   // vertical/city/website/address aren't columns — keep them in metadata.
   const metadata: Record<string, unknown> = {};
   for (const k of ["vertical", "city", "website", "address", "company"]) {
@@ -51,7 +60,7 @@ export async function POST(req: Request) {
     whatsapp_number: phone ?? null,
     email: email ?? null,
     intent: str(body, "intent") ?? null,
-    status: str(body, "status") ?? "new",
+    status,
     source: str(body, "source") ?? "zapier",
     notes: str(body, "notes") ?? null,
     metadata: Object.keys(metadata).length ? metadata : {},
