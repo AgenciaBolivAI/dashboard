@@ -114,8 +114,11 @@ export async function debitCredits(input: {
   const svc = createServiceClient();
 
   if (input.actorUserId) {
-    const rawRpc = svc.rpc as unknown as RawRpc;
-    const { data, error } = await rawRpc("debit_credits_as_user", {
+    // Invoke rpc as a METHOD (svcRpc.rpc(...)) so `this` is preserved. Pulling
+    // it into a standalone fn (`const r = svc.rpc; r(...)`) loses `this` and
+    // throws "Cannot read properties of undefined (reading 'rest')".
+    const svcRpc = svc as unknown as { rpc: RawRpc };
+    const { data, error } = await svcRpc.rpc("debit_credits_as_user", {
       p_tenant_id: input.tenantId,
       p_action_key: input.actionKey,
       p_actor_user_id: input.actorUserId,
@@ -170,8 +173,9 @@ export async function refundCredits(input: {
 }): Promise<{ ok: boolean; balance_after: number }> {
   if (!Number.isFinite(input.credits) || input.credits <= 0) return { ok: false, balance_after: 0 };
   const svc = createServiceClient();
-  const rawRpc = svc.rpc as unknown as RawRpc;
-  const { data, error } = await rawRpc("refund_credits", {
+  // Method call (svcRpc.rpc(...)) preserves `this` — see the note in debitCredits.
+  const svcRpc = svc as unknown as { rpc: RawRpc };
+  const { data, error } = await svcRpc.rpc("refund_credits", {
     p_tenant_id: input.tenantId,
     p_credits: Math.round(input.credits),
     p_action_key: input.actionKey,
