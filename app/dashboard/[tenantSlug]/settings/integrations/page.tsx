@@ -40,6 +40,10 @@ export default async function IntegrationsPage({
   const t = await getTranslations("settings_integrations");
   const ta = await getTranslations("settings_apikeys");
 
+  // BolivAI staff see the internal execution-engine diagnostics; tenants don't.
+  const role = await getRoleOnTenant(tenant.id);
+  const isStaff = role === "bolivai_admin";
+
   // Probe gateway-specific status (only Evolution implemented today)
   let gatewayStatus: { state: string; ok: boolean; error?: string } = {
     state: "unknown",
@@ -68,26 +72,28 @@ export default async function IntegrationsPage({
     }
   }
 
-  // Probe n8n
+  // Probe n8n — only for BolivAI staff (the card that uses it is staff-only).
   let n8n: { ok: boolean; count: number; activeCount: number; error?: string } = {
     ok: false,
     count: 0,
     activeCount: 0,
   };
-  try {
-    const wfs = await listWorkflows();
-    n8n = {
-      ok: true,
-      count: wfs.length,
-      activeCount: wfs.filter((w) => w.active).length,
-    };
-  } catch (e) {
-    n8n = {
-      ok: false,
-      count: 0,
-      activeCount: 0,
-      error: e instanceof Error ? e.message : "unreachable",
-    };
+  if (isStaff) {
+    try {
+      const wfs = await listWorkflows();
+      n8n = {
+        ok: true,
+        count: wfs.length,
+        activeCount: wfs.filter((w) => w.active).length,
+      };
+    } catch (e) {
+      n8n = {
+        ok: false,
+        count: 0,
+        activeCount: 0,
+        error: e instanceof Error ? e.message : "unreachable",
+      };
+    }
   }
 
   const n8nBaseUrl = process.env.N8N_BASE_URL;
@@ -129,7 +135,6 @@ export default async function IntegrationsPage({
   const emailStatus = await getTenantEmailStatus(tenant.id);
 
   // API keys (Zapier / Make / public API) — admin-only management.
-  const role = await getRoleOnTenant(tenant.id);
   const isApiAdmin = role === "owner" || role === "admin" || role === "bolivai_admin";
   const apiKeys = isApiAdmin ? await listApiKeys(tenant.id) : [];
 
@@ -258,7 +263,10 @@ export default async function IntegrationsPage({
         </CardContent>
       </Card>
 
-      {/* n8n */}
+      {/* Execution-engine diagnostics — BolivAI-internal infra (server host,
+          workflow counts, the inbound webhook URL). Hidden from tenants; only
+          BolivAI staff see it when supporting an account. */}
+      {role === "bolivai_admin" ? (
       <Card>
         <CardHeader>
           <CardTitle>{t("n8n_title")}</CardTitle>
@@ -315,6 +323,7 @@ export default async function IntegrationsPage({
           ) : null}
         </CardContent>
       </Card>
+      ) : null}
 
       {needsGoogle ? (
         <Card>

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Mic, Phone, ExternalLink, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { getTenantBySlug } from "@/lib/tenant";
+import { isBolivAIAdmin } from "@/lib/auth";
 import { CURATED_VOICES, DEFAULT_VOICE_ID, getVoiceById } from "@/lib/voices";
 import { VoiceToggle } from "./voice-toggle";
 import { VoiceSettingsForm } from "./voice-settings-form";
@@ -26,6 +27,9 @@ export default async function VoiceSettingsPage({
   const hasAgent = !!tenant.elevenlabs_agent_id;
   const currentVoiceId = tenant.voice_id ?? DEFAULT_VOICE_ID;
   const currentVoice = getVoiceById(currentVoiceId);
+  // The provider-specific agent id + the provider dashboard link are internal —
+  // only BolivAI staff see them; tenants never need to know the voice vendor.
+  const isStaff = await isBolivAIAdmin();
 
   return (
     <div className="space-y-6">
@@ -65,11 +69,13 @@ export default async function VoiceSettingsPage({
             </p>
           ) : (
             <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-              <DlField
-                label={t("field_agent_id")}
-                value={tenant.elevenlabs_agent_id ?? "—"}
-                mono
-              />
+              {isStaff ? (
+                <DlField
+                  label={t("field_agent_id")}
+                  value={tenant.elevenlabs_agent_id ?? "—"}
+                  mono
+                />
+              ) : null}
               <DlField label={t("field_voice")} value={currentVoice?.name ?? "—"} />
               <DlField
                 label={t("field_prompt_language")}
@@ -84,7 +90,7 @@ export default async function VoiceSettingsPage({
             hasAgent={hasAgent}
           />
 
-          {hasAgent ? (
+          {hasAgent && isStaff ? (
             <a
               href={`https://elevenlabs.io/app/conversational-ai/agents/${tenant.elevenlabs_agent_id}`}
               target="_blank"

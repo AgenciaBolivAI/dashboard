@@ -4,7 +4,7 @@ import { PhoneIncoming, PhoneOutgoing, Phone, ExternalLink } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
-import { requireUser, requireTenantAccess } from "@/lib/auth";
+import { requireUser, requireTenantAccess, isBolivAIAdmin } from "@/lib/auth";
 import { listVoiceConversations } from "@/lib/queries/voice-conversations";
 import { RecordingPlayer } from "@/components/voice/recording-player";
 import { RealtimeSearch } from "@/components/ui/realtime-search";
@@ -38,6 +38,9 @@ export default async function CallsPage({
   await requireTenantAccess(tenant.id);
   const t = await getTranslations("sandra");
   const locale = await getLocale();
+  // The provider history link is internal — staff only (tenants play recordings
+  // in-dashboard and never need the voice vendor's console).
+  const isStaff = await isBolivAIAdmin();
 
   const pageSize = clampPageSize(Number(pageSizeParam), 50);
   const page = Math.max(1, Number(pageParam) || 1);
@@ -153,15 +156,17 @@ export default async function CallsPage({
                           conversationId={c.conversation_id}
                           durationSeconds={c.duration_seconds}
                         />
-                        <a
-                          href={`https://elevenlabs.io/app/conversational-ai/history/${c.conversation_id}`}
-                          target="_blank"
-                          rel="noopener"
-                          title={t("open_in_elevenlabs")}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <ExternalLink className="size-3.5" />
-                        </a>
+                        {isStaff ? (
+                          <a
+                            href={`https://elevenlabs.io/app/conversational-ai/history/${c.conversation_id}`}
+                            target="_blank"
+                            rel="noopener"
+                            title={t("open_in_elevenlabs")}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </a>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
