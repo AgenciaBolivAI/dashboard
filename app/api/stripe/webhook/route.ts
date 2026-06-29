@@ -11,6 +11,31 @@ import { applyTopupFromStripe } from "@/lib/billing/credits";
 import { grantLifetimeFromStripe } from "@/lib/billing/lifetime";
 
 /**
+ * Update invoices matched by a Stripe id, but ALWAYS re-scope the write to the
+ * matched row's (id, tenant_id) — the same pattern the `invoice.paid` handler
+ * uses. Defense-in-depth so a webhook write can never cross tenants even though
+ * Stripe ids are globally unique (signature already verified upstream).
+ */
+async function scopeInvoiceWrite(
+  supabase: ReturnType<typeof createServiceClient>,
+  col: "stripe_invoice_id" | "stripe_subscription_id",
+  id: string,
+  patch: Record<string, unknown>,
+  onlyRecurring = false,
+): Promise<void> {
+  let q = supabase.from("invoices").select("id, tenant_id").eq(col, id);
+  if (onlyRecurring) q = q.eq("is_recurring", true);
+  const { data } = await q;
+  for (const r of (data ?? []) as Array<{ id: string; tenant_id: string }>) {
+    await supabase
+      .from("invoices")
+      .update(patch as never)
+      .eq("id", r.id)
+      .eq("tenant_id", r.tenant_id);
+  }
+}
+
+/**
  * POST to the n8n Invoice Notify webhook. The fetch IS awaited (callers
  * await this function before responding to Stripe): on Vercel serverless any
  * work left running after the response is sent is killed, so an un-awaited
@@ -332,47 +357,38 @@ export async function POST(req: NextRequest) {
         // stop expecting new cycles. We intentionally do NOT change invoice
         // status: an already-open/unpaid invoice stays owed (the customer
         // still owes it); only future cycles stop.
-        await supabase
-          .from("invoices")
-          .update({ recurrence_end_date: new Date().toISOString().slice(0, 10) })
-          .eq("stripe_subscription_id", sub.id)
-          .eq("is_recurring", true);
+        await scopeInvoiceWrite(
+          supabase,
+          "stripe_subscription_id",
+          sub.id,
+          { recurrence_end_date: new Date().toISOString().slice(0, 10) },
+          true,
+        );
         break;
       }
       case "invoice.payment_failed": {
         const inv = event.data.object as Stripe.Invoice;
-        await supabase
-          .from("invoices")
-          .update({ status: "past_due" })
-          .eq("stripe_invoice_id", inv.id);
+        if (inv.id) await scopeInvoiceWrite(supabase, "stripe_invoice_id", inv.id, { status: "past_due" });
         await notifyTenantOfInvoiceEvent("invoice.payment_failed", inv);
         break;
       }
       case "invoice.marked_uncollectible": {
         const inv = event.data.object as Stripe.Invoice;
-        await supabase
-          .from("invoices")
-          .update({ status: "uncollectible" })
-          .eq("stripe_invoice_id", inv.id);
+        if (inv.id) await scopeInvoiceWrite(supabase, "stripe_invoice_id", inv.id, { status: "uncollectible" });
         break;
       }
       case "invoice.voided": {
         const inv = event.data.object as Stripe.Invoice;
-        await supabase
-          .from("invoices")
-          .update({ status: "void" })
-          .eq("stripe_invoice_id", inv.id);
+        if (inv.id) await scopeInvoiceWrite(supabase, "stripe_invoice_id", inv.id, { status: "void" });
         break;
       }
       case "invoice.finalized": {
         const inv = event.data.object as Stripe.Invoice;
-        await supabase
-          .from("invoices")
-          .update({
+        if (inv.id)
+          await scopeInvoiceWrite(supabase, "stripe_invoice_id", inv.id, {
             stripe_payment_link: inv.hosted_invoice_url ?? null,
             stripe_invoice_pdf: inv.invoice_pdf ?? null,
-          })
-          .eq("stripe_invoice_id", inv.id);
+          });
         break;
       }
       case "account.updated": {

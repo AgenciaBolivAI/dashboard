@@ -24,6 +24,8 @@ import {
   Megaphone,
   PhoneCall,
   Video,
+  Send,
+  FileInput,
 } from "lucide-react";
 import { levelSatisfies, type Feature, type PermissionSet } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
@@ -46,6 +48,8 @@ const NAV_ITEMS = [
   { href: "knowledge", key: "knowledge", icon: FileText, feature: "knowledge" },
   { href: "marketing", key: "marketing", icon: Megaphone, feature: "marketing" },
   { href: "campaigns", key: "campaigns", icon: Rocket, feature: "marketing" },
+  { href: "broadcasts", key: "broadcasts", icon: Send, feature: "marketing" },
+  { href: "forms", key: "forms", icon: FileInput, feature: "marketing" },
   { href: "content", key: "content", icon: Wand2, feature: "content" },
   { href: "shorts", key: "shorts", icon: Video, feature: "shorts" },
   { href: "billing", key: "billing", icon: Coins, feature: "billing" },

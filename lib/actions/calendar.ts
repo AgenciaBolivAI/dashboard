@@ -416,6 +416,18 @@ export async function bookSlotManuallyAction(
   if (!slot) return { error: et("reservation_not_found") };
   if (!slot.is_available) return { error: et("slot_unavailable") };
 
+  // If a service was chosen, confirm it belongs to THIS tenant (defense-in-depth
+  // — book_slot also checks the staffer offers it, but never cross-tenant).
+  if (d.service_id) {
+    const { data: svcRow } = await svc
+      .from("services")
+      .select("id")
+      .eq("id", d.service_id)
+      .eq("tenant_id", d.tenant_id)
+      .maybeSingle();
+    if (!svcRow) return { error: et("invalid_data") };
+  }
+
   const durationMin = Math.max(
     5,
     Math.round((new Date(slot.end_at).getTime() - new Date(slot.start_at).getTime()) / 60_000),

@@ -492,6 +492,7 @@ export async function cancelSubscriptionAction(
   await supabase
     .from("invoices")
     .update({ recurrence_end_date: new Date().toISOString().slice(0, 10) })
+    .eq("tenant_id", tenantId)
     .eq("stripe_subscription_id", subId)
     .eq("is_recurring", true);
 
