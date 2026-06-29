@@ -510,7 +510,16 @@
     "pipeline_title": "Valeur du pipeline par étape",
     "pipeline_open_total": "Pipeline ouvert total",
     "revenue_title": "Tendance des revenus",
-    "revenue_empty": "Aucun revenu encaissé sur cette période."
+    "revenue_empty": "Aucun revenu encaissé sur cette période.",
+    "sentiment_section_title": "Sentiment des conversations",
+    "sentiment_center_label": "analysées",
+    "sentiment_empty": "Aucune conversation analysée sur cette période.",
+    "sentiment_positive": "Positif",
+    "sentiment_neutral": "Neutre",
+    "sentiment_negative": "Négatif",
+    "at_risk_title": "Conversations à risque",
+    "at_risk_empty": "Rien à risque pour le moment. 🎉",
+    "at_risk_unknown": "Contact inconnu"
   },
   "leads": {
     "title": "Leads",
@@ -639,7 +648,8 @@
     "website_cancel": "Annuler",
     "checkbox_select": "Sélectionner",
     "checkbox_no_phone": "Sans téléphone",
-    "website": "Site web"
+    "website": "Site web",
+    "researched_by_boliv": "Recherché par BOLIV"
   },
   "customers": {
     "page_title": "Clients",
@@ -2186,7 +2196,14 @@
     "cancel": "Annuler",
     "confirm_generic": "Confirmer cette action ?",
     "action_cancelled": "Action annulée.",
-    "new_conversation": "Nouvelle conversation"
+    "new_conversation": "Nouvelle conversation",
+    "new_chat": "Nouveau chat",
+    "no_chats": "Aucun chat pour le moment",
+    "untitled_chat": "Nouveau chat",
+    "delete_chat": "Supprimer le chat",
+    "copy": "Copier",
+    "copied": "Copié",
+    "copy_failed": "Copie impossible"
   },
   "team": {
     "invite_title": "Inviter quelqu’un",
@@ -2544,7 +2561,10 @@
     "form_needs_contact_field": "Activez au moins l'email ou le téléphone.",
     "sms_gateway_url_required": "Ajoutez l'URL de la passerelle.",
     "sms_gateway_url_invalid": "L'URL de la passerelle doit être une adresse http(s) publique.",
-    "vira_need_credit": "Il vous faut au moins 10 crédits pour lancer une tâche VIRA. Rechargez pour continuer."
+    "vira_need_credit": "Il vous faut au moins 10 crédits pour lancer une tâche VIRA. Rechargez pour continuer.",
+    "prospect_research_failed": "BOLIV n'a pas pu terminer la recherche. Réessayez.",
+    "analysis_empty_conversation": "Cette conversation n'a aucun message à analyser.",
+    "analysis_failed": "BOLIV n'a pas pu analyser la conversation. Réessayez."
   },
   "settings_apikeys": {
     "title": "Clés d’API",
@@ -2685,5 +2705,50 @@
     "title_required": "Ajoutez un titre au formulaire.",
     "saved": "Formulaire enregistré",
     "created": "Formulaire créé"
+  },
+  "prospect": {
+    "title": "Recherche sur le prospect",
+    "cta_subtitle": "Laissez BOLIV rechercher ce prospect — profil de l'entreprise + points de discussion, depuis le web.",
+    "research_button": "Rechercher avec BOLIV ({cost} cr)",
+    "researching": "BOLIV recherche ce prospect…",
+    "rerun": "Relancer",
+    "done_toast": "Recherche prête",
+    "talking_points": "Points de discussion",
+    "sources": "Sources",
+    "generated_at": "Recherché le {when}",
+    "retry_hint": "Impossible de terminer la recherche. Réessayez.",
+    "sentiment_title": "Sentiment",
+    "analyze_button": "Analyser ({cost} cr)",
+    "analyzing": "Analyse de la conversation…",
+    "sentiment_positive": "Positif",
+    "sentiment_neutral": "Neutre",
+    "sentiment_negative": "Négatif",
+    "at_risk": "À risque",
+    "buying_intent": "Intention d'achat",
+    "objections": "Objections",
+    "next_action": "Prochaine action",
+    "analyzed_toast": "Analyse prête",
+    "settings_title": "Intelligence prospects",
+    "settings_subtitle": "BOLIV recherche automatiquement les nouveaux leads et analyse le sentiment des conversations.",
+    "settings_auto_title": "Rechercher automatiquement les nouveaux leads",
+    "settings_auto_desc": "À l'arrivée d'un nouveau lead, BOLIV rédige automatiquement une fiche de recherche ({cost} cr chacune).",
+    "settings_sources_label": "Rechercher les leads de",
+    "settings_sources_hint": "Les listes extraites en masse sont exclues pour protéger vos crédits.",
+    "settings_source_form": "Formulaires web",
+    "settings_source_whatsapp": "WhatsApp",
+    "settings_source_voice": "Appels vocaux",
+    "settings_source_meta": "Instagram / Messenger",
+    "settings_cap_label": "Limite quotidienne de recherche",
+    "settings_cap_hint": "Nombre maximal de recherches automatiques par jour. Les leads supplémentaires attendent le lendemain.",
+    "settings_sentiment_title": "Analyser le sentiment au transfert",
+    "settings_sentiment_desc": "Quand une conversation est confiée à un humain, BOLIV analyse son sentiment et signale les négatifs.",
+    "settings_save": "Enregistrer",
+    "settings_saved": "Paramètres enregistrés",
+    "settings_save_failed": "Enregistrement impossible",
+    "timeline_title": "Activité",
+    "timeline_created": "Lead créé",
+    "timeline_research": "BOLIV a recherché ce prospect",
+    "timeline_call": "Appel",
+    "timeline_empty": "Aucune activité pour le moment."
   }
 }

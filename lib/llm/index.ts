@@ -26,6 +26,12 @@ function chatEndpoint(): Endpoint {
   };
 }
 
+/** The web-search-capable chat model (OpenAI's gpt-4o-search-preview by default).
+ * Swappable via LLM_SEARCH_MODEL. Used for prospect research (grounded answers). */
+export function searchModel(): string {
+  return process.env.LLM_SEARCH_MODEL ?? "gpt-4o-search-preview";
+}
+
 function embedEndpoint(): Endpoint {
   return {
     baseUrl: (process.env.LLM_EMBED_BASE_URL ?? "https://api.openai.com/v1").replace(/\/+$/, ""),
@@ -47,6 +53,8 @@ export type LlmMessage = {
   tool_calls?: LlmToolCall[];
   tool_call_id?: string;
   name?: string;
+  // Web-search models (gpt-4o-search-preview) attach citations here.
+  annotations?: Array<{ type?: string; url_citation?: { url?: string; title?: string } }>;
 };
 export type LlmTool = {
   type: "function";
@@ -68,10 +76,14 @@ export async function chatCompletion(opts: {
   messages: LlmMessage[];
   tools?: LlmTool[];
   toolChoice?: "auto" | "none" | "required";
-  temperature?: number;
+  // number → that temperature; undefined → default 0.2; null → omit entirely
+  // (web-search models like gpt-4o-search-preview REJECT the temperature param).
+  temperature?: number | null;
   maxTokens?: number;
   model?: string; // per-call override; defaults to LLM_CHAT_MODEL
   responseFormat?: { type: "json_object" } | { type: "text" };
+  // For gpt-4o-search-preview: { search_context_size: "low"|"medium"|"high", ... }
+  webSearchOptions?: Record<string, unknown>;
   timeoutMs?: number;
 }): Promise<ChatCompletionResult> {
   const cfg = chatEndpoint();
@@ -82,14 +94,15 @@ export async function chatCompletion(opts: {
   const body: Record<string, unknown> = {
     model: opts.model ?? cfg.model,
     messages: opts.messages,
-    temperature: opts.temperature ?? 0.2,
   };
+  if (opts.temperature !== null) body.temperature = opts.temperature ?? 0.2;
   if (opts.tools?.length) {
     body.tools = opts.tools;
     body.tool_choice = opts.toolChoice ?? "auto";
   }
   if (opts.maxTokens) body.max_tokens = opts.maxTokens;
   if (opts.responseFormat) body.response_format = opts.responseFormat;
+  if (opts.webSearchOptions) body.web_search_options = opts.webSearchOptions;
 
   let res: Response;
   try {

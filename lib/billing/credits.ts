@@ -65,6 +65,20 @@ export async function getBalanceWithService(tenantId: string): Promise<CreditBal
   return (row ?? null) as CreditBalance | null;
 }
 
+/** Credits charged per unit for an action_key (from credit_pricing). Falls back
+ * to `fallback` if the row is missing. Service-role read — credit_pricing is
+ * locked down (margin leak), so never read it from an RLS member client. */
+export async function getActionCredits(actionKey: string, fallback: number): Promise<number> {
+  const svc = createServiceClient();
+  const { data } = await svc
+    .from("credit_pricing")
+    .select("credits_per_unit")
+    .eq("action_key", actionKey)
+    .maybeSingle();
+  const v = Number((data as { credits_per_unit?: number } | null)?.credits_per_unit);
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
 export async function listTransactions(
   tenantId: string,
   limit = 50,

@@ -2,6 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { getTenantBySlug } from "@/lib/tenant";
 import { getTranslations } from "next-intl/server";
 import { AgentForm } from "./agent-form";
+import { ProspectSettingsForm } from "@/components/prospect/prospect-settings-form";
+import { getProspectSettings } from "@/lib/queries/prospect";
+import { getActionCredits } from "@/lib/billing/credits";
 
 export default async function AgentSettingsPage({
   params,
@@ -11,6 +14,11 @@ export default async function AgentSettingsPage({
   const { tenantSlug } = await params;
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("settings_agent");
+  const tp = await getTranslations("prospect");
+  const [prospectSettings, researchCost] = await Promise.all([
+    getProspectSettings(tenant.id),
+    getActionCredits("research.prospect", 15),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -48,6 +56,20 @@ export default async function AgentSettingsPage({
             <li><code className="text-foreground">{"{{current_datetime}}"}</code> — {t("var_current_datetime")}</li>
             <li><code className="text-foreground">{"{{current_date}}"}</code> — {t("var_current_date")}</li>
           </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{tp("settings_title")}</CardTitle>
+          <CardDescription>{tp("settings_subtitle")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProspectSettingsForm
+            tenantId={tenant.id}
+            settings={prospectSettings}
+            researchCost={researchCost}
+          />
         </CardContent>
       </Card>
     </div>

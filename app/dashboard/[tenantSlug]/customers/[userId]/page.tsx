@@ -22,8 +22,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { getCustomer360 } from "@/lib/queries/customers";
+import { getProspectResearch } from "@/lib/queries/prospect";
+import { getActionCredits } from "@/lib/billing/credits";
 import { formatMoney } from "@/lib/format";
 import { CustomerProfileForm } from "./customer-profile-form";
+import { ResearchCard } from "@/components/prospect/research-card";
+
+// Allow the inline "Research with BOLIV" action room to run the web-search call.
+export const maxDuration = 60;
 
 type StatusVariant = "default" | "outline" | "success" | "destructive";
 
@@ -53,6 +59,10 @@ export default async function CustomerDetailPage({
   const tenant = await getTenantBySlug(tenantSlug);
   const customer = await getCustomer360(tenant.id, userId);
   if (!customer) notFound();
+  const [research, researchCost] = await Promise.all([
+    getProspectResearch(tenant.id, "customer", userId),
+    getActionCredits("research.prospect", 15),
+  ]);
   const t = await getTranslations("customers");
   const locale = await getLocale();
 
@@ -159,6 +169,7 @@ export default async function CustomerDetailPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <ResearchCard tenantId={tenant.id} kind="customer" subjectId={customer.id} research={research} cost={researchCost} />
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">

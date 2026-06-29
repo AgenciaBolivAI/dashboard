@@ -1,8 +1,9 @@
+import { randomUUID } from "crypto";
 import { Sparkles } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { getTenantBySlug } from "@/lib/tenant";
 import { getUser } from "@/lib/auth";
-import { getAssistantHistory } from "@/lib/queries/assistant";
+import { getAssistantHistory, listAssistantSessions } from "@/lib/queries/assistant";
 import { getBolivBriefing } from "@/lib/queries/briefing";
 import { AssistantChat } from "@/components/assistant/assistant-chat";
 
@@ -18,13 +19,16 @@ export default async function AssistantPage({
   const tenant = await getTenantBySlug(tenantSlug);
   const t = await getTranslations("assistant");
 
-  // Hydrate the user's persisted thread (Phase 0c) so context carries over,
-  // plus BOLIV's live operating snapshot for the proactive opening.
+  // Load the user's chat sessions + BOLIV's live snapshot. Open the most recent
+  // session (or a fresh one if the user has none yet).
   const user = await getUser();
-  const [initialMessages, briefing] = await Promise.all([
-    user ? getAssistantHistory(tenant.id, user.id) : Promise.resolve([]),
+  const [sessions, briefing] = await Promise.all([
+    user ? listAssistantSessions(tenant.id, user.id) : Promise.resolve([]),
     getBolivBriefing(tenant.id, user?.id ?? null),
   ]);
+  const activeSessionId = sessions[0]?.session_id ?? randomUUID();
+  const initialMessages =
+    user && sessions[0] ? await getAssistantHistory(tenant.id, user.id, activeSessionId) : [];
 
   return (
     <div className="flex flex-col h-full">
@@ -35,7 +39,13 @@ export default async function AssistantPage({
         </h1>
         <p className="text-sm text-muted-foreground mt-1">{t("page_subtitle")}</p>
       </div>
-      <AssistantChat tenantSlug={tenantSlug} initialMessages={initialMessages} briefing={briefing} />
+      <AssistantChat
+        tenantSlug={tenantSlug}
+        initialMessages={initialMessages}
+        initialSessions={sessions}
+        activeSessionId={activeSessionId}
+        briefing={briefing}
+      />
     </div>
   );
 }

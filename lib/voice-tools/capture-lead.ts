@@ -42,16 +42,28 @@ export const captureLead: ToolDef<z.infer<typeof schema>> = {
   async handler(input, ctx) {
     const supabase = createServiceClient();
     const userId = await ensureUserByPhone(ctx.tenantId, input.customer_phone, input.customer_name);
-    const { error } = await supabase.from("leads").insert({
-      tenant_id: ctx.tenantId,
-      user_id: userId,
-      name: input.customer_name,
-      whatsapp_number: input.customer_phone.replace(/^\+/, ""),
-      intent: input.intent,
-      notes: input.notes ?? null,
-    });
+    const { data: ins, error } = await supabase
+      .from("leads")
+      .insert({
+        tenant_id: ctx.tenantId,
+        user_id: userId,
+        name: input.customer_name,
+        whatsapp_number: input.customer_phone.replace(/^\+/, ""),
+        intent: input.intent,
+        notes: input.notes ?? null,
+        source: "voice",
+      })
+      .select("id")
+      .maybeSingle();
     if (error) {
       return { ok: false, error: error.message, user_facing_error: "I couldn't save the lead." };
+    }
+
+    // BOLIV auto prospect-research for this voice-captured lead (gated by settings).
+    const leadId = (ins as { id: string } | null)?.id;
+    if (leadId) {
+      const { maybeEnqueueInboundResearch } = await import("@/lib/prospect/research");
+      await maybeEnqueueInboundResearch(ctx.tenantId, leadId, "voice");
     }
     return { ok: true, data: { message: "Lead captured." } };
   },

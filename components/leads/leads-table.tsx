@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { PhoneCall, Loader2, Trash2 } from "lucide-react";
+import { PhoneCall, Loader2, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -66,9 +66,11 @@ const STATUS_CLASS: Record<LeadStatus, string> = {
 export function LeadsTable({
   tenantId,
   leads,
+  researchedIds,
 }: {
   tenantId: string;
   leads: LeadFromQuery[];
+  researchedIds?: string[];
 }) {
   const params = useParams<{ tenantSlug?: string }>();
   const tenantSlugParam = params?.tenantSlug ?? "";
@@ -78,6 +80,7 @@ export function LeadsTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [adding, startAdd] = useTransition();
   const [rowPending, startRowPending] = useTransition();
+  const researched = useMemo(() => new Set(researchedIds ?? []), [researchedIds]);
 
   const callableIds = useMemo(
     () => leads.filter((l) => !!l.whatsapp_number).map((l) => l.id),
@@ -267,12 +270,19 @@ export function LeadsTable({
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    <Link
-                      href={`/dashboard/${tenantSlugParam}/leads/${l.id}`}
-                      className="hover:text-primary hover:underline"
-                    >
-                      {l.name ?? "—"}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/dashboard/${tenantSlugParam}/leads/${l.id}`}
+                        className="hover:text-primary hover:underline"
+                      >
+                        {l.name ?? "—"}
+                      </Link>
+                      {researched.has(l.id) ? (
+                        <span title={t("researched_by_boliv")} className="inline-flex shrink-0">
+                          <Sparkles className="size-3.5 text-primary" />
+                        </span>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm">
                     {l.whatsapp_number ? (

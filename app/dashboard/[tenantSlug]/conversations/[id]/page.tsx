@@ -11,7 +11,13 @@ import { ConvertToTicket } from "@/components/conversations/convert-to-ticket";
 import { OperatorInput } from "@/components/conversations/operator-input";
 import { getTenantBySlug } from "@/lib/tenant";
 import { getConversationDetail } from "@/lib/queries/conversations";
+import { getConversationAnalysis } from "@/lib/queries/prospect";
+import { getActionCredits } from "@/lib/billing/credits";
+import { SentimentCard } from "@/components/prospect/sentiment-card";
 import { formatDate, formatRelative } from "@/lib/utils";
+
+// Room for the inline "Analyze sentiment" action to run the LLM call.
+export const maxDuration = 60;
 
 export default async function ConversationDetailPage({
   params,
@@ -22,6 +28,10 @@ export default async function ConversationDetailPage({
   const tenant = await getTenantBySlug(tenantSlug);
   const convo = await getConversationDetail(tenant.id, id);
   if (!convo) notFound();
+  const [analysis, sentimentCost] = await Promise.all([
+    getConversationAnalysis(tenant.id, id),
+    getActionCredits("analysis.sentiment", 3),
+  ]);
   const t = await getTranslations("conversations");
   const locale = await getLocale();
 
@@ -107,6 +117,10 @@ export default async function ConversationDetailPage({
             />
           ) : null}
         </div>
+
+        <Separator className="my-6" />
+
+        <SentimentCard tenantId={tenant.id} conversationId={convo.id} analysis={analysis} cost={sentimentCost} />
 
         <Separator className="my-6" />
 

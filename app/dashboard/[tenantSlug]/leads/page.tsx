@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getTenantBySlug } from "@/lib/tenant";
 import { listLeads, getLeadIntents, getLeadFacets } from "@/lib/queries/leads";
+import { getResearchedSubjectIds } from "@/lib/queries/prospect";
 import { COUNTRY_BY_CODE } from "@/lib/leads-geo";
 import { LeadsTable, type LeadFromQuery } from "@/components/leads/leads-table";
 import { LeadsBoard, type BoardLead } from "@/components/leads/leads-board";
@@ -103,6 +104,13 @@ export default async function LeadsPage({
     getLeadIntents(tenant.id),
     getLeadFacets(tenant.id),
   ]);
+
+  // Which visible leads BOLIV has already researched → list indicator.
+  const researchedIds = await getResearchedSubjectIds(
+    tenant.id,
+    "lead",
+    (leads as unknown as { id: string }[]).map((l) => l.id),
+  );
 
   // Reflect ALL active filters in the export URL so the CSV matches the visible table
   const exportQs = new URLSearchParams();
@@ -283,7 +291,7 @@ export default async function LeadsPage({
         />
       ) : (
         <>
-          <LeadsTable tenantId={tenant.id} leads={leads as unknown as LeadFromQuery[]} />
+          <LeadsTable tenantId={tenant.id} leads={leads as unknown as LeadFromQuery[]} researchedIds={researchedIds} />
           <div className="mt-4">
             <Pagination total={total} defaultPageSize={pageSize} />
           </div>

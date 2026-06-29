@@ -87,6 +87,27 @@ export async function takeoverAction(conversationId: string): Promise<HitlState>
       return { error: et("hitl_takeover_not_registered") };
     }
 
+    // Auto-analyze sentiment on handoff so the human sees the read immediately and
+    // a negative/at-risk chat is flagged. Best-effort, gated by tenant setting.
+    try {
+      // prospect_settings isn't in the generated types yet (new table) — use an
+      // untyped client for this read, matching lib/prospect/*.
+      const svcUntyped = svc as unknown as import("@supabase/supabase-js").SupabaseClient;
+      const { data: ps } = await svcUntyped
+        .from("prospect_settings")
+        .select("sentiment_auto_on_handoff")
+        .eq("tenant_id", ctx.tenant_id)
+        .maybeSingle();
+      const enabled = (ps as { sentiment_auto_on_handoff?: boolean } | null)?.sentiment_auto_on_handoff ?? true;
+      if (enabled) {
+        const { getLocale } = await import("next-intl/server");
+        const { analyzeConversation } = await import("@/lib/prospect/sentiment");
+        await analyzeConversation(ctx.tenant_id, conversationId, await getLocale());
+      }
+    } catch {
+      /* sentiment is a side effect — never block the takeover */
+    }
+
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations/${conversationId}`);
     revalidatePath(`/dashboard/${ctx.tenants.slug}/conversations`);
     return { error: null, success: true };

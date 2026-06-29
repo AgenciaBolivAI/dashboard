@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { STAGE_WIN_PROBABILITY, isOpenStage, type LeadStatus } from "@/lib/leads-types";
 
@@ -128,5 +129,86 @@ export async function getReports(
     pipelineByStage,
     revenueTrend,
     revenueTotalCents,
+  };
+}
+
+// ─── Sentiment & at-risk report (BOLIV conversation analysis) ──────────────
+export type SentimentReport = {
+  total: number;
+  distribution: { positive: number; neutral: number; negative: number };
+  atRisk: Array<{
+    conversationId: string;
+    name: string | null;
+    channel: string | null;
+    sentiment: "positive" | "neutral" | "negative";
+    summary: string | null;
+    nextAction: string | null;
+    generatedAt: string | null;
+  }>;
+};
+
+/**
+ * Aggregates BOLIV's conversation sentiment over the period: a positive/neutral/
+ * negative distribution + the open at-risk conversations (negative OR flagged
+ * at_risk) so the owner can act. Tenant-scoped via RLS (member select policy on
+ * conversation_analysis); the page also gates with requirePermission.
+ */
+export async function getSentimentReport(
+  tenantId: string,
+  period: ReportPeriod,
+): Promise<SentimentReport> {
+  const supabase = (await createClient()) as unknown as SupabaseClient;
+  const startIso = periodStartIso(period);
+
+  let q = supabase
+    .from("conversation_analysis")
+    .select("conversation_id, sentiment, summary, signals, generated_at")
+    .eq("tenant_id", tenantId)
+    .eq("status", "done");
+  if (startIso) q = q.gte("generated_at", startIso);
+  const { data } = await q.order("generated_at", { ascending: false }).limit(5_000);
+  const rows = (data ?? []) as Array<{
+    conversation_id: string;
+    sentiment: "positive" | "neutral" | "negative" | null;
+    summary: string | null;
+    signals: { at_risk?: boolean; next_best_action?: string } | null;
+    generated_at: string | null;
+  }>;
+
+  const distribution = { positive: 0, neutral: 0, negative: 0 };
+  const atRiskRows: typeof rows = [];
+  for (const r of rows) {
+    if (r.sentiment) distribution[r.sentiment] += 1;
+    if (r.sentiment === "negative" || r.signals?.at_risk) atRiskRows.push(r);
+  }
+
+  // Resolve customer name + channel for the at-risk conversations (top 20).
+  const top = atRiskRows.slice(0, 20);
+  const nameByConvo = new Map<string, { name: string | null; channel: string | null }>();
+  if (top.length > 0) {
+    const ids = top.map((r) => r.conversation_id);
+    const { data: convos } = await supabase
+      .from("conversations")
+      .select("id, channel, users:user_id ( name )")
+      .eq("tenant_id", tenantId)
+      .in("id", ids);
+    for (const c of (convos ?? []) as Array<{ id: string; channel: string | null; users: { name: string | null } | { name: string | null }[] | null }>) {
+      const u = Array.isArray(c.users) ? c.users[0] : c.users;
+      nameByConvo.set(c.id, { name: u?.name ?? null, channel: c.channel });
+    }
+  }
+
+  return {
+    total: rows.length,
+    distribution,
+    atRisk: top.map((r) => ({
+      conversationId: r.conversation_id,
+      name: nameByConvo.get(r.conversation_id)?.name ?? null,
+      channel: nameByConvo.get(r.conversation_id)?.channel ?? null,
+      sentiment: (r.sentiment ?? "neutral") as "positive" | "neutral" | "negative",
+      summary: r.summary,
+      nextAction: r.signals?.next_best_action ?? null,
+      generatedAt: r.generated_at,
+    })),
   };
 }

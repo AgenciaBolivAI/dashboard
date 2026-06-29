@@ -510,7 +510,16 @@
     "pipeline_title": "Pipeline value by stage",
     "pipeline_open_total": "Total open pipeline",
     "revenue_title": "Revenue trend",
-    "revenue_empty": "No collected revenue in this period."
+    "revenue_empty": "No collected revenue in this period.",
+    "sentiment_section_title": "Conversation sentiment",
+    "sentiment_center_label": "analyzed",
+    "sentiment_empty": "No conversations analyzed yet in this period.",
+    "sentiment_positive": "Positive",
+    "sentiment_neutral": "Neutral",
+    "sentiment_negative": "Negative",
+    "at_risk_title": "At-risk conversations",
+    "at_risk_empty": "Nothing at risk right now. 🎉",
+    "at_risk_unknown": "Unknown contact"
   },
   "leads": {
     "title": "Leads",
@@ -639,7 +648,8 @@
     "website_cancel": "Cancel",
     "checkbox_select": "Select",
     "checkbox_no_phone": "No phone",
-    "website": "Website"
+    "website": "Website",
+    "researched_by_boliv": "Researched by BOLIV"
   },
   "customers": {
     "page_title": "Customers",
@@ -2186,7 +2196,14 @@
     "cancel": "Cancel",
     "confirm_generic": "Confirm this action?",
     "action_cancelled": "Action cancelled.",
-    "new_conversation": "New conversation"
+    "new_conversation": "New conversation",
+    "new_chat": "New chat",
+    "no_chats": "No chats yet",
+    "untitled_chat": "New chat",
+    "delete_chat": "Delete chat",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copy_failed": "Couldn't copy"
   },
   "team": {
     "invite_title": "Invite someone",
@@ -2544,7 +2561,10 @@
     "form_needs_contact_field": "Enable at least one of email or phone.",
     "sms_gateway_url_required": "Add the gateway URL.",
     "sms_gateway_url_invalid": "The gateway URL must be a public http(s) address.",
-    "vira_need_credit": "You need at least 10 credits to start a VIRA job. Top up to continue."
+    "vira_need_credit": "You need at least 10 credits to start a VIRA job. Top up to continue.",
+    "prospect_research_failed": "BOLIV couldn't complete the research. Please try again.",
+    "analysis_empty_conversation": "This conversation has no messages to analyze.",
+    "analysis_failed": "BOLIV couldn't analyze the conversation. Try again."
   },
   "settings_apikeys": {
     "title": "API keys",
@@ -2685,5 +2705,50 @@
     "title_required": "Add a form title.",
     "saved": "Form saved",
     "created": "Form created"
+  },
+  "prospect": {
+    "title": "Prospect research",
+    "cta_subtitle": "Let BOLIV research this prospect — company background + talking points, pulled from the web.",
+    "research_button": "Research with BOLIV ({cost} cr)",
+    "researching": "BOLIV is researching this prospect…",
+    "rerun": "Re-run",
+    "done_toast": "Research ready",
+    "talking_points": "Talking points",
+    "sources": "Sources",
+    "generated_at": "Researched {when}",
+    "retry_hint": "Couldn't complete the research. Try again.",
+    "sentiment_title": "Sentiment",
+    "analyze_button": "Analyze ({cost} cr)",
+    "analyzing": "Analyzing the conversation…",
+    "sentiment_positive": "Positive",
+    "sentiment_neutral": "Neutral",
+    "sentiment_negative": "Negative",
+    "at_risk": "At risk",
+    "buying_intent": "Buying intent",
+    "objections": "Objections",
+    "next_action": "Next best action",
+    "analyzed_toast": "Analysis ready",
+    "settings_title": "Prospect intelligence",
+    "settings_subtitle": "BOLIV auto-researches new inbound leads and reads conversation sentiment.",
+    "settings_auto_title": "Auto-research new leads",
+    "settings_auto_desc": "When a new lead arrives, BOLIV writes a research brief automatically ({cost} cr each).",
+    "settings_sources_label": "Research leads from",
+    "settings_sources_hint": "Bulk-scraped lists are excluded to protect your credits.",
+    "settings_source_form": "Web forms",
+    "settings_source_whatsapp": "WhatsApp",
+    "settings_source_voice": "Voice calls",
+    "settings_source_meta": "Instagram / Messenger",
+    "settings_cap_label": "Daily research limit",
+    "settings_cap_hint": "Max auto-researches per day. Extra leads wait for the next day.",
+    "settings_sentiment_title": "Analyze sentiment on handoff",
+    "settings_sentiment_desc": "When a chat is handed to a human, BOLIV reads its sentiment and flags negatives.",
+    "settings_save": "Save settings",
+    "settings_saved": "Settings saved",
+    "settings_save_failed": "Couldn't save settings",
+    "timeline_title": "Activity",
+    "timeline_created": "Lead created",
+    "timeline_research": "BOLIV researched this prospect",
+    "timeline_call": "Call",
+    "timeline_empty": "No activity yet."
   }
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { getTranslations } from "next-intl/server";
 import { requireUser, requireTenantAccess } from "@/lib/auth";
 import { getTenantBySlug } from "@/lib/tenant";
@@ -7,7 +8,15 @@ import { runAssistant, type ChatMsg, type PendingAction } from "@/lib/analytics-
 import { dispatchTool, WRITE_TOOL_NAMES } from "@/lib/analytics-tools/index";
 import { getBalanceWithService, debitCredits, refundCredits } from "@/lib/billing/credits";
 import { buildBusinessContext } from "@/lib/assistant-context";
-import { persistAssistantTurn, clearAssistantHistory } from "@/lib/queries/assistant";
+import {
+  persistAssistantTurn,
+  deleteAssistantSession,
+  getAssistantHistory,
+  listAssistantSessions,
+  type AssistantSession,
+} from "@/lib/queries/assistant";
+
+const uuidSchema = z.string().uuid();
 
 export type AskAssistantResult =
   | { ok: true; answer: string; toolsUsed: string[]; pendingAction?: PendingAction | null }
@@ -22,10 +31,14 @@ export type AskAssistantResult =
 export async function askAssistantAction(
   tenantSlug: string,
   history: ChatMsg[],
+  sessionId: string,
 ): Promise<AskAssistantResult> {
   const user = await requireUser();
   const tenant = await getTenantBySlug(tenantSlug);
   await requireTenantAccess(tenant.id);
+
+  const session = uuidSchema.safeParse(sessionId);
+  if (!session.success) return { ok: false, error: "Sesión inválida." };
 
   const trimmed = (history ?? [])
     .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
@@ -83,6 +96,7 @@ export async function askAssistantAction(
   await persistAssistantTurn({
     tenantId: tenant.id,
     userId: user.id,
+    sessionId: session.data,
     question: trimmed[trimmed.length - 1].content,
     answer: res.answer,
     toolsUsed: res.toolsUsed,
@@ -123,14 +137,42 @@ export async function executeAssistantActionAction(
   return { ok: true, message: (result && result.message) || "Hecho." };
 }
 
-/**
- * Wipe the current user's assistant thread for this tenant ("new conversation").
- * Per-user + tenant-scoped; never touches another member's history.
- */
-export async function clearAssistantHistoryAction(tenantSlug: string): Promise<{ ok: boolean }> {
+/** The current user's chat sessions for this tenant (most recent first). */
+export async function listAssistantSessionsAction(
+  tenantSlug: string,
+): Promise<{ ok: true; sessions: AssistantSession[] } | { ok: false }> {
   const user = await requireUser();
   const tenant = await getTenantBySlug(tenantSlug);
   await requireTenantAccess(tenant.id);
-  await clearAssistantHistory(tenant.id, user.id).catch(() => {});
+  const sessions = await listAssistantSessions(tenant.id, user.id).catch(() => []);
+  return { ok: true, sessions };
+}
+
+/** Load one session's messages (chronological) — used when switching chats. */
+export async function getAssistantSessionAction(
+  tenantSlug: string,
+  sessionId: string,
+): Promise<{ ok: true; messages: ChatMsg[] } | { ok: false }> {
+  const user = await requireUser();
+  const tenant = await getTenantBySlug(tenantSlug);
+  await requireTenantAccess(tenant.id);
+  if (!uuidSchema.safeParse(sessionId).success) return { ok: false };
+  const messages = await getAssistantHistory(tenant.id, user.id, sessionId).catch(() => []);
+  return { ok: true, messages };
+}
+
+/**
+ * Delete ONE chat session for the current user. Per-user + tenant-scoped; never
+ * touches another member's history.
+ */
+export async function deleteAssistantSessionAction(
+  tenantSlug: string,
+  sessionId: string,
+): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  const tenant = await getTenantBySlug(tenantSlug);
+  await requireTenantAccess(tenant.id);
+  if (!uuidSchema.safeParse(sessionId).success) return { ok: false };
+  await deleteAssistantSession(tenant.id, user.id, sessionId).catch(() => {});
   return { ok: true };
 }

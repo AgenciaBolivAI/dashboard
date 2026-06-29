@@ -1,14 +1,22 @@
 import Link from "next/link";
-import { BarChart3, TrendingUp, Target, Trophy } from "lucide-react";
+import { BarChart3, TrendingUp, Target, Trophy, Gauge, AlertTriangle, ArrowRight } from "lucide-react";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { getTenantBySlug } from "@/lib/tenant";
 import { requirePermission } from "@/lib/auth";
-import { getReports, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
+import { getReports, getSentimentReport, REPORT_PERIODS, type ReportPeriod } from "@/lib/queries/reports";
 import { AreaTrend } from "@/components/charts/area-trend";
+import { DonutChart } from "@/components/charts/donut-chart";
 import { ReportsToolbar } from "@/components/reports/reports-toolbar";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const SENTIMENT_DOT: Record<string, string> = {
+  positive: "bg-emerald-500",
+  neutral: "bg-slate-400",
+  negative: "bg-red-500",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +53,22 @@ export default async function ReportsPage({
     ? periodParam
     : "30d") as ReportPeriod;
   const currency = tenant.invoice_default_currency;
-  const data = await getReports(tenant.id, period, currency);
+  const [data, sentiment] = await Promise.all([
+    getReports(tenant.id, period, currency),
+    getSentimentReport(tenant.id, period),
+  ]);
 
   const money = (c: number) => formatMoney(c, currency, locale);
+  const sentimentSlices = [
+    { name: t("sentiment_positive"), value: sentiment.distribution.positive },
+    { name: t("sentiment_neutral"), value: sentiment.distribution.neutral },
+    { name: t("sentiment_negative"), value: sentiment.distribution.negative },
+  ];
+  const sentimentLabel: Record<string, string> = {
+    positive: t("sentiment_positive"),
+    neutral: t("sentiment_neutral"),
+    negative: t("sentiment_negative"),
+  };
   const maxStageValue = Math.max(1, ...data.pipelineByStage.map((s) => s.value_cents));
 
   const PERIOD_LABEL: Record<ReportPeriod, string> = {
@@ -179,6 +200,66 @@ export default async function ReportsPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Sentiment & at-risk (BOLIV conversation analysis) */}
+      <div className="grid lg:grid-cols-2 gap-4 mt-4">
+        <Card>
+          <CardContent className="pt-5">
+            <h2 className="font-display font-bold mb-4 flex items-center gap-2">
+              <Gauge className="size-4 text-primary" />
+              {t("sentiment_section_title")}
+            </h2>
+            {sentiment.total > 0 ? (
+              <DonutChart
+                data={sentimentSlices}
+                centerValue={String(sentiment.total)}
+                centerLabel={t("sentiment_center_label")}
+                locale={locale}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground py-8 text-center">{t("sentiment_empty")}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-5">
+            <h2 className="font-display font-bold mb-4 flex items-center gap-2">
+              <AlertTriangle className="size-4 text-red-500" />
+              {t("at_risk_title")}
+            </h2>
+            {sentiment.atRisk.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">{t("at_risk_empty")}</p>
+            ) : (
+              <ul className="divide-y divide-border -mt-1">
+                {sentiment.atRisk.map((r) => (
+                  <li key={r.conversationId}>
+                    <Link
+                      href={`/dashboard/${tenantSlug}/conversations/${r.conversationId}`}
+                      className="group flex items-start gap-3 py-2.5 hover:bg-secondary/30 -mx-2 px-2 rounded-md transition"
+                    >
+                      <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", SENTIMENT_DOT[r.sentiment])} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium truncate">{r.name ?? t("at_risk_unknown")}</span>
+                          <Badge variant="outline" className="text-[10px] shrink-0">{sentimentLabel[r.sentiment]}</Badge>
+                        </div>
+                        {r.summary ? (
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{r.summary}</p>
+                        ) : null}
+                        {r.nextAction ? (
+                          <p className="text-xs text-primary/90 mt-0.5 line-clamp-1">→ {r.nextAction}</p>
+                        ) : null}
+                      </div>
+                      <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition shrink-0 mt-1" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

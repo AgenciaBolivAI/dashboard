@@ -32,6 +32,11 @@ export function FxInteractions() {
     let raf = 0;
     let pending: { card: HTMLElement; x: number; y: number } | null = null;
     let current: HTMLElement | null = null;
+    // Rect captured once when the pointer enters a card — BEFORE any tilt
+    // transform is applied — so the tilt/glow math never reads a mid-transform
+    // (self-referential) rect. Reading the live transformed rect every frame is
+    // what made dense panel grids (the Overview) shake.
+    let currentRect: DOMRect | null = null;
 
     const reset = (card: HTMLElement) => {
       card.style.removeProperty("--fx-mx");
@@ -41,9 +46,9 @@ export function FxInteractions() {
 
     const apply = () => {
       raf = 0;
-      if (!pending) return;
+      if (!pending || !currentRect) return;
       const { card, x, y } = pending;
-      const r = card.getBoundingClientRect();
+      const r = currentRect;
       if (r.width === 0 || r.height === 0) return;
       const px = (x - r.left) / r.width;
       const py = (y - r.top) / r.height;
@@ -63,6 +68,8 @@ export function FxInteractions() {
       if (card !== current) {
         if (current) reset(current);
         current = card;
+        // Measure the rect now, while the card carries no tilt transform.
+        currentRect = card ? card.getBoundingClientRect() : null;
       }
       if (!card) return;
       pending = { card, x: e.clientX, y: e.clientY };
@@ -73,6 +80,7 @@ export function FxInteractions() {
       if (current) {
         reset(current);
         current = null;
+        currentRect = null;
       }
     };
 
@@ -110,22 +118,31 @@ export function FxInteractions() {
     );
 
     const SEL = ".card-pro,[data-fx-reveal]";
+
+    // Backstop: reveal any card still hidden so content never stays invisible
+    // waiting for a scroll. The original one-shot 1800ms timer ran ONLY at mount,
+    // so on client navigation a below-the-fold card (e.g. the Leads table) stayed
+    // at opacity:0 until scrolled into view. Re-arm it on every scan that adds
+    // cards; 400ms is imperceptible and the IO still plays the rise for cards it
+    // reveals first.
+    let safety = 0;
+    const revealAll = () => {
+      safety = 0;
+      document.querySelectorAll(".fx-reveal:not(.fx-in)").forEach((n) => n.classList.add("fx-in"));
+    };
+
     const scan = () => {
+      let added = 0;
       document.querySelectorAll(SEL + ":not([data-fx-r])").forEach((n) => {
         const el = n as HTMLElement;
         el.setAttribute("data-fx-r", "1");
         el.classList.add("fx-reveal");
         io.observe(el);
+        added++;
       });
+      if (added > 0 && !safety) safety = window.setTimeout(revealAll, 400);
     };
     scan();
-
-    // Safety net — nothing should ever stay hidden if an observer misfires.
-    const safety = window.setTimeout(() => {
-      document
-        .querySelectorAll(".fx-reveal:not(.fx-in)")
-        .forEach((n) => n.classList.add("fx-in"));
-    }, 1800);
 
     // Re-scan when client navigation swaps page content inside <main>.
     let scanRaf = 0;

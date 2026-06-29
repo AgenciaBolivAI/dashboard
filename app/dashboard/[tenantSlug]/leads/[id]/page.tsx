@@ -6,16 +6,21 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getTenantBySlug } from "@/lib/tenant";
-import { requireUser, requireTenantAccess } from "@/lib/auth";
+import { requireUser, requireTenantAccess, isBolivAIAdmin } from "@/lib/auth";
 import { getLeadById, getLeadCallHistory } from "@/lib/queries/leads";
+import { getProspectResearch } from "@/lib/queries/prospect";
+import { getActionCredits } from "@/lib/billing/credits";
+import { ResearchCard } from "@/components/prospect/research-card";
+import { ActivityTimeline, type ActivityItem } from "@/components/prospect/activity-timeline";
 import { getCountryFromPhone, getStateFromMetadata, COUNTRY_BY_CODE } from "@/lib/leads-geo";
 import { intentLabel, intentBadgeClass } from "@/lib/leads-intents";
 import { LeadNotesEditor } from "@/components/leads/lead-notes-editor";
 import { CallSandraButton } from "@/components/leads/call-sandra-button";
 import { LeadStatusSelect } from "@/components/leads/lead-status-select";
-import { RecordingPlayer } from "@/components/voice/recording-player";
 
 export const dynamic = "force-dynamic";
+// Allow the inline "Research with BOLIV" action room to run the web-search call.
+export const maxDuration = 60;
 
 const SOURCE_LABEL: Record<string, string> = {
   aima: "AIMA",
@@ -35,10 +40,14 @@ export default async function LeadDetailPage({
   await requireUser();
   await requireTenantAccess(tenant.id);
 
-  const [lead, callHistory, t, locale] = await Promise.all([
+  const [lead, callHistory, research, isStaff, researchCost, t, tp, locale] = await Promise.all([
     getLeadById(tenant.id, id),
     getLeadCallHistory(tenant.id, id, 10),
+    getProspectResearch(tenant.id, "lead", id),
+    isBolivAIAdmin(),
+    getActionCredits("research.prospect", 15),
     getTranslations("leads"),
+    getTranslations("prospect"),
     getLocale(),
   ]);
 
@@ -52,11 +61,24 @@ export default async function LeadDetailPage({
   const website = typeof meta.website === "string" ? meta.website : null;
   const sourceLabel = SOURCE_LABEL[lead.source ?? ""] ?? lead.source ?? "—";
 
-  function fmtDuration(secs: number): string {
-    const m = Math.floor(secs / 60);
-    const s = Math.round(secs % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  }
+  // Unified activity feed: lead creation + BOLIV research + every call, newest first.
+  const activity: ActivityItem[] = [
+    { kind: "created" as const, at: lead.created_at },
+    ...(research?.status === "done" && research.generated_at
+      ? [{ kind: "research" as const, at: research.generated_at, headline: research.structured?.headline ?? null }]
+      : []),
+    ...callHistory
+      .filter((c) => c.started_at)
+      .map((c) => ({
+        kind: "call" as const,
+        at: c.started_at,
+        conversationId: c.conversation_id ?? "",
+        title: c.title,
+        direction: c.direction,
+        outcome: c.call_successful,
+        durationSecs: c.duration_secs,
+      })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   return (
     <div className="p-6 md:p-8 max-w-5xl">
@@ -117,7 +139,10 @@ export default async function LeadDetailPage({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-        {/* Notes (main content) */}
+        {/* Main column — prospect research + notes */}
+        <div className="space-y-6">
+        <ResearchCard tenantId={tenant.id} kind="lead" subjectId={lead.id} research={research} cost={researchCost} />
+        {/* Notes */}
         <Card className="p-5">
           <div className="mb-3">
             <p className="font-semibold">
@@ -137,6 +162,7 @@ export default async function LeadDetailPage({
             initialNotes={lead.notes}
           />
         </Card>
+        </div>
 
         {/* Sidebar — facts */}
         <Card className="p-5 space-y-3 h-fit">
@@ -188,74 +214,14 @@ export default async function LeadDetailPage({
         </Card>
       </div>
 
-      {/* Call history */}
+      {/* Activity timeline — creation + BOLIV research + calls */}
       <Card className="mt-6 p-5">
-        <p className="font-semibold mb-3">
+        <p className="font-semibold mb-4">
           {(() => {
-            try { return t("call_history_title"); } catch { return "Historial de llamadas"; }
+            try { return tp("timeline_title"); } catch { return "Actividad"; }
           })()}
         </p>
-        {callHistory.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            {(() => {
-              try { return t("call_history_empty"); } catch { return "Aún no se hicieron llamadas registradas con este lead."; }
-            })()}
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {callHistory.map((c) => (
-              <li key={c.conversation_id} className="py-3 flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{c.title}</span>
-                    {c.direction ? (
-                      <Badge variant="outline" className="text-[10px]">
-                        {c.direction}
-                      </Badge>
-                    ) : null}
-                    {c.call_successful ? (
-                      <Badge
-                        variant="outline"
-                        className={
-                          c.call_successful === "success"
-                            ? "text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                            : "text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30"
-                        }
-                      >
-                        {c.call_successful}
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(c.started_at).toLocaleString(locale, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                      timeZone: tenant.timezone,
-                    })}{" "}
-                    · {fmtDuration(c.duration_secs)}
-                  </p>
-                </div>
-                {c.conversation_id ? (
-                  <div className="flex items-center gap-3 shrink-0">
-                    <RecordingPlayer
-                      conversationId={c.conversation_id}
-                      durationSeconds={c.duration_secs}
-                    />
-                    <a
-                      href={`https://elevenlabs.io/app/conversational-ai/history/${c.conversation_id}`}
-                      target="_blank"
-                      rel="noopener"
-                      title="ElevenLabs"
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </a>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
+        <ActivityTimeline items={activity} timezone={tenant.timezone} isStaff={isStaff} />
       </Card>
     </div>
   );

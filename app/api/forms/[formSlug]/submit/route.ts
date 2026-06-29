@@ -108,19 +108,30 @@ export async function POST(req: Request, ctx: { params: Promise<{ formSlug: stri
     return NextResponse.json({ ok: false, error: "Provide an email or phone." }, { status: 400 });
   }
 
-  const { error: insErr } = await svc.from("leads").insert({
-    tenant_id: form.tenant_id,
-    name: name || null,
-    email: email || null,
-    whatsapp_number: phoneValid ? whatsapp : null,
-    notes: message || null,
-    intent: "other",
-    status: "new",
-    source: `form:${formSlug}`,
-    metadata: { form_id: form.id, form_slug: formSlug },
-  });
+  const { data: insData, error: insErr } = await svc
+    .from("leads")
+    .insert({
+      tenant_id: form.tenant_id,
+      name: name || null,
+      email: email || null,
+      whatsapp_number: phoneValid ? whatsapp : null,
+      notes: message || null,
+      intent: "other",
+      status: "new",
+      source: `form:${formSlug}`,
+      metadata: { form_id: form.id, form_slug: formSlug },
+    })
+    .select("id")
+    .maybeSingle();
   if (insErr) {
     return NextResponse.json({ ok: false, error: "Could not save submission." }, { status: 500 });
+  }
+
+  // BOLIV auto prospect-research for this inbound lead (gated by tenant settings).
+  const newLeadId = (insData as { id: string } | null)?.id;
+  if (newLeadId) {
+    const { maybeEnqueueInboundResearch } = await import("@/lib/prospect/research");
+    await maybeEnqueueInboundResearch(form.tenant_id, newLeadId, "form");
   }
 
   // Bump the form's submission counter (best-effort).
