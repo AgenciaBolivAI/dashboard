@@ -33,6 +33,7 @@ const settingsSchema = z.object({
   cold_email_daily_cap: z.coerce.number().int().min(1).max(2000).optional(),
   target_verticals: z.array(z.string().trim().max(60)).max(20).optional(),
   target_geographies: z.array(z.string().trim().max(120)).max(120).optional(),
+  email_enrichment_enabled: z.boolean().optional(),
 });
 
 export async function updateAimaSettingsAction(
@@ -57,7 +58,7 @@ export async function updateAimaSettingsAction(
         tenant_id: tenantId,
         ...parsed.data,
         updated_at: new Date().toISOString(),
-      },
+      } as never,
       { onConflict: "tenant_id" },
     );
 

@@ -16,6 +16,7 @@ import {
   Plus,
   ShieldCheck,
   ShieldAlert,
+  AtSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -161,6 +162,7 @@ export function AimaSettingsForm({
   const [scraperMax, setScraperMax] = useState(settings.scraper_max_per_run);
   const [scraperProxy, setScraperProxy] = useState(settings.scraper_proxy_url ?? "");
   const [scraperProxyToken, setScraperProxyToken] = useState(settings.scraper_proxy_token ?? "");
+  const [emailEnrichment, setEmailEnrichment] = useState(settings.email_enrichment_enabled ?? true);
   // google_maps_api_key intentionally not surfaced to tenants. AIMA uses
   // BolivAI's master key by default and we eat the Google Places cost out
   // of the 5cr/lead charge. The column still exists in aima_settings as a
@@ -222,6 +224,7 @@ export function AimaSettingsForm({
         cold_email_daily_cap: coldEmailCap,
         target_verticals: verticals,
         target_geographies: geographies,
+        email_enrichment_enabled: emailEnrichment,
       });
       if (res.error) {
         toast.error(res.error);
@@ -399,6 +402,20 @@ export function AimaSettingsForm({
             <StopCircle className="size-4" />
             {t("stop")}
           </Button>
+        </div>
+      </Card>
+
+      {/* Email enrichment — free website scraping to fill lead emails */}
+      <Card className="p-6 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-lg font-display font-semibold flex items-center gap-2">
+              <AtSign className="size-5 text-sky-500" />
+              {t("enrich_title")}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{t("enrich_desc")}</p>
+          </div>
+          <ToggleButton on={emailEnrichment} onChange={setEmailEnrichment} label={emailEnrichment ? "ON" : "OFF"} />
         </div>
       </Card>
 

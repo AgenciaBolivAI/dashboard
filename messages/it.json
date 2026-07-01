@@ -2302,7 +2302,8 @@
     "tab_pricing": "Prezzi",
     "tab_codes": "Codici",
     "tab_brain": "Brain",
-    "tab_users": "Team BolivAI"
+    "tab_users": "Team BolivAI",
+    "tab_health": "Stato"
   },
   "admin_codes": {
     "toast_code_created": "Codice creato",
@@ -2434,7 +2435,9 @@
     "vertical_language_school": "Lingue",
     "vertical_driving_school": "Autoscuola",
     "vertical_daycare": "Asilo",
-    "vertical_music_school": "Musica"
+    "vertical_music_school": "Musica",
+    "enrich_title": "Arricchimento email",
+    "enrich_desc": "Gratis — cerca email aziendali pubbliche sul sito di ogni lead e le compila. Nessun costo di API."
   },
   "cookies": {
     "title": "Cookie",

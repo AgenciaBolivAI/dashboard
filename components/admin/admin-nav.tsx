@@ -13,6 +13,7 @@ const TABS = [
   { href: "/admin/codes", key: "tab_codes" },
   { href: "/admin/brain", key: "tab_brain" },
   { href: "/admin/users", key: "tab_users" },
+  { href: "/admin/health", key: "tab_health" },
 ];
 
 export function AdminNav() {

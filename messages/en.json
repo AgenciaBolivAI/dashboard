@@ -2302,7 +2302,8 @@
     "tab_pricing": "Pricing",
     "tab_codes": "Codes",
     "tab_brain": "Brain",
-    "tab_users": "BolivAI team"
+    "tab_users": "BolivAI team",
+    "tab_health": "Health"
   },
   "admin_codes": {
     "toast_code_created": "Code created",
@@ -2434,7 +2435,9 @@
     "vertical_language_school": "Languages",
     "vertical_driving_school": "Driving school",
     "vertical_daycare": "Daycare",
-    "vertical_music_school": "Music"
+    "vertical_music_school": "Music",
+    "enrich_title": "Email enrichment",
+    "enrich_desc": "Free — scans each lead's website for public business emails and fills them in. No API cost."
   },
   "cookies": {
     "title": "Cookies",

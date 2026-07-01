@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "health": "node scripts/health-check.mjs",
     "db:types": "node scripts/gen-types.mjs"
   },
   "dependencies": {

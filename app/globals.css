@@ -147,11 +147,6 @@
   .panel-pro {
     transform-style: preserve-3d;
     will-change: transform;
-    /* The 3D tilt writes `transform` every animation frame (FxInteractions).
-       Do NOT transition `transform` here — the CSS interpolation chases the
-       per-frame JS writes and rubber-bands into a visible shake on dense panel
-       grids (the Overview). Keep the other props eased; the tilt applies live. */
-    transition: box-shadow 0.25s ease, border-color 0.25s ease;
   }
   .panel-pro:hover { border-color: hsl(var(--primary) / 0.45); }
 

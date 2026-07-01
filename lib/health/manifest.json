@@ -1,0 +1,31 @@
+{
+  "_comment": "Single source of truth for health checks — read by lib/health/checks.ts (the /admin/health page) AND scripts/health-check.mjs (npm run health). Add here when a feature adds a critical table/column/pricing/env.",
+  "tables": [
+    "tenants", "users", "dashboard_users", "leads", "conversations", "chat_history",
+    "reservations", "calendar_slots", "notifications", "ai_recommendations", "tasks",
+    "credit_pricing", "credit_accounts", "credit_transactions",
+    "assistant_messages", "prospect_research", "prospect_settings", "conversation_analysis",
+    "aima_settings", "aima_scrape_runs", "marketing_campaigns", "marketing_messages",
+    "lead_forms", "tenant_api_keys", "voice_conversations", "invoices"
+  ],
+  "columns": [
+    ["assistant_messages", "session_id", "step75"],
+    ["aima_settings", "email_enrichment_enabled", "step76"],
+    ["prospect_settings", "auto_research_enabled", "step72"],
+    ["prospect_research", "status", "step72"],
+    ["conversation_analysis", "sentiment", "step73"],
+    ["leads", "email", "core"],
+    ["leads", "website", "core"],
+    ["leads", "metadata", "core"]
+  ],
+  "pricing": [
+    "research.prospect", "analysis.sentiment", "assistant.query",
+    "marketing.email_broadcast", "marketing.whatsapp_broadcast", "marketing.sms_broadcast",
+    "marketing.lead_scraped_google_maps"
+  ],
+  "env": [
+    "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY",
+    "OPENAI_API_KEY", "CCAVAI_WEBHOOK_SECRET", "EVOLUTION_BASE_URL", "STRIPE_SECRET_KEY"
+  ],
+  "locales": ["en", "es", "pt", "fr", "it"]
+}

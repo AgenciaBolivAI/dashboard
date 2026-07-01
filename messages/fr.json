@@ -2302,7 +2302,8 @@
     "tab_pricing": "Tarifs",
     "tab_codes": "Codes",
     "tab_brain": "Brain",
-    "tab_users": "Équipe BolivAI"
+    "tab_users": "Équipe BolivAI",
+    "tab_health": "Santé"
   },
   "admin_codes": {
     "toast_code_created": "Code créé",
@@ -2434,7 +2435,9 @@
     "vertical_language_school": "Langues",
     "vertical_driving_school": "Auto-école",
     "vertical_daycare": "Crèche",
-    "vertical_music_school": "Musique"
+    "vertical_music_school": "Musique",
+    "enrich_title": "Enrichissement des e-mails",
+    "enrich_desc": "Gratuit — analyse le site de chaque prospect pour trouver des e-mails professionnels publics et les renseigne. Sans coût d'API."
   },
   "cookies": {
     "title": "Cookies",

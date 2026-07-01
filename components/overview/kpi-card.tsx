@@ -37,7 +37,14 @@ export function KpiCard({
           </span>
         ) : null}
       </div>
-      <p className="glow-num mt-3 font-display text-[2rem] font-extrabold leading-none tracking-tight tabular-nums">
+      {/* Adapt the size to length so long money values (e.g. "0,00 US$") fit the
+          tile instead of overflowing; `truncate` keeps it on one line. */}
+      <p
+        className={cn(
+          "glow-num mt-3 font-display font-extrabold leading-none tracking-tight tabular-nums truncate",
+          value.length > 9 ? "text-[1.3rem]" : value.length > 6 ? "text-[1.55rem]" : "text-[2rem]",
+        )}
+      >
         {value}
       </p>
       <div className="mt-3 flex items-center gap-2">

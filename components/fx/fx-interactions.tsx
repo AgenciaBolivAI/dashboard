@@ -32,11 +32,6 @@ export function FxInteractions() {
     let raf = 0;
     let pending: { card: HTMLElement; x: number; y: number } | null = null;
     let current: HTMLElement | null = null;
-    // Rect captured once when the pointer enters a card — BEFORE any tilt
-    // transform is applied — so the tilt/glow math never reads a mid-transform
-    // (self-referential) rect. Reading the live transformed rect every frame is
-    // what made dense panel grids (the Overview) shake.
-    let currentRect: DOMRect | null = null;
 
     const reset = (card: HTMLElement) => {
       card.style.removeProperty("--fx-mx");
@@ -46,9 +41,9 @@ export function FxInteractions() {
 
     const apply = () => {
       raf = 0;
-      if (!pending || !currentRect) return;
+      if (!pending) return;
       const { card, x, y } = pending;
-      const r = currentRect;
+      const r = card.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) return;
       const px = (x - r.left) / r.width;
       const py = (y - r.top) / r.height;
@@ -68,8 +63,6 @@ export function FxInteractions() {
       if (card !== current) {
         if (current) reset(current);
         current = card;
-        // Measure the rect now, while the card carries no tilt transform.
-        currentRect = card ? card.getBoundingClientRect() : null;
       }
       if (!card) return;
       pending = { card, x: e.clientX, y: e.clientY };
@@ -80,7 +73,6 @@ export function FxInteractions() {
       if (current) {
         reset(current);
         current = null;
-        currentRect = null;
       }
     };
 
