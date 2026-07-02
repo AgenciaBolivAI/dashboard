@@ -31,8 +31,8 @@ const settingsSchema = z.object({
   instantly_api_key: z.string().trim().max(500).nullable().optional(),
   instantly_campaign_id: z.string().trim().max(200).nullable().optional(),
   cold_email_daily_cap: z.coerce.number().int().min(1).max(2000).optional(),
-  target_verticals: z.array(z.string().trim().max(60)).max(20).optional(),
-  target_geographies: z.array(z.string().trim().max(120)).max(120).optional(),
+  target_verticals: z.array(z.string().trim().max(60)).max(200).optional(),
+  target_geographies: z.array(z.string().trim().max(120)).max(200).optional(),
   email_enrichment_enabled: z.boolean().optional(),
 });
 
