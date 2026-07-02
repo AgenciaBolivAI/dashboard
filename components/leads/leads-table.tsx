@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { PhoneCall, Loader2, Trash2, Sparkles } from "lucide-react";
+import { PhoneCall, Loader2, Trash2, Sparkles, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,8 @@ export type LeadFromQuery = {
   metadata?: { city?: string; vertical?: string; website?: string; primary_type?: string } | null;
 };
 
+type SortKey = "name" | "contact" | "website" | "intent" | "status" | "captured";
+
 const STATUS_KEY: Record<LeadStatus, string> = {
   new: "status_label_new",
   contacted: "status_label_contacted",
@@ -81,11 +83,48 @@ export function LeadsTable({
   const [adding, startAdd] = useTransition();
   const [rowPending, startRowPending] = useTransition();
   const researched = useMemo(() => new Set(researchedIds ?? []), [researchedIds]);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
 
   const callableIds = useMemo(
     () => leads.filter((l) => !!l.whatsapp_number).map((l) => l.id),
     [leads],
   );
+
+  // Client-side sort (rows already loaded). 1st click asc → 2nd desc → 3rd off.
+  function toggleSort(key: SortKey) {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return null;
+    });
+  }
+
+  const sortedLeads = useMemo(() => {
+    if (!sort) return leads;
+    const val = (l: LeadFromQuery): string | number => {
+      switch (sort.key) {
+        case "name": return (l.name ?? "").toLowerCase();
+        case "contact": return l.whatsapp_number ?? "";
+        case "website": return (l.website ?? l.metadata?.website ?? "").toLowerCase();
+        case "intent": return l.intent ? intentLabel(l.intent).toLowerCase() : "";
+        case "status": return l.status ?? "";
+        case "captured": return new Date(l.created_at).getTime();
+      }
+    };
+    const arr = [...leads].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      // Push blanks to the bottom regardless of direction.
+      if (va === "" && vb !== "") return 1;
+      if (vb === "" && va !== "") return -1;
+      const cmp =
+        typeof va === "number" && typeof vb === "number"
+          ? va - vb
+          : String(va).localeCompare(String(vb), locale, { numeric: true });
+      return sort.dir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [leads, sort, locale]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -242,17 +281,17 @@ export function LeadsTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
-              <TableHead>{t("col_name")}</TableHead>
-              <TableHead>{t("col_contact")}</TableHead>
-              <TableHead>{t("col_website")}</TableHead>
-              <TableHead>{t("col_intent")}</TableHead>
-              <TableHead>{t("col_status")}</TableHead>
-              <TableHead className="w-32">{t("col_captured")}</TableHead>
+              <SortHead label={t("col_name")} sortKey="name" sort={sort} onSort={toggleSort} />
+              <SortHead label={t("col_contact")} sortKey="contact" sort={sort} onSort={toggleSort} />
+              <SortHead label={t("col_website")} sortKey="website" sort={sort} onSort={toggleSort} />
+              <SortHead label={t("col_intent")} sortKey="intent" sort={sort} onSort={toggleSort} />
+              <SortHead label={t("col_status")} sortKey="status" sort={sort} onSort={toggleSort} />
+              <SortHead label={t("col_captured")} sortKey="captured" sort={sort} onSort={toggleSort} className="w-32" />
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {leads.map((l) => {
+            {sortedLeads.map((l) => {
               const canSelect = !!l.whatsapp_number;
               const statusKey = (LEAD_STATUSES as readonly string[]).includes(l.status)
                 ? (l.status as LeadStatus)
@@ -379,5 +418,41 @@ export function LeadsTable({
         </Table>
       </Card>
     </>
+  );
+}
+
+function SortHead({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: { key: SortKey; dir: "asc" | "desc" } | null;
+  onSort: (k: SortKey) => void;
+  className?: string;
+}) {
+  const active = sort?.key === sortKey;
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="group/sort inline-flex items-center gap-1 font-medium transition hover:text-foreground"
+      >
+        {label}
+        {active ? (
+          sort!.dir === "asc" ? (
+            <ChevronUp className="size-3.5" />
+          ) : (
+            <ChevronDown className="size-3.5" />
+          )
+        ) : (
+          <ChevronsUpDown className="size-3.5 opacity-40 transition group-hover/sort:opacity-70" />
+        )}
+      </button>
+    </TableHead>
   );
 }
