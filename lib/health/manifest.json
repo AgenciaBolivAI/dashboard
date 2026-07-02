@@ -25,7 +25,19 @@
   ],
   "env": [
     "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY",
-    "OPENAI_API_KEY", "CCAVAI_WEBHOOK_SECRET", "EVOLUTION_BASE_URL", "STRIPE_SECRET_KEY"
+    "OPENAI_API_KEY", "EVOLUTION_BASE_URL", "STRIPE_SECRET_KEY", "N8N_BASE_URL",
+    "CCAVAI_WEBHOOK_SECRET", "CCAVAI_WEBHOOK_URL",
+    "AIMA_WEBHOOK_URL", "AIMA_WEBHOOK_SECRET",
+    "META_AGENT_WEBHOOK_URL", "VOICE_INBOUND_WEBHOOK_SECRET"
   ],
-  "locales": ["en", "es", "pt", "fr", "it"]
+  "locales": ["en", "es", "pt", "fr", "it"],
+  "_probes_comment": "Live reachability/validity probes — side-effect-free. 'registered' webhooks are hit WITHOUT auth on purpose: their first node is an auth guard that throws before doing any work, so a registered webhook returns 500 (not 404) and NOTHING runs. expect: 'ok'=2xx; 'registered'=any response except 404; 'reachable'=any HTTP response (no connection error).",
+  "probes": [
+    { "name": "OpenAI API key valid", "method": "GET", "url": "https://api.openai.com/v1/models", "authEnv": "OPENAI_API_KEY", "expect": "ok" },
+    { "name": "Supabase REST", "method": "GET", "urlEnv": "NEXT_PUBLIC_SUPABASE_URL", "path": "/rest/v1/", "authEnv": "SUPABASE_SERVICE_ROLE_KEY", "apikey": true, "expect": "ok" },
+    { "name": "n8n reachable", "method": "GET", "urlEnv": "N8N_BASE_URL", "path": "/healthz", "expect": "ok" },
+    { "name": "Evolution API reachable", "method": "GET", "urlEnv": "EVOLUTION_BASE_URL", "expect": "reachable" },
+    { "name": "AIMA webhook registered", "method": "POST", "urlEnv": "AIMA_WEBHOOK_URL", "expect": "registered" },
+    { "name": "CCAVAI webhook registered", "method": "POST", "urlEnv": "CCAVAI_WEBHOOK_URL", "expect": "registered" }
+  ]
 }

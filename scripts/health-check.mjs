@@ -104,6 +104,28 @@ add("Translations (i18n parity)", manifest.locales.filter((l) => l !== "en").map
 // ── 4. Env ───────────────────────────────────────────────────────────────────
 add("Environment", manifest.env.map((k) => ({ name: k, ok: Boolean(process.env[k] && process.env[k].trim()), detail: process.env[k] ? undefined : "not set" })));
 
+// ── 5. Live integration probes (reachability/validity, side-effect-free) ─────
+const probe = async (p) => {
+  const base = p.url || (p.urlEnv ? process.env[p.urlEnv] : undefined);
+  if (!base) return { name: p.name, ok: false, detail: `${p.urlEnv || "url"} not set` };
+  const target = base.replace(/\/$/, "") + (p.path || "");
+  const headers = {};
+  const key = p.authEnv ? process.env[p.authEnv] : undefined;
+  if (key) headers.Authorization = `Bearer ${key}`;
+  if (p.apikey && key) headers.apikey = key;
+  const method = p.method || "GET";
+  if (method === "POST") headers["Content-Type"] = "application/json";
+  try {
+    const r = await fetch(target, { method, headers, body: method === "POST" ? "{}" : undefined, signal: AbortSignal.timeout(9000) });
+    if (p.expect === "ok") return { name: p.name, ok: r.ok, detail: r.ok ? undefined : `HTTP ${r.status}` };
+    if (p.expect === "registered") return { name: p.name, ok: r.status !== 404, detail: r.status === 404 ? "HTTP 404 — not registered (workflow inactive?)" : undefined };
+    return { name: p.name, ok: true };
+  } catch (e) {
+    return { name: p.name, ok: false, detail: `unreachable — ${String(e?.message || e).slice(0, 60)}` };
+  }
+};
+add("Integrations (live)", await Promise.all((manifest.probes || []).map(probe)));
+
 // ── Report ───────────────────────────────────────────────────────────────────
 let passed = 0, failed = 0;
 console.log(`\n${B}BolivAI — Health Check${X}\n`);

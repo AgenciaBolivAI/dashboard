@@ -82,6 +82,37 @@ export function envChecks(env: Record<string, string | undefined>, keys = REQUIR
   return keys.map((k) => ({ name: k, ok: Boolean(env[k] && env[k]!.trim()), detail: env[k] ? undefined : "not set" }));
 }
 
+// ── Live integration probes (reachability/validity, side-effect-free) ────────
+type Probe = {
+  name: string; method?: string; url?: string; urlEnv?: string; path?: string;
+  authEnv?: string; apikey?: boolean; expect: "ok" | "registered" | "reachable";
+};
+export const PROBES = (manifest.probes ?? []) as Probe[];
+
+export async function runProbe(p: Probe, env: Record<string, string | undefined>): Promise<CheckResult> {
+  const base = p.url || (p.urlEnv ? env[p.urlEnv] : undefined);
+  if (!base) return { name: p.name, ok: false, detail: `${p.urlEnv || "url"} not set` };
+  const url = base.replace(/\/$/, "") + (p.path || "");
+  const headers: Record<string, string> = {};
+  const key = p.authEnv ? env[p.authEnv] : undefined;
+  if (key) headers.Authorization = `Bearer ${key}`;
+  if (p.apikey && key) headers.apikey = key;
+  const method = p.method || "GET";
+  if (method === "POST") headers["Content-Type"] = "application/json";
+  try {
+    const r = await fetch(url, { method, headers, body: method === "POST" ? "{}" : undefined, signal: AbortSignal.timeout(9000) });
+    if (p.expect === "ok") return { name: p.name, ok: r.ok, detail: r.ok ? undefined : `HTTP ${r.status}` };
+    if (p.expect === "registered") return { name: p.name, ok: r.status !== 404, detail: r.status === 404 ? "HTTP 404 — webhook not registered (workflow inactive?)" : undefined };
+    return { name: p.name, ok: true, detail: undefined }; // reachable: any HTTP response
+  } catch (e) {
+    return { name: p.name, ok: false, detail: `unreachable — ${(e instanceof Error ? e.message : String(e)).slice(0, 60)}` };
+  }
+}
+
+export async function probeChecks(env: Record<string, string | undefined>): Promise<CheckResult[]> {
+  return Promise.all(PROBES.map((p) => runProbe(p, env)));
+}
+
 /** Run every group. `messages` = { en:{...}, es:{...}, ... }. */
 export async function runHealthChecks(
   sb: SupabaseClient,
@@ -89,10 +120,11 @@ export async function runHealthChecks(
   env: Record<string, string | undefined>,
 ): Promise<CheckGroup[]> {
   const client = sb as AnyClient;
-  const [tables, columns, pricing] = await Promise.all([
+  const [tables, columns, pricing, probes] = await Promise.all([
     Promise.all(CRITICAL_TABLES.map((t) => checkTable(client, t))),
     Promise.all(CRITICAL_COLUMNS.map(([t, c, s]) => checkColumn(client, t, c, s))),
     checkPricing(client, CRITICAL_PRICING),
+    probeChecks(env),
   ]);
   return [
     { group: "Database tables", results: tables },
@@ -100,6 +132,7 @@ export async function runHealthChecks(
     { group: "Credit pricing", results: pricing },
     { group: "Translations (i18n parity)", results: i18nChecks(messages) },
     { group: "Environment", results: envChecks(env) },
+    { group: "Integrations (live)", results: probes },
   ];
 }
 
